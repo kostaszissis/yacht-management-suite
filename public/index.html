@@ -2,22 +2,118 @@
 <html lang="el">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <title>Yacht Check-In</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e3a5f" />
+    <meta name="description" content="Professional yacht fleet and check-in management system" />
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- iOS Specific Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Yacht Manager" />
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icon-152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
+
+    <!-- Standard Favicon -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+
+    <title>Yacht Management Suite</title>
+
+    <!-- External Scripts -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   </head>
   <body>
     <noscript>Χρειάζεται JavaScript για να τρέξει αυτή η εφαρμογή.</noscript>
     <div id="root"></div>
-    
+
     <style>
       * { outline: 0 !important; }
-      *:focus, *:active, input:focus, select:focus, button:focus, textarea:focus { 
-        outline: 0 !important; 
-        box-shadow: none !important; 
+      *:focus, *:active, input:focus, select:focus, button:focus, textarea:focus {
+        outline: 0 !important;
+        box-shadow: none !important;
       }
     </style>
+
+    <!-- Service Worker Registration -->
+    <script>
+      // Service Worker Registration
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/service-worker.js')
+            .then((registration) => {
+              console.log('✅ Service Worker registered successfully:', registration.scope);
+
+              // Check for updates every hour
+              setInterval(() => {
+                registration.update();
+              }, 60 * 60 * 1000);
+            })
+            .catch((error) => {
+              console.error('❌ Service Worker registration failed:', error);
+            });
+        });
+      }
+
+      // PWA Install Prompt Handler
+      let deferredPrompt;
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent the default mini-infobar from appearing on mobile
+        e.preventDefault();
+
+        // Store the event so it can be triggered later
+        deferredPrompt = e;
+
+        console.log('💡 PWA install prompt ready');
+
+        // You can show your own install button here
+        // For example, dispatch a custom event that your React app can listen to
+        window.dispatchEvent(new CustomEvent('pwa-install-available', { detail: e }));
+      });
+
+      window.addEventListener('appinstalled', () => {
+        console.log('✅ PWA installed successfully');
+        deferredPrompt = null;
+      });
+
+      // Track if app is running in standalone mode (installed as PWA)
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('🚀 Running as installed PWA');
+      }
+
+      // iOS specific: Check if app is running in standalone mode
+      if (window.navigator.standalone === true) {
+        console.log('🍎 Running as installed iOS PWA');
+      }
+
+      // Helper function to manually trigger install prompt
+      window.showInstallPrompt = async () => {
+        if (!deferredPrompt) {
+          console.log('Install prompt not available');
+          return false;
+        }
+
+        // Show the install prompt
+        deferredPrompt.prompt();
+
+        // Wait for the user's response
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} the install prompt`);
+
+        // Clear the deferredPrompt
+        deferredPrompt = null;
+
+        return outcome === 'accepted';
+      };
+    </script>
   </body>
 </html>
