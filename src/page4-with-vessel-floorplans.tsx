@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import authService from './authService';
+import { saveBookingHybrid } from './services/apiService';
 import {
   compressImage,
   getBase64Size,
@@ -682,12 +683,12 @@ export default function Page4({ onNavigate }) {
     setCurrentEmployee(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!isEmployee || !currentEmployee?.canEdit) {
       alert(lang === 'el' ? '🔒 Δεν έχετε δικαίωμα αποθήκευσης!' : '🔒 You do not have permission to save!');
       return;
     }
-    
+
     const dataToSave = {
       items,
       navItems,
@@ -701,15 +702,28 @@ export default function Page4({ onNavigate }) {
       notes,
       signatureImage
     };
-    
-    const storageKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    
-    if (bookings[currentBookingNumber]) {
-      bookings[currentBookingNumber][storageKey] = dataToSave;
-      bookings[currentBookingNumber].lastModified = new Date().toISOString();
-      localStorage.setItem('bookings', JSON.stringify(bookings));
+
+    // ✅ Save to API using hybrid function
+    const modeKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
+    try {
+      await saveBookingHybrid(currentBookingNumber, {
+        [modeKey]: dataToSave
+      });
+
+      // Also save to localStorage for backward compatibility
+      const storageKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+
+      if (bookings[currentBookingNumber]) {
+        bookings[currentBookingNumber][storageKey] = dataToSave;
+        bookings[currentBookingNumber].lastModified = new Date().toISOString();
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+      }
+
       alert(lang === 'el' ? '✅ Αποθηκεύτηκε!' : '✅ Saved!');
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert(lang === 'el' ? '❌ Σφάλμα αποθήκευσης!' : '❌ Save error!');
     }
   };
 
@@ -795,7 +809,7 @@ export default function Page4({ onNavigate }) {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (activeSection) {
       const currentSectionData = getSectionData(activeSection);
       let firstIncompleteItem = null;
@@ -900,18 +914,30 @@ export default function Page4({ onNavigate }) {
       notes,
       signatureImage
     };
-    
-    const storageKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    
-    if (bookings[currentBookingNumber]) {
-      bookings[currentBookingNumber][storageKey] = dataToSave;
-      bookings[currentBookingNumber].lastModified = new Date().toISOString();
-      localStorage.setItem('bookings', JSON.stringify(bookings));
-    }
-    
-    if (onNavigate && typeof onNavigate === 'function') {
-      onNavigate('next');
+
+    // ✅ Save to API before navigating
+    const modeKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
+    try {
+      await saveBookingHybrid(currentBookingNumber, {
+        [modeKey]: dataToSave
+      });
+
+      // Also save to localStorage for backward compatibility
+      const storageKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+
+      if (bookings[currentBookingNumber]) {
+        bookings[currentBookingNumber][storageKey] = dataToSave;
+        bookings[currentBookingNumber].lastModified = new Date().toISOString();
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+      }
+
+      if (onNavigate && typeof onNavigate === 'function') {
+        onNavigate('next');
+      }
+    } catch (error) {
+      console.error('Error saving before navigation:', error);
+      alert(lang === 'el' ? '❌ Σφάλμα αποθήκευσης!' : '❌ Save error!');
     }
   };
 

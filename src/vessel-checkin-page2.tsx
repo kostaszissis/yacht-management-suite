@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import { DataContext } from './App';
 import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
+import { saveBookingHybrid } from './services/apiService';
 
 // 🔥 IMPORT ΑΠΟ SharedComponents (ΤΑ ΚΟΙΝΑ)
 import {
@@ -628,17 +629,32 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
     }
   };
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     if (!currentBookingNumber) {
       alert(lang === 'el' ? '❌ Δεν υπάρχει ενεργή κράτηση!' : '❌ No active booking!');
       return;
     }
-    const dataToSave = { 
-      items, hullItems, dinghyItems, mainsailAgreed, 
+
+    const dataToSave = {
+      items, hullItems, dinghyItems, mainsailAgreed,
       diversAgreed, remarks
     };
-    saveBookingData(currentBookingNumber, dataToSave, mode);
-    alert(lang === 'el' ? '✅ Το προσχέδιο αποθηκεύτηκε!' : '✅ Draft saved!');
+
+    // ✅ Save to API using hybrid function
+    const modeKey = mode === 'in' ? 'page2DataCheckIn' : 'page2DataCheckOut';
+    try {
+      await saveBookingHybrid(currentBookingNumber, {
+        [modeKey]: dataToSave
+      });
+
+      // Also save via shared function for backward compatibility
+      saveBookingData(currentBookingNumber, dataToSave, mode);
+
+      alert(lang === 'el' ? '✅ Το προσχέδιο αποθηκεύτηκε!' : '✅ Draft saved!');
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert(lang === 'el' ? '❌ Σφάλμα αποθήκευσης!' : '❌ Save error!');
+    }
   };
 
   const handleClearForm = () => {

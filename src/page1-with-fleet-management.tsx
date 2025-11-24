@@ -8,7 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { DataContext } from './App';
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import authService from './authService';
-import { getVessels } from './services/apiService';
+import { getVessels, getBookingsHybrid, getBookingHybrid, saveBookingHybrid } from './services/apiService';
 
 // 🔥 SIGNATURE COMPRESSION FUNCTION
 const compressSignature = (base64Image) => {
@@ -203,43 +203,35 @@ const formatDate = (dateStr) => {
   return dateStr;
 };
 
-const saveBookingData = (bookingNumber, data) => {
+const saveBookingData = async (bookingNumber, data) => {
   if (!bookingNumber) return;
-  
+
   try {
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    
-    if (!bookings[bookingNumber]) {
-      bookings[bookingNumber] = {
-        lastModified: new Date().toISOString(),
-        synced: false
-      };
-    }
-    
-    bookings[bookingNumber].bookingData = data;
-    bookings[bookingNumber].lastModified = new Date().toISOString();
-    bookings[bookingNumber].synced = false;
-    
-    localStorage.setItem('bookings', JSON.stringify(bookings));
+    // ✅ Use hybrid API - saves to API and localStorage
+    await saveBookingHybrid(bookingNumber, {
+      bookingData: data
+    });
+
     localStorage.setItem('currentBooking', bookingNumber);
-    
+
     console.log('💾 Saved booking:', bookingNumber);
   } catch (error) {
     console.error('Error saving booking:', error);
   }
 };
 
-const loadBookingData = (bookingNumber) => {
+const loadBookingData = async (bookingNumber) => {
   if (!bookingNumber) return null;
-  
+
   try {
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    
-    if (bookings[bookingNumber]?.bookingData) {
+    // ✅ Use hybrid API - loads from API with localStorage fallback
+    const booking = await getBookingHybrid(bookingNumber);
+
+    if (booking?.bookingData) {
       console.log('📂 Loaded booking:', bookingNumber);
-      return bookings[bookingNumber].bookingData;
+      return booking.bookingData;
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error loading booking:', error);
@@ -247,9 +239,10 @@ const loadBookingData = (bookingNumber) => {
   }
 };
 
-const getAllBookings = () => {
+const getAllBookings = async () => {
   try {
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+    // ✅ Use hybrid API - loads from API with localStorage fallback
+    const bookings = await getBookingsHybrid();
     return Object.keys(bookings).map(bookingNumber => ({
       bookingNumber,
       ...bookings[bookingNumber].bookingData,

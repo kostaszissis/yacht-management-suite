@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
+import { saveBookingHybrid } from './services/apiService';
 import {
   compressImage,
   getBase64Size,
@@ -423,11 +424,12 @@ export default function Page3({ onNavigate }) {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!isEmployee || !currentEmployee?.canEdit) {
       alert(lang === 'el' ? '🔒 Δεν έχετε δικαίωμα αποθήκευσης!' : '🔒 You do not have permission to save!');
       return;
     }
+
     const dataToSave = {
       safetyItems,
       cabinItems,
@@ -436,8 +438,22 @@ export default function Page3({ onNavigate }) {
       signature: signatureImage,
       toiletWarningAccepted
     };
-    savePage3Data(currentBookingNumber, dataToSave, mode);
-    alert(lang === 'el' ? '✅ Αποθηκεύτηκε!' : '✅ Saved!');
+
+    // ✅ Save to API using hybrid function
+    const modeKey = mode === 'in' ? 'page3DataCheckIn' : 'page3DataCheckOut';
+    try {
+      await saveBookingHybrid(currentBookingNumber, {
+        [modeKey]: dataToSave
+      });
+
+      // Also save via shared function for backward compatibility
+      savePage3Data(currentBookingNumber, dataToSave, mode);
+
+      alert(lang === 'el' ? '✅ Αποθηκεύτηκε!' : '✅ Saved!');
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert(lang === 'el' ? '❌ Σφάλμα αποθήκευσης!' : '❌ Save error!');
+    }
   };
 
   const handleClearForm = () => {
@@ -461,7 +477,7 @@ export default function Page3({ onNavigate }) {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     // 🔥 VALIDATION: SAFETY & CABIN μόνο (ΟΧΙ OPTIONAL)
     const safetyIncomplete = safetyItems.filter(item => 
       mode === 'in' ? !item.inOk : (item.out !== 'ok' && item.out !== 'not')
@@ -515,10 +531,23 @@ export default function Page3({ onNavigate }) {
       signature: signatureImage,
       toiletWarningAccepted
     };
-    savePage3Data(currentBookingNumber, dataToSave, mode);
-    
-    if (onNavigate && typeof onNavigate === 'function') {
-      onNavigate('next');
+
+    // ✅ Save to API before navigating
+    const modeKey = mode === 'in' ? 'page3DataCheckIn' : 'page3DataCheckOut';
+    try {
+      await saveBookingHybrid(currentBookingNumber, {
+        [modeKey]: dataToSave
+      });
+
+      // Also save via shared function for backward compatibility
+      savePage3Data(currentBookingNumber, dataToSave, mode);
+
+      if (onNavigate && typeof onNavigate === 'function') {
+        onNavigate('next');
+      }
+    } catch (error) {
+      console.error('Error saving before navigation:', error);
+      alert(lang === 'el' ? '❌ Σφάλμα αποθήκευσης!' : '❌ Save error!');
     }
   };
 

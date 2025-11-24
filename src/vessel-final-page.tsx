@@ -15,6 +15,7 @@ import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import { sendCheckInEmail, sendCheckOutEmail } from './services/emailService';
 import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
+import { saveBookingHybrid, getBookingHybrid } from './services/apiService';
 
 import {
   brand,
@@ -1573,7 +1574,40 @@ export default function Page5({ onNavigate }) {
         photos: allPhotos,
         timestamp: new Date().toISOString()
       };
-      
+
+      // ✅ SAVE ALL DATA TO API BEFORE PDF/EMAIL
+      if (currentBookingNumber) {
+        try {
+          // Load existing booking to get all page data
+          const existingBooking = await getBookingHybrid(currentBookingNumber);
+
+          // Prepare complete booking update
+          const completeUpdate = {
+            bookingData: bookingData,
+            page2DataCheckIn: existingBooking?.page2DataCheckIn || null,
+            page2DataCheckOut: existingBooking?.page2DataCheckOut || null,
+            page3DataCheckIn: existingBooking?.page3DataCheckIn || null,
+            page3DataCheckOut: existingBooking?.page3DataCheckOut || null,
+            page4DataCheckIn: existingBooking?.page4DataCheckIn || null,
+            page4DataCheckOut: existingBooking?.page4DataCheckOut || null
+          };
+
+          // Add page5 data to the appropriate mode
+          if (mode === 'in') {
+            completeUpdate.page5DataCheckIn = page5AdditionalData;
+          } else {
+            completeUpdate.page5DataCheckOut = page5AdditionalData;
+          }
+
+          // Save complete booking to API
+          await saveBookingHybrid(currentBookingNumber, completeUpdate);
+          console.log('✅ Complete booking saved to API');
+        } catch (error) {
+          console.error('⚠️ Failed to save complete booking to API:', error);
+          // Continue with PDF/email even if API save fails
+        }
+      }
+
       const pdfDoc = generateLuxuryPDF(bookingData, mode, page5AdditionalData, lang, { isPage5: true });
       if (!pdfDoc) {
         alert('Error generating PDF!');
