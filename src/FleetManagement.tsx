@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import authService from './authService';
 import AdminDashboard from './AdminDashboard';
+import { getVessels } from './services/apiService';
 
 // =====================================================
 // FLEET MANAGEMENT - PROFESSIONAL VERSION WITH AUTH
@@ -25,25 +26,17 @@ const COMPANY_INFO = {
 };
 
 // --- Shared Fleet Service ---
+
 const FLEET_STORAGE_KEY = 'app_fleet_vessels';
 
-const INITIAL_FLEET = [
-  { id: "BOB", name: "Lagoon 42-BOB", type: "Catamaran", model: "Lagoon 42" },
-  { id: "PERLA", name: "Lagoon 46-PERLA", type: "Catamaran", model: "Lagoon 46" },
-  { id: "INFINITY", name: "Bali 4.2-INFINITY", type: "Catamaran", model: "Bali 4.2" },
-  { id: "MARIA1", name: "Jeanneau Sun Odyssey 449-MARIA1", type: "Monohull", model: "Jeanneau Sun Odyssey 449" },
-  { id: "MARIA2", name: "Jeanneau yacht 54-MARIA2", type: "Monohull", model: "Jeanneau yacht 54" },
-  { id: "BAR-BAR", name: "Beneteau Oceanis 46.1-BAR-BAR", type: "Monohull", model: "Beneteau Oceanis 46.1" },
-  { id: "KALISPERA", name: "Bavaria c42 Cruiser-KALISPERA", type: "Monohull", model: "Bavaria c42 Cruiser" },
-  { id: "VALESIA", name: "Bavaria c42 Cruiser-VALESIA", type: "Monohull", model: "Bavaria c42 Cruiser" }
-];
-
 const FleetService = {
-  initialize() {
-    const stored = localStorage.getItem(FLEET_STORAGE_KEY);
-    if (!stored) {
-      localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(INITIAL_FLEET));
-      console.log('✅ Fleet initialized with 8 boats');
+  async initialize() {
+    try {
+      const vessels = await getVessels();
+      localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(vessels));
+      console.log('✅ Fleet initialized from API:', vessels.length, 'boats');
+    } catch (error) {
+      console.error('Error loading fleet from API:', error);
     }
   },
 
@@ -53,10 +46,10 @@ const FleetService = {
       if (stored) {
         return JSON.parse(stored);
       }
-      return INITIAL_FLEET;
+      return [];
     } catch (error) {
       console.error('Error loading fleet:', error);
-      return INITIAL_FLEET;
+      return [];
     }
   },
 

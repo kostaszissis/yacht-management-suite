@@ -20,33 +20,26 @@ import {
   OwnerCode,
   ActivityLog
 } from './authService';
-
-const INITIAL_FLEET = [
-  { id: "BOB", name: "Lagoon 42-BOB" },
-  { id: "PERLA", name: "Lagoon 46-PERLA" },
-  { id: "INFINITY", name: "Bali 4.2-INFINITY" },
-  { id: "MARIA1", name: "Jeanneau Sun Odyssey 449-MARIA1" },
-  { id: "MARIA2", name: "Jeanneau yacht 54-MARIA2" },
-  { id: "BAR-BAR", name: "Beneteau Oceanis 46.1-BAR-BAR" },
-  { id: "KALISPERA", name: "Bavaria c42 Cruiser-KALISPERA" },
-  { id: "VALESIA", name: "Bavaria c42 Cruiser-VALESIA" }
-];
+import { getVessels } from './services/apiService';
 
 export default function AdminPanel() {
   const navigate = useNavigate();
   const [language, setLanguage] = useState('en');
   const [activeTab, setActiveTab] = useState<'employees' | 'owners' | 'logs'>('employees');
-  
+
+  // Fleet State
+  const [vessels, setVessels] = useState<any[]>([]);
+
   // Employee State
   const [employees, setEmployees] = useState<EmployeeCode[]>([]);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<string | null>(null);
-  
+
   // Owner State
   const [owners, setOwners] = useState<OwnerCode[]>([]);
   const [showAddOwner, setShowAddOwner] = useState(false);
   const [editingOwner, setEditingOwner] = useState<string | null>(null);
-  
+
   // Logs State
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [filterRole, setFilterRole] = useState<string>('all');
@@ -66,23 +59,33 @@ export default function AdminPanel() {
 
   useEffect(() => {
     initializeAuth();
-    
+
     // Check if user is admin
     if (!isAdmin()) {
-      alert(language === 'en' 
-        ? '⛔ Access Denied! Admin access required.' 
+      alert(language === 'en'
+        ? '⛔ Access Denied! Admin access required.'
         : '⛔ Δεν επιτρέπεται! Απαιτείται πρόσβαση Admin.');
       navigate('/');
       return;
     }
-    
+
     loadData();
+    loadVessels();
   }, []);
 
   const loadData = () => {
     setEmployees(getAllEmployeeCodes());
     setOwners(getAllOwnerCodes());
     setLogs(getAllActivityLogs());
+  };
+
+  const loadVessels = async () => {
+    try {
+      const data = await getVessels();
+      setVessels(data);
+    } catch (error) {
+      console.error('Error loading vessels:', error);
+    }
   };
 
   // ==================== EMPLOYEE MANAGEMENT ====================
@@ -542,7 +545,7 @@ export default function AdminPanel() {
                     {language === 'en' ? 'Select Boats' : 'Επιλογή Σκαφών'}
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {INITIAL_FLEET.map((boat) => (
+                    {vessels.map((boat) => (
                       <button
                         key={boat.id}
                         onClick={() => toggleBoatSelection(boat.id)}
@@ -592,7 +595,7 @@ export default function AdminPanel() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {owner.boatIds.map((boatId) => {
-                        const boat = INITIAL_FLEET.find(b => b.id === boatId);
+                        const boat = vessels.find(b => b.id === boatId);
                         return (
                           <span
                             key={boatId}

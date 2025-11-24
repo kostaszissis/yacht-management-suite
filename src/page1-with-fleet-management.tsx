@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { DataContext } from './App';
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import authService from './authService';
+import { getVessels } from './services/apiService';
 
 // 🔥 SIGNATURE COMPRESSION FUNCTION
 const compressSignature = (base64Image) => {
@@ -148,27 +149,19 @@ const I18N = {
 // 🔥 SHARED FLEET SERVICE
 const FLEET_STORAGE_KEY = 'app_fleet_vessels';
 
-const INITIAL_FLEET = [
-  { id: "BOB", name: "Lagoon 42-BOB", type: "Catamaran" },
-  { id: "PERLA", name: "Lagoon 46-PERLA", type: "Catamaran" },
-  { id: "INFINITY", name: "Bali 4.2-INFINITY", type: "Catamaran" },
-  { id: "MARIA1", name: "Jeanneau Sun Odyssey 449-MARIA1", type: "Monohull" },
-  { id: "MARIA2", name: "Jeanneau yacht 54-MARIA2", type: "Monohull" },
-  { id: "BAR-BAR", name: "Beneteau Oceanis 46.1-BAR-BAR", type: "Monohull" },
-  { id: "KALISPERA", name: "Bavaria c42 Cruiser-KALISPERA", type: "Monohull" },
-  { id: "VALESIA", name: "Bavaria c42 Cruiser-VALESIA", type: "Monohull" }
-];
-
 const FleetService = {
-  initialize() {
-    const stored = localStorage.getItem(FLEET_STORAGE_KEY);
-    if (!stored) {
-      localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(INITIAL_FLEET));
+  async initialize() {
+    try {
+      const vessels = await getVessels();
+      localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(vessels));
+      console.log('✅ Fleet initialized from API:', vessels.length, 'boats');
+    } catch (error) {
+      console.error('Error loading fleet from API:', error);
     }
   },
-  
+
   getBoatsByCategory() {
-    const boats = JSON.parse(localStorage.getItem(FLEET_STORAGE_KEY) || '[]') || INITIAL_FLEET;
+    const boats = JSON.parse(localStorage.getItem(FLEET_STORAGE_KEY) || '[]');
     const grouped = {};
     boats.forEach(boat => {
       if (!grouped[boat.type]) grouped[boat.type] = [];

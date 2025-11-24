@@ -1,18 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBoatsForOwner } from './ownerCodes';
-
-// Fleet data
-const INITIAL_FLEET = [
-  { id: "BOB", name: "Lagoon 42-BOB", type: "Catamaran", model: "Lagoon 42" },
-  { id: "PERLA", name: "Lagoon 46-PERLA", type: "Catamaran", model: "Lagoon 46" },
-  { id: "INFINITY", name: "Bali 4.2-INFINITY", type: "Catamaran", model: "Bali 4.2" },
-  { id: "MARIA1", name: "Jeanneau Sun Odyssey 449-MARIA1", type: "Monohull", model: "Jeanneau Sun Odyssey 449" },
-  { id: "MARIA2", name: "Jeanneau yacht 54-MARIA2", type: "Monohull", model: "Jeanneau yacht 54" },
-  { id: "BAR-BAR", name: "Beneteau Oceanis 46.1-BAR-BAR", type: "Monohull", model: "Beneteau Oceanis 46.1" },
-  { id: "KALISPERA", name: "Bavaria c42 Cruiser-KALISPERA", type: "Monohull", model: "Bavaria c42 Cruiser" },
-  { id: "VALESIA", name: "Bavaria c42 Cruiser-VALESIA", type: "Monohull", model: "Bavaria c42 Cruiser" }
-];
+import { getVessels } from './services/apiService';
 
 // 🔥 NEW: Function to get pending charters for a boat
 const getPendingCharters = (boatId: string) => {
@@ -57,30 +46,39 @@ export default function OwnerDashboard() {
   useEffect(() => {
     // Get owner code from navigation state
     const code = location.state?.ownerCode;
-    
+
     if (!code) {
       // If no code, redirect to home
       navigate('/');
       return;
     }
-    
+
     setOwnerCode(code);
-    
-    // Get boats for this owner
-    const boatIds = getBoatsForOwner(code);
-    const boats = INITIAL_FLEET.filter(boat => boatIds.includes(boat.id));
-    setOwnerBoats(boats);
-    
-    // 🔥 NEW: Load pending charters and invoices for each boat
-    const data: {[key: string]: {pendingCharters: any[], invoices: any[]}} = {};
-    boats.forEach(boat => {
-      data[boat.id] = {
-        pendingCharters: getPendingCharters(boat.id),
-        invoices: getInvoices(boat.id)
-      };
-    });
-    setBoatData(data);
-    
+
+    // Get boats for this owner from API
+    const loadBoats = async () => {
+      try {
+        const vessels = await getVessels();
+        const boatIds = getBoatsForOwner(code);
+        const boats = vessels.filter(boat => boatIds.includes(boat.id));
+        setOwnerBoats(boats);
+
+        // 🔥 NEW: Load pending charters and invoices for each boat
+        const data: {[key: string]: {pendingCharters: any[], invoices: any[]}} = {};
+        boats.forEach(boat => {
+          data[boat.id] = {
+            pendingCharters: getPendingCharters(boat.id),
+            invoices: getInvoices(boat.id)
+          };
+        });
+        setBoatData(data);
+      } catch (error) {
+        console.error('Error loading vessels:', error);
+      }
+    };
+
+    loadBoats();
+
   }, [location, navigate]);
 
   const handleBoatClick = (boatId: string) => {
