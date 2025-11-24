@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import FloatingChatWidget from './FloatingChatWidget';
+import authService from './authService';
 import {
   compressImage,
   getBase64Size,
   compressImageWithLogging,
   compressSignature,
   brand,
-  EMPLOYEE_CODES,
+  // EMPLOYEE_CODES, // removed - using authService
   uid,
   mid,
   I18N,
@@ -116,6 +117,7 @@ export default function Page3({ onNavigate }) {
   const [currentEmployee, setCurrentEmployee] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [employeeCode, setEmployeeCode] = useState("");
+  const [showEmployeeCode, setShowEmployeeCode] = useState(false);
   
   const [safetyItems, setSafetyItems] = useState([]);
   const [cabinItems, setCabinItems] = useState([]);
@@ -393,10 +395,10 @@ export default function Page3({ onNavigate }) {
   };
 
   const handleEmployeeLogin = () => {
-    const emp = EMPLOYEE_CODES[employeeCode];
-    if (emp) {
+    const user = authService.login(employeeCode);
+    if (user) {
       setIsEmployee(true);
-      setCurrentEmployee(emp);
+      setCurrentEmployee(user.permissions);
       setShowLoginModal(false);
       setEmployeeCode("");
     } else {
@@ -818,16 +820,24 @@ export default function Page3({ onNavigate }) {
               <label className="block text-sm font-semibold mb-2">
                 {lang === 'el' ? 'Κωδικός Υπαλλήλου:' : 'Employee Code:'}
               </label>
-              <input type="password" value={employeeCode} onChange={(e) => setEmployeeCode(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleEmployeeLogin()}
-                className="w-full p-2 border rounded" placeholder={lang === 'el' ? 'Εισάγετε κωδικό' : 'Enter code'} autoFocus />
-            </div>
-            <div className="text-xs text-gray-500 mb-4">
-              {lang === 'el' ? 'Demo κωδικοί:' : 'Demo codes:'}
-              <br />• ADMIN2024 (Full access)
-              <br />• EMP001 (Edit + Fleet)
-              <br />• EMP002 (Edit only)
-              <br />• VIEW123 (View only)
+              <div className="relative">
+                <input
+                  type={showEmployeeCode ? "text" : "password"}
+                  value={employeeCode}
+                  onChange={(e) => setEmployeeCode(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleEmployeeLogin()}
+                  className="w-full p-2 pr-10 border rounded"
+                  placeholder={lang === 'el' ? 'Εισάγετε κωδικό υπαλλήλου' : 'Enter employee code'}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEmployeeCode(!showEmployeeCode)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-xl text-gray-600 hover:text-blue-600"
+                >
+                  {showEmployeeCode ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => { setShowLoginModal(false); setEmployeeCode(""); }}

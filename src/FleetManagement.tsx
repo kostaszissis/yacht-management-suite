@@ -1246,6 +1246,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
   });
   const [step, setStep] = useState(1);
   const [adminCode, setAdminCode] = useState('');
+  const [showAdminCode, setShowAdminCode] = useState(false);
   const [error, setError] = useState('');
   const [expandedItem, setExpandedItem] = useState(null);
 
@@ -1543,13 +1544,22 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Κωδικός Admin:
                 </label>
-                <input
-                  type="password"
-                  value={adminCode}
-                  onChange={(e) => setAdminCode(e.target.value)}
-                  placeholder="Εισάγετε τον κωδικό ADMIN"
-                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500 text-center text-lg"
-                />
+                <div className="relative">
+                  <input
+                    type={showAdminCode ? "text" : "password"}
+                    value={adminCode}
+                    onChange={(e) => setAdminCode(e.target.value)}
+                    placeholder="Εισάγετε τον κωδικό ADMIN"
+                    className="w-full px-4 py-3 pr-12 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500 text-center text-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminCode(!showAdminCode)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-xl text-gray-400 hover:text-white"
+                  >
+                    {showAdminCode ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                </div>
               </div>
 
               {error && (

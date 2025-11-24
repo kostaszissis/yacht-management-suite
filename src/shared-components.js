@@ -101,13 +101,8 @@ export const brand = {
   white: "#FFFFFF",
 };
 
-// 👥 EMPLOYEE CODES
-export const EMPLOYEE_CODES = {
-  "ADMIN2024": { name: "Admin", canEdit: true, canDelete: true, canManageFleet: true, canClearData: true },
-  "EMP001": { name: "John", canEdit: true, canDelete: false, canManageFleet: true, canClearData: false },
-  "EMP002": { name: "Maria", canEdit: true, canDelete: false, canManageFleet: false, canClearData: false },
-  "VIEW123": { name: "Viewer", canEdit: false, canDelete: false, canManageFleet: false, canClearData: false }
-};
+// 👥 EMPLOYEE CODES - DEPRECATED - Use authService instead
+// export const EMPLOYEE_CODES = { ... };
 
 // 🔧 UID & MID
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);

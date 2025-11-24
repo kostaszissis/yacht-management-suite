@@ -7,6 +7,7 @@ import { useState, useMemo, useRef, useEffect, useContext } from "react";
 import { useNavigate, useLocation } from 'react-router-dom';
 import { DataContext } from './App';
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
+import authService from './authService';
 
 // 🔥 SIGNATURE COMPRESSION FUNCTION
 const compressSignature = (base64Image) => {
@@ -338,13 +339,9 @@ export default function Page1() {
   const [isEmployee, setIsEmployee] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [employeeCode, setEmployeeCode] = useState("");
-  
-  const EMPLOYEE_CODES = {
-    "ADMIN2024": { name: "Admin", canEdit: true, canDelete: true, canManageFleet: true, canClearData: true },
-    "EMP001": { name: "John", canEdit: true, canDelete: false, canManageFleet: true, canClearData: false },
-    "EMP002": { name: "Maria", canEdit: true, canDelete: false, canManageFleet: false, canClearData: false },
-    "VIEW123": { name: "Viewer", canEdit: false, canDelete: false, canManageFleet: false, canClearData: false }
-  };
+  const [showEmployeeCode, setShowEmployeeCode] = useState(false);
+
+  // EMPLOYEE_CODES removed - now using authService
 
   const [currentEmployee, setCurrentEmployee] = useState(null);
   
@@ -480,12 +477,12 @@ export default function Page1() {
   }, [form, history]);
 
   const handleEmployeeLogin = () => {
-    const employee = EMPLOYEE_CODES[employeeCode];
-    if (employee) {
-      setCurrentEmployee(employee);
+    const user = authService.login(employeeCode);
+    if (user) {
+      setCurrentEmployee(user.permissions);
       setIsEmployee(true);
       setShowLoginModal(false);
-      alert(`${lang === 'el' ? 'Καλωσήρθες' : 'Welcome'} ${employee.name}!`);
+      alert(`${lang === 'el' ? 'Καλωσήρθες' : 'Welcome'} ${user.name}!`);
       setEmployeeCode("");
     } else {
       alert(lang === 'el' ? 'Λάθος κωδικός!' : 'Wrong code!');
@@ -1734,25 +1731,26 @@ export default function Page1() {
                 <label className="block text-sm font-semibold mb-2">
                   {lang === 'el' ? 'Κωδικός Υπαλλήλου:' : 'Employee Code:'}
                 </label>
-                <input
-                  type="password"
-                  value={employeeCode}
-                  onChange={(e) => setEmployeeCode(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleEmployeeLogin()}
-                  className="w-full p-2 border rounded"
-                  placeholder={lang === 'el' ? 'Εισάγετε κωδικό' : 'Enter code'}
-                  autoFocus
-                />
+                <div className="relative">
+                  <input
+                    type={showEmployeeCode ? "text" : "password"}
+                    value={employeeCode}
+                    onChange={(e) => setEmployeeCode(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleEmployeeLogin()}
+                    className="w-full p-2 pr-10 border rounded"
+                    placeholder={lang === 'el' ? 'Εισάγετε κωδικό υπαλλήλου' : 'Enter employee code'}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEmployeeCode(!showEmployeeCode)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-xl text-gray-600 hover:text-blue-600"
+                  >
+                    {showEmployeeCode ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                </div>
               </div>
-              
-              <div className="text-xs text-gray-500 mb-4">
-                {lang === 'el' ? 'Demo κωδικοί:' : 'Demo codes:'}
-                <br />• ADMIN2024 (Full access + Clear Data)
-                <br />• EMP001 (Edit + Fleet)
-                <br />• EMP002 (Edit only)
-                <br />• VIEW123 (View only)
-              </div>
-              
+
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => {

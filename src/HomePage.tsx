@@ -22,6 +22,7 @@ export default function HomePage() {
   const [showFleetModal, setShowFleetModal] = useState(false);
   const [showMusicModal, setShowMusicModal] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [fleetCode, setFleetCode] = useState('');
   const [bookingStatus, setBookingStatus] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
@@ -801,14 +802,33 @@ export default function HomePage() {
               </p>
             </div>
             <form onSubmit={handleAdminLogin}>
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder={language === 'en' ? 'Employee Code' : 'Κωδικός Υπαλλήλου'}
-                style={{ ...styles.searchInput, width: '100%', marginBottom: '16px' }}
-                autoFocus
-              />
+              <div style={{ position: 'relative', width: '100%', marginBottom: '16px' }}>
+                <input
+                  type={showAdminPassword ? "text" : "password"}
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder={language === 'en' ? 'Employee Code' : 'Κωδικός Υπαλλήλου'}
+                  style={{ ...styles.searchInput, width: '100%', paddingRight: '45px' }}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPassword(!showAdminPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    color: '#1e3a5f'
+                  }}
+                >
+                  {showAdminPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   type="button"

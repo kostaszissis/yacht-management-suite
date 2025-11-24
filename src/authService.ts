@@ -108,6 +108,21 @@ const DEFAULT_EMPLOYEE_CODES: EmployeeCode[] = [
     enabled: true
   },
   {
+    code: 'CHECKIN2025',
+    name: 'Check-in Check-out',
+    role: 'TECHNICAL',
+    canEdit: false,
+    canDelete: false,
+    canManageFleet: false,
+    canClearData: false,
+    canManageCodes: false,
+    canViewFinancials: false,
+    canEditFinancials: false,
+    canDoCheckInOut: true,
+    canManageTasks: false,
+    enabled: true
+  },
+  {
     code: 'BOOK001!4628',
     name: 'Booking Manager',
     role: 'BOOKING',
@@ -164,6 +179,21 @@ export const initializeAuth = () => {
   if (!existingCodes) {
     localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(DEFAULT_EMPLOYEE_CODES));
     console.log('✅ Employee codes initialized');
+  } else {
+    // 🔧 FIX: Check if CHECKIN2025 exists, if not force update with defaults
+    try {
+      const parsed = JSON.parse(existingCodes);
+      const hasCheckin2025 = parsed.find((emp: EmployeeCode) => emp.code === 'CHECKIN2025');
+
+      if (!hasCheckin2025) {
+        console.log('⚠️ CHECKIN2025 missing! Force updating employee codes...');
+        localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(DEFAULT_EMPLOYEE_CODES));
+        console.log('✅ Employee codes updated with CHECKIN2025');
+      }
+    } catch (error) {
+      console.error('Error checking employee codes, reinitializing...', error);
+      localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(DEFAULT_EMPLOYEE_CODES));
+    }
   }
 
   // Initialize activity logs if not exists

@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import { DataContext } from './App';
 import FloatingChatWidget from './FloatingChatWidget';
+import authService from './authService';
 
 // 🔥 IMPORT ΑΠΟ SharedComponents (ΤΑ ΚΟΙΝΑ)
 import {
   brand,
-  EMPLOYEE_CODES,
+  // EMPLOYEE_CODES, // removed - using authService
   I18N,
   uid,
   mid,
@@ -303,6 +304,7 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
   const [isEmployee, setIsEmployee] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [employeeCode, setEmployeeCode] = useState("");
+  const [showEmployeeCode, setShowEmployeeCode] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState(null);
 
   const [mainsailAgreed, setMainsailAgreed] = useState(false);
@@ -599,12 +601,13 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
   };
 
   const handleEmployeeLogin = () => {
-    if (EMPLOYEE_CODES[employeeCode]) {
-      setCurrentEmployee(EMPLOYEE_CODES[employeeCode]);
+    const user = authService.login(employeeCode);
+    if (user) {
+      setCurrentEmployee(user.permissions);
       setIsEmployee(true);
       setShowLoginModal(false);
       setEmployeeCode("");
-      alert(`${lang === 'el' ? 'Καλωσήρθες' : 'Welcome'} ${EMPLOYEE_CODES[employeeCode].name}!`);
+      alert(`${lang === 'el' ? 'Καλωσήρθες' : 'Welcome'} ${user.name}!`);
     } else {
       alert(lang === 'el' ? 'Λάθος κωδικός!' : 'Wrong code!');
     }
@@ -1117,16 +1120,24 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
               <label className="block text-sm font-semibold mb-2">
                 {lang === 'el' ? 'Κωδικός Υπαλλήλου:' : 'Employee Code:'}
               </label>
-              <input type="password" value={employeeCode} onChange={(e) => setEmployeeCode(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleEmployeeLogin()}
-                className="w-full p-2 border rounded" placeholder={lang === 'el' ? 'Εισάγετε κωδικό' : 'Enter code'} autoFocus />
-            </div>
-            <div className="text-xs text-gray-500 mb-4">
-              {lang === 'el' ? 'Demo κωδικοί:' : 'Demo codes:'}
-              <br />• ADMIN2024 (Full access)
-              <br />• EMP001 (Edit + Fleet)
-              <br />• EMP002 (Edit only)
-              <br />• VIEW123 (View only)
+              <div className="relative">
+                <input
+                  type={showEmployeeCode ? "text" : "password"}
+                  value={employeeCode}
+                  onChange={(e) => setEmployeeCode(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleEmployeeLogin()}
+                  className="w-full p-2 pr-10 border rounded"
+                  placeholder={lang === 'el' ? 'Εισάγετε κωδικό υπαλλήλου' : 'Enter employee code'}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEmployeeCode(!showEmployeeCode)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-xl text-gray-600 hover:text-blue-600"
+                >
+                  {showEmployeeCode ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => { setShowLoginModal(false); setEmployeeCode(""); }}

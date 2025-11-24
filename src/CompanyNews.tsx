@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from './authService';
 
 interface NewsItem {
   id: string;
@@ -9,12 +10,7 @@ interface NewsItem {
   createdAt: string;
 }
 
-const EMPLOYEE_CODES = {
-  "ADMIN2024": { name: "Admin", canEdit: true },
-  "EMP001": { name: "John", canEdit: true },
-  "EMP002": { name: "Maria", canEdit: true },
-  "VIEW123": { name: "Viewer", canEdit: false }
-};
+// EMPLOYEE_CODES removed - now using authService
 
 export default function CompanyNews() {
   const [language, setLanguage] = useState('en');
@@ -23,6 +19,7 @@ export default function CompanyNews() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState<any>(null);
   
   const [newNewsItem, setNewNewsItem] = useState({
@@ -50,12 +47,12 @@ export default function CompanyNews() {
   // Admin login
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const employee = EMPLOYEE_CODES[adminPassword as keyof typeof EMPLOYEE_CODES];
-    
-    if (employee) {
-      setCurrentEmployee(employee);
-      setIsAdmin(true);
+
+    const user = authService.login(adminPassword);
+
+    if (user) {
+      setCurrentEmployee(user.permissions);
+      setIsAdmin(user.role === 'ADMIN');
       setShowLoginModal(false);
       setAdminPassword('');
     } else {
@@ -236,14 +233,23 @@ export default function CompanyNews() {
             </div>
             
             <form onSubmit={handleAdminLogin}>
-              <input
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                placeholder={language === 'en' ? 'Admin Code' : 'Κωδικός Διαχειριστή'}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:outline-none text-lg mb-4"
-                autoFocus
-              />
+              <div className="relative w-full mb-4">
+                <input
+                  type={showAdminPassword ? "text" : "password"}
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder={language === 'en' ? 'Admin Code' : 'Κωδικός Διαχειριστή'}
+                  className="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:outline-none text-lg"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPassword(!showAdminPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-xl text-gray-600 hover:text-indigo-600"
+                >
+                  {showAdminPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
               
               <div className="flex gap-3">
                 <button

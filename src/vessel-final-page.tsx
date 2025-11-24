@@ -13,6 +13,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import { sendCheckInEmail, sendCheckOutEmail } from './services/emailService';
+import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
 
 import {
@@ -34,12 +35,7 @@ import {
 // CONSTANTS
 // =================================================================
 
-const EMPLOYEE_CODES = [
-  { code: 'ADMIN2024', name: 'Admin User', permissions: ['edit', 'delete', 'fleet'] },
-  { code: 'EMP001', name: 'Employee 1', permissions: ['edit', 'fleet'] },
-  { code: 'EMP002', name: 'Employee 2', permissions: ['edit'] },
-  { code: 'VIEW123', name: 'Viewer', permissions: ['view'] }
-];
+// EMPLOYEE_CODES removed - now using authService
 
 // EmailJS Config moved to emailService.ts
 
@@ -1121,6 +1117,7 @@ export default function Page5({ onNavigate }) {
   const [isEmployee, setIsEmployee] = useState(false);
   const [currentEmployee, setCurrentEmployee] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showEmployeePassword, setShowEmployeePassword] = useState(false);
   
   const t = Page5_I18N[lang] || Page5_I18N.en;
   const [allItems, setAllItems] = useState([]);
@@ -2032,44 +2029,52 @@ export default function Page5({ onNavigate }) {
               <label className="block text-sm font-semibold mb-2" style={{ color: brand.black }}>
                 {lang === 'el' ? 'Κωδικός Υπαλλήλου:' : 'Employee Code:'}
               </label>
-              <input
-                id="employee-code-input"
-                type="password"
-                placeholder={lang === 'el' ? 'Εισάγετε κωδικό' : 'Enter code'}
-                autoFocus
-                className="w-full px-3 py-2 border-2 rounded"
-                style={{ borderColor: brand.black }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const code = e.target.value.trim();
-                    if (!code) {
-                      alert(lang === 'el' ? 'Παρακαλώ εισάγετε κωδικό' : 'Please enter a code');
-                      return;
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="employee-code-input"
+                  type={showEmployeePassword ? "text" : "password"}
+                  placeholder={lang === 'el' ? 'Εισάγετε κωδικό υπαλλήλου' : 'Enter employee code'}
+                  autoFocus
+                  className="w-full px-3 py-2 border-2 rounded"
+                  style={{ borderColor: brand.black, paddingRight: '40px' }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const code = e.target.value.trim();
+                      if (!code) {
+                        alert(lang === 'el' ? 'Παρακαλώ εισάγετε κωδικό' : 'Please enter a code');
+                        return;
+                      }
+                      const user = authService.login(code);
+                      if (user) {
+                        setIsEmployee(true);
+                        setCurrentEmployee(user.permissions);
+                        setShowLoginModal(false);
+                        sessionStorage.setItem('currentEmployee', JSON.stringify(user));
+                      } else {
+                        alert(lang === 'el' ? 'Λάθος κωδικός' : 'Invalid code');
+                        e.target.value = '';
+                      }
                     }
-                    const employee = EMPLOYEE_CODES.find(emp => emp.code === code);
-                    if (employee) {
-                      setIsEmployee(true);
-                      setCurrentEmployee(employee);
-                      setShowLoginModal(false);
-                      sessionStorage.setItem('currentEmployee', JSON.stringify(employee));
-                    } else {
-                      alert(lang === 'el' ? 'Λάθος κωδικός' : 'Invalid code');
-                      e.target.value = '';
-                    }
-                  }
-                }}
-              />
-            </div>
-            <div className="mb-4 p-3 bg-gray-50 rounded">
-              <p className="text-xs font-semibold mb-2" style={{ color: brand.grey }}>
-                {lang === 'el' ? 'Demo κωδικοί:' : 'Demo codes:'}
-              </p>
-              <ul className="text-xs space-y-1" style={{ color: brand.grey }}>
-                <li>• ADMIN2024 ({lang === 'el' ? 'Πλήρης πρόσβαση' : 'Full access'})</li>
-                <li>• EMP001 ({lang === 'el' ? 'Επεξεργασία + Στόλος' : 'Edit + Fleet'})</li>
-                <li>• EMP002 ({lang === 'el' ? 'Μόνο επεξεργασία' : 'Edit only'})</li>
-                <li>• VIEW123 ({lang === 'el' ? 'Μόνο προβολή' : 'View only'})</li>
-              </ul>
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEmployeePassword(!showEmployeePassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    color: brand.black
+                  }}
+                >
+                  {showEmployeePassword ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
             </div>
             <div className="flex justify-end gap-2">
               <button 
@@ -2079,7 +2084,7 @@ export default function Page5({ onNavigate }) {
               >
                 {lang === 'el' ? 'Ακύρωση' : 'Cancel'}
               </button>
-              <button 
+              <button
                 onClick={() => {
                   const input = document.getElementById('employee-code-input');
                   const code = input?.value.trim();
@@ -2087,12 +2092,12 @@ export default function Page5({ onNavigate }) {
                     alert(lang === 'el' ? 'Παρακαλώ εισάγετε κωδικό' : 'Please enter a code');
                     return;
                   }
-                  const employee = EMPLOYEE_CODES.find(emp => emp.code === code);
-                  if (employee) {
+                  const user = authService.login(code);
+                  if (user) {
                     setIsEmployee(true);
-                    setCurrentEmployee(employee);
+                    setCurrentEmployee(user.permissions);
                     setShowLoginModal(false);
-                    sessionStorage.setItem('currentEmployee', JSON.stringify(employee));
+                    sessionStorage.setItem('currentEmployee', JSON.stringify(user));
                   } else {
                     alert(lang === 'el' ? 'Λάθος κωδικός' : 'Invalid code');
                     if (input) input.value = '';
