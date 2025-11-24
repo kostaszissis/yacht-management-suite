@@ -5,7 +5,7 @@
 // Sends to: Customer, Company, Base Manager, Owners
 
 // Email Server URL (change this when you go to production)
-const EMAIL_SERVER_URL = 'http://localhost:3001';
+const EMAIL_SERVER_URL = 'https://yachtmanagementsuite.com/email';
 
 // Email Recipients
 export const EMAIL_RECIPIENTS = {
