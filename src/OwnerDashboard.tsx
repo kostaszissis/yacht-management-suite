@@ -40,6 +40,7 @@ export default function OwnerDashboard() {
   const [ownerCode, setOwnerCode] = useState('');
   const [ownerBoats, setOwnerBoats] = useState<any[]>([]);
   const [boatData, setBoatData] = useState<{[key: string]: {pendingCharters: any[], invoices: any[]}}>({});
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -74,6 +75,8 @@ export default function OwnerDashboard() {
         setBoatData(data);
       } catch (error) {
         console.error('Error loading vessels:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -106,8 +109,51 @@ export default function OwnerDashboard() {
     });
   };
 
-  if (!ownerCode || ownerBoats.length === 0) {
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-bounce">⚓</div>
+          <div className="text-2xl font-bold text-white mb-2">
+            {language === 'en' ? 'Loading...' : 'Φόρτωση...'}
+          </div>
+          <div className="text-teal-300">
+            {language === 'en' ? 'Please wait' : 'Παρακαλώ περιμένετε'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if no owner code
+  if (!ownerCode) {
     return null;
+  }
+
+  // Show message if no boats found
+  if (ownerBoats.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="text-6xl mb-4">🔍</div>
+          <h2 className="text-2xl font-bold text-white mb-3">
+            {language === 'en' ? 'No Vessels Found' : 'Δεν βρέθηκαν σκάφη'}
+          </h2>
+          <p className="text-teal-300 mb-6">
+            {language === 'en'
+              ? 'No vessels are currently assigned to your account.'
+              : 'Δεν υπάρχουν σκάφη στον λογαριασμό σας.'}
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-colors"
+          >
+            {language === 'en' ? '← Back to Home' : '← Επιστροφή στην Αρχική'}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // 🔥 NEW: Calculate total pending items
