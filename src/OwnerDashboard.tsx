@@ -131,31 +131,6 @@ export default function OwnerDashboard() {
     return null;
   }
 
-  // Show message if no boats found
-  if (ownerBoats.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8">
-          <div className="text-6xl mb-4">🔍</div>
-          <h2 className="text-2xl font-bold text-white mb-3">
-            {language === 'en' ? 'No Vessels Found' : 'Δεν βρέθηκαν σκάφη'}
-          </h2>
-          <p className="text-teal-300 mb-6">
-            {language === 'en'
-              ? 'No vessels are currently assigned to your account.'
-              : 'Δεν υπάρχουν σκάφη στον λογαριασμό σας.'}
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-colors"
-          >
-            {language === 'en' ? '← Back to Home' : '← Επιστροφή στην Αρχική'}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // 🔥 NEW: Calculate total pending items
   const totalPendingCharters = Object.values(boatData).reduce((sum, data) => sum + data.pendingCharters.length, 0);
   const totalInvoices = Object.values(boatData).reduce((sum, data) => sum + data.invoices.length, 0);
@@ -255,8 +230,27 @@ export default function OwnerDashboard() {
         )}
 
         {/* Boats Grid - Elegant & Compact */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {ownerBoats.map((boat) => {
+        {ownerBoats.length === 0 ? (
+          <div className="bg-slate-800 border-2 border-gray-600 rounded-xl p-12 text-center">
+            <div className="text-6xl mb-4">🔍</div>
+            <h3 className="text-2xl font-bold text-white mb-3">
+              {language === 'en' ? 'No Vessels Found' : 'Δεν βρέθηκαν σκάφη'}
+            </h3>
+            <p className="text-gray-400 mb-6">
+              {language === 'en'
+                ? 'No vessels are currently assigned to your account.'
+                : 'Δεν υπάρχουν σκάφη στον λογαριασμό σας.'}
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              {language === 'en' ? '← Back to Home' : '← Επιστροφή'}
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {ownerBoats.map((boat) => {
             const data = boatData[boat.id] || { pendingCharters: [], invoices: [] };
             const hasPending = data.pendingCharters.length > 0;
             const hasInvoices = data.invoices.length > 0;
@@ -344,7 +338,8 @@ export default function OwnerDashboard() {
               </button>
             );
           })}
-        </div>
+          </div>
+        )}
 
         {/* Info Box */}
         <div className="mt-8 bg-slate-800 border-2 border-teal-500 rounded-xl p-6">
