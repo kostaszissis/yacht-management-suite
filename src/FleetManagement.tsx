@@ -455,16 +455,24 @@ export default function FleetManagement() {
     }
     
     if (state?.userType === 'OWNER' && state?.boatId) {
-      const boats = FleetService.getAllBoats();
+      // 🔥 FIX: Use INITIAL_FLEET as fallback if FleetService is empty
+      let boats = FleetService.getAllBoats();
+      if (boats.length === 0) {
+        console.log('⚠️ FleetService empty, using INITIAL_FLEET');
+        boats = INITIAL_FLEET;
+      }
+
       const boat = boats.find(b => b.id === state.boatId);
-      
+
       if (boat) {
         setBoatData(boat);
         setOwnerCode(state.ownerCode);
         setShowFleetSummary(false);
         setPage('dashboard');
-        
-        console.log('✅ Owner viewing boat dashboard:', boat.id);
+
+        console.log('✅ Owner viewing boat dashboard:', boat.id, boat);
+      } else {
+        console.error('❌ Boat not found:', state.boatId, 'Available boats:', boats.map(b => b.id));
       }
       return;
     }
@@ -491,6 +499,25 @@ export default function FleetManagement() {
   useEffect(() => {
     loadBoats();
   }, []);
+
+  // 🔥 FIX: Load boat data when allBoats is populated (handles owner navigation)
+  useEffect(() => {
+    const state = location.state;
+    if (!boatData && state?.userType === 'OWNER' && state?.boatId) {
+      // Use allBoats if available, otherwise use INITIAL_FLEET
+      let boats = allBoats.length > 0 ? allBoats : INITIAL_FLEET;
+
+      const boat = boats.find(b => b.id === state.boatId);
+      if (boat) {
+        setBoatData(boat);
+        setOwnerCode(state.ownerCode);
+        setPage('dashboard');
+        console.log('✅ Boat data loaded for owner:', boat.id, boat);
+      } else {
+        console.error('❌ Boat not found in allBoats/INITIAL_FLEET:', state.boatId);
+      }
+    }
+  }, [allBoats, boatData, location.state]);
 
   useEffect(() => {
     if (page === 'adminDashboard') {
@@ -1246,7 +1273,6 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
   });
   const [step, setStep] = useState(1);
   const [adminCode, setAdminCode] = useState('');
-  const [showAdminCode, setShowAdminCode] = useState(false);
   const [error, setError] = useState('');
   const [expandedItem, setExpandedItem] = useState(null);
 
@@ -1544,22 +1570,13 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Κωδικός Admin:
                 </label>
-                <div className="relative">
-                  <input
-                    type={showAdminCode ? "text" : "password"}
-                    value={adminCode}
-                    onChange={(e) => setAdminCode(e.target.value)}
-                    placeholder="Εισάγετε τον κωδικό ADMIN"
-                    className="w-full px-4 py-3 pr-12 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500 text-center text-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowAdminCode(!showAdminCode)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-xl text-gray-400 hover:text-white"
-                  >
-                    {showAdminCode ? '👁️' : '👁️‍🗨️'}
-                  </button>
-                </div>
+                <input
+                  type="password"
+                  value={adminCode}
+                  onChange={(e) => setAdminCode(e.target.value)}
+                  placeholder="Εισάγετε τον κωδικό ADMIN"
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500 text-center text-lg"
+                />
               </div>
 
               {error && (
