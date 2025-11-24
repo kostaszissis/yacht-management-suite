@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBoatsForOwner } from './ownerCodes';
-import { getVessels } from './services/apiService';
+
+// Fleet data
+const INITIAL_FLEET = [
+  { id: "BOB", name: "Lagoon 42-BOB", type: "Catamaran", model: "Lagoon 42" },
+  { id: "PERLA", name: "Lagoon 46-PERLA", type: "Catamaran", model: "Lagoon 46" },
+  { id: "INFINITY", name: "Bali 4.2-INFINITY", type: "Catamaran", model: "Bali 4.2" },
+  { id: "MARIA1", name: "Jeanneau Sun Odyssey 449-MARIA1", type: "Monohull", model: "Jeanneau Sun Odyssey 449" },
+  { id: "MARIA2", name: "Jeanneau yacht 54-MARIA2", type: "Monohull", model: "Jeanneau yacht 54" },
+  { id: "BAR-BAR", name: "Beneteau Oceanis 46.1-BAR-BAR", type: "Monohull", model: "Beneteau Oceanis 46.1" },
+  { id: "KALISPERA", name: "Bavaria c42 Cruiser-KALISPERA", type: "Monohull", model: "Bavaria c42 Cruiser" },
+  { id: "VALESIA", name: "Bavaria c42 Cruiser-VALESIA", type: "Monohull", model: "Bavaria c42 Cruiser" }
+];
 
 // 🔥 NEW: Function to get pending charters for a boat
 const getPendingCharters = (boatId: string) => {
@@ -40,48 +51,36 @@ export default function OwnerDashboard() {
   const [ownerCode, setOwnerCode] = useState('');
   const [ownerBoats, setOwnerBoats] = useState<any[]>([]);
   const [boatData, setBoatData] = useState<{[key: string]: {pendingCharters: any[], invoices: any[]}}>({});
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     // Get owner code from navigation state
     const code = location.state?.ownerCode;
-
+    
     if (!code) {
       // If no code, redirect to home
       navigate('/');
       return;
     }
-
+    
     setOwnerCode(code);
-
-    // Get boats for this owner from API
-    const loadBoats = async () => {
-      try {
-        const vessels = await getVessels();
-        const boatIds = getBoatsForOwner(code);
-        const boats = vessels.filter(boat => boatIds.includes(boat.id));
-        setOwnerBoats(boats);
-
-        // 🔥 NEW: Load pending charters and invoices for each boat
-        const data: {[key: string]: {pendingCharters: any[], invoices: any[]}} = {};
-        boats.forEach(boat => {
-          data[boat.id] = {
-            pendingCharters: getPendingCharters(boat.id),
-            invoices: getInvoices(boat.id)
-          };
-        });
-        setBoatData(data);
-      } catch (error) {
-        console.error('Error loading vessels:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadBoats();
-
+    
+    // Get boats for this owner
+    const boatIds = getBoatsForOwner(code);
+    const boats = INITIAL_FLEET.filter(boat => boatIds.includes(boat.id));
+    setOwnerBoats(boats);
+    
+    // 🔥 NEW: Load pending charters and invoices for each boat
+    const data: {[key: string]: {pendingCharters: any[], invoices: any[]}} = {};
+    boats.forEach(boat => {
+      data[boat.id] = {
+        pendingCharters: getPendingCharters(boat.id),
+        invoices: getInvoices(boat.id)
+      };
+    });
+    setBoatData(data);
+    
   }, [location, navigate]);
 
   const handleBoatClick = (boatId: string) => {
@@ -109,25 +108,7 @@ export default function OwnerDashboard() {
     });
   };
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4 animate-bounce">⚓</div>
-          <div className="text-2xl font-bold text-white mb-2">
-            {language === 'en' ? 'Loading...' : 'Φόρτωση...'}
-          </div>
-          <div className="text-teal-300">
-            {language === 'en' ? 'Please wait' : 'Παρακαλώ περιμένετε'}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect if no owner code
-  if (!ownerCode) {
+  if (!ownerCode || ownerBoats.length === 0) {
     return null;
   }
 
@@ -230,27 +211,8 @@ export default function OwnerDashboard() {
         )}
 
         {/* Boats Grid - Elegant & Compact */}
-        {ownerBoats.length === 0 ? (
-          <div className="bg-slate-800 border-2 border-gray-600 rounded-xl p-12 text-center">
-            <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-2xl font-bold text-white mb-3">
-              {language === 'en' ? 'No Vessels Found' : 'Δεν βρέθηκαν σκάφη'}
-            </h3>
-            <p className="text-gray-400 mb-6">
-              {language === 'en'
-                ? 'No vessels are currently assigned to your account.'
-                : 'Δεν υπάρχουν σκάφη στον λογαριασμό σας.'}
-            </p>
-            <button
-              onClick={() => navigate('/')}
-              className="px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-lg transition-colors"
-            >
-              {language === 'en' ? '← Back to Home' : '← Επιστροφή'}
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ownerBoats.map((boat) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {ownerBoats.map((boat) => {
             const data = boatData[boat.id] || { pendingCharters: [], invoices: [] };
             const hasPending = data.pendingCharters.length > 0;
             const hasInvoices = data.invoices.length > 0;
@@ -338,8 +300,7 @@ export default function OwnerDashboard() {
               </button>
             );
           })}
-          </div>
-        )}
+        </div>
 
         {/* Info Box */}
         <div className="mt-8 bg-slate-800 border-2 border-teal-500 rounded-xl p-6">
