@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import authService from './authService';
 import AdminDashboard from './AdminDashboard';
-import { getVessels, saveBookingHybrid, getBookingsHybrid } from './services/apiService';
 
 // =====================================================
 // FLEET MANAGEMENT - PROFESSIONAL VERSION WITH AUTH
@@ -26,17 +25,25 @@ const COMPANY_INFO = {
 };
 
 // --- Shared Fleet Service ---
-
 const FLEET_STORAGE_KEY = 'app_fleet_vessels';
 
+const INITIAL_FLEET = [
+  { id: "BOB", name: "Lagoon 42-BOB", type: "Catamaran", model: "Lagoon 42" },
+  { id: "PERLA", name: "Lagoon 46-PERLA", type: "Catamaran", model: "Lagoon 46" },
+  { id: "INFINITY", name: "Bali 4.2-INFINITY", type: "Catamaran", model: "Bali 4.2" },
+  { id: "MARIA1", name: "Jeanneau Sun Odyssey 449-MARIA1", type: "Monohull", model: "Jeanneau Sun Odyssey 449" },
+  { id: "MARIA2", name: "Jeanneau yacht 54-MARIA2", type: "Monohull", model: "Jeanneau yacht 54" },
+  { id: "BAR-BAR", name: "Beneteau Oceanis 46.1-BAR-BAR", type: "Monohull", model: "Beneteau Oceanis 46.1" },
+  { id: "KALISPERA", name: "Bavaria c42 Cruiser-KALISPERA", type: "Monohull", model: "Bavaria c42 Cruiser" },
+  { id: "VALESIA", name: "Bavaria c42 Cruiser-VALESIA", type: "Monohull", model: "Bavaria c42 Cruiser" }
+];
+
 const FleetService = {
-  async initialize() {
-    try {
-      const vessels = await getVessels();
-      localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(vessels));
-      console.log('✅ Fleet initialized from API:', vessels.length, 'boats');
-    } catch (error) {
-      console.error('Error loading fleet from API:', error);
+  initialize() {
+    const stored = localStorage.getItem(FLEET_STORAGE_KEY);
+    if (!stored) {
+      localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(INITIAL_FLEET));
+      console.log('✅ Fleet initialized with 8 boats');
     }
   },
 
@@ -46,10 +53,10 @@ const FleetService = {
       if (stored) {
         return JSON.parse(stored);
       }
-      return [];
+      return INITIAL_FLEET;
     } catch (error) {
       console.error('Error loading fleet:', error);
-      return [];
+      return INITIAL_FLEET;
     }
   },
 
@@ -3325,21 +3332,7 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
 function CharterPage({ items, boat, showMessage, saveItems }) {
   const [selectedCharter, setSelectedCharter] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newCharter, setNewCharter] = useState({
-    code: '',
-    startDate: '',
-    endDate: '',
-    amount: '',
-    commissionPercent: '',
-    departure: 'ALIMOS MARINA',
-    arrival: 'ALIMOS MARINA',
-    status: 'Option',
-    skipperFirstName: '',
-    skipperLastName: '',
-    skipperAddress: '',
-    skipperEmail: '',
-    skipperPhone: ''
-  });
+  const [newCharter, setNewCharter] = useState({ code: '', startDate: '', endDate: '', amount: '', commissionPercent: '', departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option' });
   
   const isOwnerUser = authService.isOwner();
   const canViewCharters = true;
@@ -3371,86 +3364,27 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   const financials = calculateFinancials();
   const isFormValid = newCharter.code.trim() !== '' && newCharter.startDate !== '' && newCharter.endDate !== '' && parseFloat(newCharter.amount) > 0;
 
-  const handleAddCharter = async () => {
+  const handleAddCharter = () => {
     if (!canEditCharters) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
     }
-
+    
     if (!isFormValid) {
       showMessage('❌ Παρακαλώ συμπληρώστε όλα τα πεδία.', 'error');
       return;
     }
-
-    const charter = {
-      id: uid(),
-      code: newCharter.code,
-      startDate: newCharter.startDate,
-      endDate: newCharter.endDate,
-      departure: newCharter.departure,
-      arrival: newCharter.arrival,
-      amount: financials.amount,
-      commissionPercent: parseFloat(newCharter.commissionPercent) || 0,
-      commission: financials.commission,
-      vat_on_commission: financials.vat,
-      status: newCharter.status,
-      bookingStatus: newCharter.status,
-      paymentStatus: 'Pending',
-      payments: [],
-      skipperFirstName: newCharter.skipperFirstName,
-      skipperLastName: newCharter.skipperLastName,
-      skipperAddress: newCharter.skipperAddress,
-      skipperEmail: newCharter.skipperEmail,
-      skipperPhone: newCharter.skipperPhone,
-      createdBy: authService.getCurrentUser()?.name,
-      createdAt: new Date().toISOString()
+    
+    const charter = { 
+      id: uid(), code: newCharter.code, startDate: newCharter.startDate, endDate: newCharter.endDate, departure: newCharter.departure, arrival: newCharter.arrival,
+      amount: financials.amount, commissionPercent: parseFloat(newCharter.commissionPercent) || 0, commission: financials.commission, vat_on_commission: financials.vat, 
+      status: newCharter.status, bookingStatus: newCharter.status, paymentStatus: 'Pending', payments: [],
+      createdBy: authService.getCurrentUser()?.name, createdAt: new Date().toISOString()
     };
-
-    // Save charter to localStorage (existing logic)
+    
     saveItems([...items, charter]);
     authService.logActivity('add_charter', `${boat.id}/${charter.code}`);
-
-    // ✅ NEW: Also create booking in API
-    try {
-      await saveBookingHybrid(newCharter.code, {
-        bookingData: {
-          vesselName: boat.name,
-          vesselType: boat.type || 'Monohull',
-          charterPartyNo: newCharter.code,
-          checkInDate: newCharter.startDate,
-          checkOutDate: newCharter.endDate,
-          checkInTime: null,
-          checkOutTime: null,
-          skipperFirstName: newCharter.skipperFirstName,
-          skipperLastName: newCharter.skipperLastName,
-          skipperAddress: newCharter.skipperAddress,
-          skipperEmail: newCharter.skipperEmail,
-          skipperPhone: newCharter.skipperPhone,
-          departurePort: newCharter.departure,
-          arrivalPort: newCharter.arrival,
-          status: newCharter.status.toLowerCase()
-        }
-      });
-      console.log('✅ Booking created in API:', newCharter.code);
-    } catch (error) {
-      console.error('⚠️ Failed to create booking in API:', error);
-    }
-
-    setNewCharter({
-      code: '',
-      startDate: '',
-      endDate: '',
-      amount: '',
-      commissionPercent: '',
-      departure: 'ALIMOS MARINA',
-      arrival: 'ALIMOS MARINA',
-      status: 'Option',
-      skipperFirstName: '',
-      skipperLastName: '',
-      skipperAddress: '',
-      skipperEmail: '',
-      skipperPhone: ''
-    });
+    setNewCharter({ code: '', startDate: '', endDate: '', amount: '', commissionPercent: '', departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option' });
     setShowAddForm(false);
     showMessage('✅ Ο ναύλος προστέθηκε.', 'success');
   };
@@ -3522,76 +3456,6 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                     <label className="block text-sm font-medium text-gray-300 mb-2">Κωδικός Ναύλου *</label>
                     <input type="text" name="code" value={newCharter.code} onChange={handleFormChange} placeholder="π.χ. NAY-002" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
                   </div>
-                </div>
-              </div>
-
-              {/* SKIPPER INFORMATION */}
-              <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
-                <h3 className="text-lg font-bold text-teal-400 mb-3">SKIPPER INFORMATION</h3>
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">First Name</label>
-                      <input
-                        type="text"
-                        name="skipperFirstName"
-                        value={newCharter.skipperFirstName}
-                        onChange={handleFormChange}
-                        placeholder="John"
-                        className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
-                      <input
-                        type="text"
-                        name="skipperLastName"
-                        value={newCharter.skipperLastName}
-                        onChange={handleFormChange}
-                        placeholder="Doe"
-                        className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Address</label>
-                    <input
-                      type="text"
-                      name="skipperAddress"
-                      value={newCharter.skipperAddress}
-                      onChange={handleFormChange}
-                      placeholder="123 Main St, City, Country"
-                      className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
-                    <input
-                      type="email"
-                      name="skipperEmail"
-                      value={newCharter.skipperEmail}
-                      onChange={handleFormChange}
-                      placeholder="john@example.com"
-                      className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
-                    <input
-                      type="tel"
-                      name="skipperPhone"
-                      value={newCharter.skipperPhone}
-                      onChange={handleFormChange}
-                      placeholder="+30 123 456 7890"
-                      className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
-                <h3 className="text-lg font-bold text-teal-400 mb-3">DATES & LOCATIONS</h3>
-                <div className="grid grid-cols-1 gap-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">FROM *</label>
