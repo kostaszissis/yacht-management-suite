@@ -555,7 +555,7 @@ export default function AdminPanel() {
                             : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
                         }`}
                       >
-                        {boat.id}
+                        {boat.name || boat.id}
                       </button>
                     ))}
                   </div>

@@ -13,12 +13,44 @@ import FleetManagement from './FleetManagement';
 import CompanyNews from './CompanyNews';
 import ChartererDashboard from './ChartererDashboard';
 import OwnerDashboard from './OwnerDashboard';
+import OwnerProfile from './OwnerProfile';
 import AdminPanel from './AdminPanel'; // 🆕 NEW
 import TechnicalSupportChat from './TechnicalSupportChat'; // 🆕 Technical Support Chat
 import TechnicalManagerDashboard from './TechnicalManagerDashboard'; // 🆕 Technical Manager Dashboard
 
 // 🆕 NEW: Import auth service
 import { initializeAuth } from './authService';
+import authService from './authService';
+
+// 🔒 SECURITY: Protected Admin Route - Block Owner access
+const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
+  const [checked, setChecked] = React.useState(false);
+
+  React.useEffect(() => {
+    const user = authService.getCurrentUser();
+
+    // Check if user is Owner
+    if (user && user.role === 'OWNER') {
+      alert('Access Denied: Owners cannot access the admin area.');
+      navigate('/owner-dashboard', { state: { ownerCode: user.code }, replace: true });
+      return;
+    }
+
+    // Only allow ADMIN, TECHNICAL, BOOKING, ACCOUNTING roles
+    const allowedRoles = ['ADMIN', 'TECHNICAL', 'BOOKING', 'ACCOUNTING'];
+    if (user && !allowedRoles.includes(user.role)) {
+      alert('Access Denied: You do not have permission to access this area.');
+      navigate('/', { replace: true });
+      return;
+    }
+
+    setChecked(true);
+  }, [navigate]);
+
+  if (!checked) return null;
+  return <>{children}</>;
+};
 
 // Κεντρικό Context για συγχρονισμό δεδομένων
 export const DataContext = React.createContext<any>(null);
@@ -377,12 +409,19 @@ function App() {
             
             {/* 🆕 Owner Dashboard - After login with owner code (shows list of boats) */}
             <Route path="/owner-dashboard" element={<OwnerDashboard />} />
-            
+
+            {/* 🆕 Owner Profile - Owner profile settings */}
+            <Route path="/owner-profile" element={<OwnerProfile />} />
+
             {/* 🆕 Fleet Management - For Admin/Employee and Owner (boat details) */}
             <Route path="/fleet-management" element={<FleetManagement />} />
             
-            {/* 🆕 Administrator - Same as Fleet Management (legacy route) */}
-            <Route path="/admin" element={<FleetManagement />} />
+            {/* 🆕 Administrator - Same as Fleet Management (legacy route) - PROTECTED */}
+            <Route path="/admin" element={
+              <ProtectedAdminRoute>
+                <FleetManagement />
+              </ProtectedAdminRoute>
+            } />
             
             {/* 🆕 NEW: Admin Panel - Code Management (ADMIN2025 only) */}
             <Route path="/admin-panel" element={<AdminPanel />} />

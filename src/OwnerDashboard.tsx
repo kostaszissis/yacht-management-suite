@@ -2,20 +2,20 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBoatsForOwner } from './ownerCodes';
 
-// Fleet data
+// 🔥 FIX 5: Fleet data with numeric IDs matching API format
 const INITIAL_FLEET = [
-  { id: "BOB", name: "Lagoon 42-BOB", type: "Catamaran", model: "Lagoon 42" },
-  { id: "PERLA", name: "Lagoon 46-PERLA", type: "Catamaran", model: "Lagoon 46" },
-  { id: "INFINITY", name: "Bali 4.2-INFINITY", type: "Catamaran", model: "Bali 4.2" },
-  { id: "MARIA1", name: "Jeanneau Sun Odyssey 449-MARIA1", type: "Monohull", model: "Jeanneau Sun Odyssey 449" },
-  { id: "MARIA2", name: "Jeanneau yacht 54-MARIA2", type: "Monohull", model: "Jeanneau yacht 54" },
-  { id: "BAR-BAR", name: "Beneteau Oceanis 46.1-BAR-BAR", type: "Monohull", model: "Beneteau Oceanis 46.1" },
-  { id: "KALISPERA", name: "Bavaria c42 Cruiser-KALISPERA", type: "Monohull", model: "Bavaria c42 Cruiser" },
-  { id: "VALESIA", name: "Bavaria c42 Cruiser-VALESIA", type: "Monohull", model: "Bavaria c42 Cruiser" }
+  { id: 8, name: "Bob", type: "Catamaran", model: "Lagoon 42" },
+  { id: 7, name: "Perla", type: "Catamaran", model: "Lagoon 46" },
+  { id: 6, name: "Infinity", type: "Catamaran", model: "Bali 4.2" },
+  { id: 1, name: "Maria 1", type: "Monohull", model: "Jeanneau Sun Odyssey 449" },
+  { id: 2, name: "Maria 2", type: "Monohull", model: "Jeanneau yacht 54" },
+  { id: 4, name: "Bar Bar", type: "Monohull", model: "Beneteau Oceanis 46.1" },
+  { id: 5, name: "Kalispera", type: "Monohull", model: "Bavaria c42 Cruiser" },
+  { id: 3, name: "Valesia", type: "Monohull", model: "Bavaria c42 Cruiser" }
 ];
 
-// 🔥 NEW: Function to get pending charters for a boat
-const getPendingCharters = (boatId: string) => {
+// 🔥 FIX 5: Function to get pending charters for a boat (supports numeric ID)
+const getPendingCharters = (boatId: number | string) => {
   try {
     const key = `fleet_${boatId}_ΝΑΥΛΑ`;
     const stored = localStorage.getItem(key);
@@ -31,8 +31,8 @@ const getPendingCharters = (boatId: string) => {
   }
 };
 
-// 🔥 NEW: Function to get invoices for a boat
-const getInvoices = (boatId: string) => {
+// 🔥 FIX 5: Function to get invoices for a boat (supports numeric ID)
+const getInvoices = (boatId: number | string) => {
   try {
     const key = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ`;
     const stored = localStorage.getItem(key);
@@ -50,7 +50,8 @@ export default function OwnerDashboard() {
   const [language, setLanguage] = useState('en');
   const [ownerCode, setOwnerCode] = useState('');
   const [ownerBoats, setOwnerBoats] = useState<any[]>([]);
-  const [boatData, setBoatData] = useState<{[key: string]: {pendingCharters: any[], invoices: any[]}}>({});
+  // 🔥 FIX 5: Support numeric keys for boat data
+  const [boatData, setBoatData] = useState<{[key: number | string]: {pendingCharters: any[], invoices: any[]}}>({});
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -83,7 +84,8 @@ export default function OwnerDashboard() {
     
   }, [location, navigate]);
 
-  const handleBoatClick = (boatId: string) => {
+  // 🔥 FIX 5: Support numeric boat IDs
+  const handleBoatClick = (boatId: number | string) => {
     // Navigate to boat details (FleetManagement with owner access)
     navigate('/fleet-management', {
       state: {
@@ -144,6 +146,12 @@ export default function OwnerDashboard() {
               <div className="px-4 py-2 bg-teal-500 text-white rounded-lg font-semibold">
                 🔑 {ownerCode}
               </div>
+              <button
+                onClick={() => navigate('/owner-profile', { state: { ownerCode } })}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold text-white transition-colors"
+              >
+                👤 {language === 'en' ? 'Profile' : 'Προφίλ'}
+              </button>
               <button
                 onClick={() => setLanguage(language === 'en' ? 'gr' : 'en')}
                 className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold text-white transition-colors"
@@ -224,15 +232,16 @@ export default function OwnerDashboard() {
                 className={`bg-slate-800 hover:bg-slate-700 rounded-xl p-4 shadow-lg transition-all duration-300 border-2 ${hasPending ? 'border-orange-500 animate-pulse' : 'border-teal-500/30 hover:border-teal-500'} hover:shadow-2xl hover:-translate-y-2 hover:scale-105 text-left transform-gpu`}
                 style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
               >
-                {/* Boat Emoji & ID */}
+                {/* Boat Emoji & Name */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-3xl">
                     {boat.type === 'Catamaran' ? '⛵' : '🛥️'}
                   </div>
                   <div className="text-right">
                     <h3 className="text-xl font-bold text-white">
-                      {boat.id}
+                      {boat.name || boat.id}
                     </h3>
+                    <p className="text-xs text-gray-400">{boat.id}</p>
                   </div>
                 </div>
                 

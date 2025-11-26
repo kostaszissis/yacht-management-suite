@@ -303,8 +303,8 @@ export default function AdminDashboard({
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-base font-bold text-blue-600">{boat.id}</h3>
-                      <p className="text-xs text-slate-600">{boat.name}</p>
+                      <h3 className="text-base font-bold text-blue-600">{boat.name || boat.id}</h3>
+                      <p className="text-xs text-slate-600 font-semibold">{boat.id}</p>
                       <p className="text-xs text-slate-500">{boat.type} {boat.model && `• ${boat.model}`}</p>
                     </div>
                     <div className="text-blue-500 text-xl">→</div>

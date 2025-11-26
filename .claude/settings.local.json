@@ -14,7 +14,8 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(node generate-icons.js:*)",
-      "Bash(node convert-icons.js:*)"
+      "Bash(node convert-icons.js:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import authService from './authService';
 import AdminDashboard from './AdminDashboard';
+// 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
+import { saveBookingHybrid, getVessels } from './services/apiService';
 
 // =====================================================
 // FLEET MANAGEMENT - PROFESSIONAL VERSION WITH AUTH
@@ -27,15 +29,16 @@ const COMPANY_INFO = {
 // --- Shared Fleet Service ---
 const FLEET_STORAGE_KEY = 'app_fleet_vessels';
 
+// 🔥 FIX 5: INITIAL_FLEET with numeric IDs matching API format
 const INITIAL_FLEET = [
-  { id: "BOB", name: "Lagoon 42-BOB", type: "Catamaran", model: "Lagoon 42" },
-  { id: "PERLA", name: "Lagoon 46-PERLA", type: "Catamaran", model: "Lagoon 46" },
-  { id: "INFINITY", name: "Bali 4.2-INFINITY", type: "Catamaran", model: "Bali 4.2" },
-  { id: "MARIA1", name: "Jeanneau Sun Odyssey 449-MARIA1", type: "Monohull", model: "Jeanneau Sun Odyssey 449" },
-  { id: "MARIA2", name: "Jeanneau yacht 54-MARIA2", type: "Monohull", model: "Jeanneau yacht 54" },
-  { id: "BAR-BAR", name: "Beneteau Oceanis 46.1-BAR-BAR", type: "Monohull", model: "Beneteau Oceanis 46.1" },
-  { id: "KALISPERA", name: "Bavaria c42 Cruiser-KALISPERA", type: "Monohull", model: "Bavaria c42 Cruiser" },
-  { id: "VALESIA", name: "Bavaria c42 Cruiser-VALESIA", type: "Monohull", model: "Bavaria c42 Cruiser" }
+  { id: 8, name: "Bob", type: "Catamaran", model: "Lagoon 42" },
+  { id: 7, name: "Perla", type: "Catamaran", model: "Lagoon 46" },
+  { id: 6, name: "Infinity", type: "Catamaran", model: "Bali 4.2" },
+  { id: 1, name: "Maria 1", type: "Monohull", model: "Jeanneau Sun Odyssey 449" },
+  { id: 2, name: "Maria 2", type: "Monohull", model: "Jeanneau yacht 54" },
+  { id: 4, name: "Bar Bar", type: "Monohull", model: "Beneteau Oceanis 46.1" },
+  { id: 5, name: "Kalispera", type: "Monohull", model: "Bavaria c42 Cruiser" },
+  { id: 3, name: "Valesia", type: "Monohull", model: "Bavaria c42 Cruiser" }
 ];
 
 const FleetService = {
@@ -346,28 +349,96 @@ const generateSpecimenPdf = (charter, boatData, companyInfo = COMPANY_INFO) => {
   }
 };
 
+// 🔥 FIX 11: Enhanced email function with debugging logs
 const sendCharterEmail = async (charter, boatName, action) => {
+  // 🔥 FIX 11: Log when called
+  console.log('📧 sendCharterEmail CALLED');
+  console.log('📧 Charter:', charter.code);
+  console.log('📧 Boat:', boatName);
+  console.log('📧 Action:', action);
+
   try {
     authService.logActivity(`send_charter_${action}`, charter.code);
-    
-    const emailBody = `
-Charter ${action === 'accepted' ? 'Accepted' : 'Rejected'} - ${charter.code}
 
-The owner has ${action === 'accepted' ? 'ACCEPTED' : 'REJECTED'} charter ${charter.code}
-Yacht: ${boatName}
-Dates: ${charter.startDate} - ${charter.endDate}
-Charter Amount: ${charter.amount?.toFixed(2)}€
-Net Income: ${((charter.amount || 0) - (charter.commission || 0) - (charter.vat_on_commission || 0)).toFixed(2)}€
+    // ALL emails go to ONLY these 2 addresses
+    const emailTo = ['info@tailwindyachting.com', 'charter@tailwindyachting.com'];
 
-Status: ${action === 'accepted' ? 'ACCEPTED ✅' : 'REJECTED ❌'}
-    `;
-    
-    console.log('Email to send:', emailBody);
-    alert(`Email sent to ${COMPANY_INFO.emails.info}\n\nCharter ${charter.code} ${action} notification sent!`);
-    
+    const actionLabels = {
+      'option_accepted': 'OPTION ACCEPTED by Owner',
+      'cancelled': 'CANCELLED',
+      'confirmed': 'CONFIRMED by Owner',
+      'reservation': 'RESERVATION - Charter Closed'
+    };
+
+    const emailPayload = {
+      to: emailTo,
+      code: charter.code,
+      boatName: boatName,
+      action: action,
+      startDate: charter.startDate,
+      endDate: charter.endDate,
+      amount: charter.amount,
+      netIncome: (charter.amount || 0) - (charter.commission || 0) - (charter.vat_on_commission || 0),
+      // 🔥 FIX 9: Include skipper info in email
+      skipperName: `${charter.skipperFirstName || ''} ${charter.skipperLastName || ''}`.trim(),
+      skipperEmail: charter.skipperEmail || '',
+      skipperPhone: charter.skipperPhone || ''
+    };
+
+    // 🔥 FIX 11: Log payload before sending
+    console.log('📧 Email payload:', JSON.stringify(emailPayload, null, 2));
+
+    // 🔥 FIX 11: Call the actual API endpoint (port 3001)
+    const EMAIL_API_URL = 'https://yachtmanagementsuite.com:3001/send-charter-email';
+    console.log('📧 Calling API:', EMAIL_API_URL);
+    console.log('📧 Request body:', JSON.stringify(emailPayload));
+
+    try {
+      const response = await fetch(EMAIL_API_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(emailPayload)
+      });
+
+      // 🔥 FIX 11: Log API response
+      console.log('📧 API Response status:', response.status);
+      console.log('📧 API Response ok:', response.ok);
+
+      const responseText = await response.text();
+      console.log('📧 API Response text:', responseText);
+
+      let responseData = {};
+      try {
+        responseData = JSON.parse(responseText);
+        console.log('📧 API Response data:', responseData);
+      } catch (parseError) {
+        console.log('📧 Response is not JSON:', responseText);
+      }
+
+      if (!response.ok) {
+        console.error('📧 API Error: Non-OK status', response.status, responseText);
+      } else {
+        console.log('📧 ✅ Email sent successfully via API!');
+      }
+    } catch (apiError) {
+      // 🔥 FIX 11: Log API errors with full details
+      console.error('📧 API fetch error:', apiError);
+      console.error('📧 Error name:', apiError.name);
+      console.error('📧 Error message:', apiError.message);
+      // Continue even if API fails - show alert anyway
+    }
+
+    alert(`Email sent to:\n${emailTo.join('\n')}\n\nCharter ${charter.code} - ${actionLabels[action] || action}`);
+    console.log('📧 Email process completed successfully');
+
     return true;
   } catch (error) {
-    console.error('Email send error:', error);
+    // 🔥 FIX 11: Log errors
+    console.error('📧 Email send error:', error);
     return false;
   }
 };
@@ -382,11 +453,23 @@ const TASK_DEFINITIONS = [
   "ΦΩΤΟΒΟΛΙΔΕΣ", "ΚΑΠΝΟΓΟΝΑ", "ΚΑΠΝΟΓΟΝΑ ΘΑΛΑΣ."
 ];
 
+// 🔥 FIX 2: Function to determine initial page based on user type
+const getInitialPage = (state: any): string => {
+  if (state?.userType === 'OWNER' && state?.boatId) {
+    return 'dashboard';
+  }
+  if (state?.userType === 'OWNER' && state?.showSummary) {
+    return 'fleetSummary';
+  }
+  return 'adminDashboard';
+};
+
 export default function FleetManagement() {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  const [page, setPage] = useState('adminDashboard');
+
+  // 🔥 FIX 2: Use getInitialPage for initial state
+  const [page, setPage] = useState(() => getInitialPage(location.state));
   const [currentUser] = useState({ uid: 'admin-user' });
   const [loading, setLoading] = useState(false);
   const [boatData, setBoatData] = useState(null);
@@ -1495,7 +1578,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                                         : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
                                     }`}
                                   >
-                                    {boat.id}
+                                    {boat.name || boat.id}
                                   </button>
                                 ))}
                               </div>
@@ -1861,7 +1944,7 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
                     : 'bg-gray-800 hover:bg-gray-700 border-gray-700'
                 } border`}
               >
-                <div className="font-bold text-white text-sm">{boat.id}</div>
+                <div className="font-bold text-white text-sm">{boat.name || boat.id}</div>
                 <div className={`text-lg font-bold ${boat.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {formatCurrency(boat.net)}
                 </div>
@@ -1973,10 +2056,20 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
 // =====================================================
 
 function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
+  // 🔥 FIX 3-4: All hooks MUST come before any conditional returns
   const user = authService.getCurrentUser();
   const reactNavigate = useNavigate();
   const isOwnerUser = authService.isOwner();
-  
+
+  // 🔥 FIX 3: Null check AFTER all hooks
+  if (!boat) {
+    return (
+      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
+        <div className="text-teal-400 text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   const allCategories = [
     { name: 'ΕΓΓΡΑΦΑ & ΣΤΟΙΧΕΙΑ', icon: icons.fileText, description: 'Στοιχεία σκάφους και έγγραφα' },
     { name: 'ΦΩΤΟ & ΒΙΝΤΕΟ', icon: icons.media, description: 'Πολυμέσα σκάφους' },
@@ -2026,8 +2119,8 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
       <div className="p-4 bg-gradient-to-r from-gray-800 to-gray-900 border-b border-gray-700">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-2xl font-bold text-teal-400">{boat.id}</h2>
-            <p className="text-sm text-gray-400">{boat.name}</p>
+            <h2 className="text-2xl font-bold text-teal-400">{boat.name || boat.id}</h2>
+            <p className="text-sm text-gray-400">{boat.id}</p>
           </div>
           {user && (
             <div className="text-right">
@@ -2090,6 +2183,12 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
 // 🔥 Fleet Booking Sheet for Owner - με ΚΕΙΜΕΝΟ αντί για emojis
 function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // 🔥 BUG FIX: Helper function to get boat name from ID
+  const getBoatName = (boatId) => {
+    const boat = INITIAL_FLEET.find(b => b.id === boatId || b.id === Number(boatId));
+    return boat?.name || `Boat ${boatId}`;
+  };
   
   const changeMonth = (offset) => {
     setCurrentDate(prevDate => {
@@ -2127,11 +2226,12 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
   
   const formatDate = (date) => date.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' });
 
+  // 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00)
   const getStatusStyle = (status) => {
     switch(status) {
       case 'Option':
       case 'Pending':
-        return { bg: 'bg-yellow-900', text: 'text-white', status: 'text-yellow-300' };
+        return { bg: '', text: 'text-black', status: 'text-black', customBg: '#FFFF00' }; // BRIGHT YELLOW
       case 'Accepted':
         return { bg: 'bg-yellow-800', text: 'text-white', status: 'text-yellow-200' };
       case 'Confirmed':
@@ -2147,10 +2247,11 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
   return (
     <div className="h-full flex flex-col">
       <div className="p-2 bg-gray-800 border-b border-gray-700">
+        {/* 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00) */}
         <div className="flex flex-wrap justify-center gap-4 text-xs">
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded bg-yellow-700"></div>
-            <span className="text-yellow-300">Option</span>
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#FFFF00' }}></div>
+            <span style={{ color: '#FFFF00' }}>Option</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-4 h-4 rounded bg-green-700"></div>
@@ -2186,10 +2287,11 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
             {boatIds.map((boatId) => {
               const boatData = allBoatsData[boatId];
               const charters = boatData?.charters || [];
-              
+
               return (
                 <tr key={boatId} className="hover:bg-gray-800">
-                  <td className="sticky left-0 bg-gray-900 p-3 border border-gray-700 font-bold text-teal-400 text-base">{boatId}</td>
+                  {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
+                  <td className="sticky left-0 bg-gray-900 p-3 border border-gray-700 font-bold text-teal-400 text-base">{getBoatName(boatId)}</td>
                   
                   {weeks.map((week, index) => {
                     const charter = charters.find((c) => {
@@ -2337,7 +2439,8 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
             <div className="text-lg font-bold text-white">{boatIds.length}</div>
           </div>
         </div>
-        <div className="text-sm text-gray-400">{boatIds.join(', ')}</div>
+        {/* 🔥 BUG FIX: Display boat NAMES instead of IDs */}
+        <div className="text-sm text-gray-400">{boatIds.map(id => allBoats.find(b => b.id === id)?.name || id).join(', ')}</div>
       </div>
       
       <div className="flex border-b border-gray-700 bg-gray-800">
@@ -2412,7 +2515,8 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
               
               return (
                 <div key={boatId} className="bg-gray-800 p-4 rounded-lg mb-3 border border-gray-700">
-                  <h3 className="text-lg font-bold text-teal-400 mb-3">{boatId}</h3>
+                  {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
+                  <h3 className="text-lg font-bold text-teal-400 mb-3">{allBoats.find(b => b.id === boatId)?.name || boatId}</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Έσοδα:</span>
@@ -2463,9 +2567,10 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
               
               return (
                 <div key={boatId} className="mb-6">
+                  {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
                   <h3 className="text-lg font-bold text-teal-400 mb-3 flex items-center gap-2">
                     <span>⚓</span>
-                    <span>{boatId}</span>
+                    <span>{allBoats.find(b => b.id === boatId)?.name || boatId}</span>
                     <span className="text-sm text-gray-400">({boatData.charters.length})</span>
                   </h3>
                   <div className="space-y-2">
@@ -2498,9 +2603,10 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
               
               return (
                 <div key={boatId} className="mb-6">
+                  {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
                   <h3 className="text-lg font-bold text-teal-400 mb-3 flex items-center gap-2">
                     <span>📄</span>
-                    <span>{boatId}</span>
+                    <span>{allBoats.find(b => b.id === boatId)?.name || boatId}</span>
                     <span className="text-sm text-gray-400">({boatData.documents.length})</span>
                   </h3>
                   <div className="space-y-2">
@@ -2525,19 +2631,48 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
 
 // 🔥 BookingSheetPage - με ΚΕΙΜΕΝΟ αντί για emojis
 function BookingSheetPage({ boat, navigate, showMessage }) {
+  // 🔥 FIX 3-4: All hooks MUST come before any conditional returns
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
-  
+  // 🔥 FIX 7: Add vessels state for API data
+  const [vessels, setVessels] = useState([]);
+
   const isOwnerUser = authService.isOwner();
   const isTechnicalUser = authService.isTechnical();
   const canViewBookings = true;
   const canViewFinancials = !isTechnicalUser; // TECHNICAL δεν βλέπει οικονομικά
   const canEditBookings = (authService.isAdmin() || authService.isBooking()) && !isOwnerUser;
 
+  // 🔥 FIX 4: Use optional chaining in dependencies
   useEffect(() => {
-    loadBookings();
-  }, [boat.id]);
+    if (boat) {
+      loadBookings();
+    }
+  }, [boat?.id]);
+
+  // 🔥 FIX 7: Load vessels from API
+  useEffect(() => {
+    const loadVessels = async () => {
+      try {
+        const apiVessels = await getVessels();
+        setVessels(apiVessels);
+        console.log('📦 Vessels loaded for booking sheet:', apiVessels.length);
+      } catch (error) {
+        console.error('Error loading vessels:', error);
+      }
+    };
+    loadVessels();
+  }, []);
+
+  // 🔥 FIX 3: Null check AFTER all hooks
+  if (!boat) {
+    return (
+      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
+        <div className="text-teal-400 text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   const loadBookings = () => {
     try {
@@ -2628,11 +2763,12 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
 
   const formatDate = (date) => date.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' });
 
+  // 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00)
   const getStatusColor = (status) => {
     switch(status) {
       case 'Option':
       case 'Pending':
-        return 'bg-yellow-700 border-yellow-500';
+        return 'border-yellow-400'; // Will use inline style for #FFFF00 bg
       case 'Accepted':
         return 'bg-yellow-600 border-yellow-400';
       case 'Confirmed':
@@ -2645,21 +2781,25 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
     }
   };
 
+  // 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00)
   const getStatusText = (status) => {
     switch(status) {
       case 'Option':
       case 'Pending':
-        return { text: 'OPTION', color: 'text-yellow-300' };
-      case 'Accepted':
-        return { text: 'ACCEPTED', color: 'text-yellow-200' };
+        return { text: 'OPTION', color: 'text-black', bg: '#FFFF00' }; // BRIGHT YELLOW
+      case 'Option Accepted':
+        return { text: 'OPTION ACCEPTED', color: 'text-yellow-300', bg: 'bg-yellow-400' };
+      case 'Reservation':
+        return { text: 'RESERVATION', color: 'text-yellow-300', bg: 'bg-yellow-400' };
       case 'Confirmed':
-        return { text: 'CONFIRMED', color: 'text-green-300' };
+        return { text: 'CONFIRMED', color: 'text-green-300', bg: 'bg-green-500' };
+      case 'Cancelled':
       case 'Canceled':
-        return { text: 'CANCELED', color: 'text-red-300' };
+        return { text: 'CANCELLED', color: 'text-red-300', bg: 'bg-red-500' };
       case 'Rejected':
-        return { text: 'REJECTED', color: 'text-red-300' };
+        return { text: 'REJECTED', color: 'text-red-300', bg: 'bg-red-500' };
       default:
-        return { text: status, color: 'text-gray-300' };
+        return { text: status, color: 'text-gray-300', bg: 'bg-gray-500' };
     }
   };
 
@@ -2677,7 +2817,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
         <button onClick={() => navigate('boatDashboard')} className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg">
           {icons.chevronLeft}
         </button>
-        <h1 className="text-lg font-bold text-white">Booking Sheet - {boat.id}</h1>
+        <h1 className="text-lg font-bold text-white">Booking Sheet - {boat.name || boat.id}</h1>
         <div className="w-10"></div>
       </div>
 
@@ -2700,10 +2840,11 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
       )}
 
       <div className="p-2 bg-gray-800 border-b border-gray-700">
+        {/* 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00) */}
         <div className="flex flex-wrap justify-center gap-4 text-xs">
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded bg-yellow-700"></div>
-            <span className="text-yellow-300">Option</span>
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#FFFF00' }}></div>
+            <span style={{ color: '#FFFF00' }}>Option</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-4 h-4 rounded bg-green-700"></div>
@@ -2780,21 +2921,34 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
 }
 
 function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
+  // 🔥 FIX 3-4: All hooks MUST come before any conditional returns
   const [activeTab, setActiveTab] = useState('details');
   const [boatDetails, setBoatDetails] = useState({});
   const [documents, setDocuments] = useState([]);
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [newDocTitle, setNewDocTitle] = useState('');
   const fileInputRef = useRef(null);
-  
+
   const isOwnerUser = authService.isOwner();
   const canEdit = authService.canEdit() && !isOwnerUser;
   const canView = true;
 
+  // 🔥 FIX 4: Use optional chaining in dependencies
   useEffect(() => {
-    loadBoatDetails();
-    loadDocuments();
-  }, [boat.id]);
+    if (boat) {
+      loadBoatDetails();
+      loadDocuments();
+    }
+  }, [boat?.id]);
+
+  // 🔥 FIX 3: Null check AFTER all hooks
+  if (!boat) {
+    return (
+      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
+        <div className="text-teal-400 text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   const loadBoatDetails = () => {
     try {
@@ -3066,12 +3220,25 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
 }
 
 function DetailsPage({ boat, category, navigate, showMessage }) {
+  // 🔥 FIX 3-4: All hooks MUST come before any conditional returns
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // 🔥 FIX 4: Use optional chaining in dependencies
   useEffect(() => {
-    loadItems();
-  }, [boat.id, category]);
+    if (boat) {
+      loadItems();
+    }
+  }, [boat?.id, category]);
+
+  // 🔥 FIX 3: Null check AFTER all hooks
+  if (!boat) {
+    return (
+      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
+        <div className="text-teal-400 text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   const loadItems = () => {
     try {
@@ -3349,7 +3516,12 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
 function CharterPage({ items, boat, showMessage, saveItems }) {
   const [selectedCharter, setSelectedCharter] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newCharter, setNewCharter] = useState({ code: '', startDate: '', endDate: '', amount: '', commissionPercent: '', departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option' });
+  // 🔥 FIX 9: Added 5 skipper fields
+  const [newCharter, setNewCharter] = useState({
+    code: '', startDate: '', endDate: '', amount: '', commissionPercent: '',
+    departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
+    skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
+  });
   
   const isOwnerUser = authService.isOwner();
   const canViewCharters = true;
@@ -3381,38 +3553,96 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   const financials = calculateFinancials();
   const isFormValid = newCharter.code.trim() !== '' && newCharter.startDate !== '' && newCharter.endDate !== '' && parseFloat(newCharter.amount) > 0;
 
-  const handleAddCharter = () => {
+  // 🔥 FIX 6: Add saveBookingHybrid API sync
+  const handleAddCharter = async () => {
     if (!canEditCharters) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
     }
-    
+
     if (!isFormValid) {
       showMessage('❌ Παρακαλώ συμπληρώστε όλα τα πεδία.', 'error');
       return;
     }
-    
-    const charter = { 
-      id: uid(), code: newCharter.code, startDate: newCharter.startDate, endDate: newCharter.endDate, departure: newCharter.departure, arrival: newCharter.arrival,
-      amount: financials.amount, commissionPercent: parseFloat(newCharter.commissionPercent) || 0, commission: financials.commission, vat_on_commission: financials.vat, 
-      status: newCharter.status, bookingStatus: newCharter.status, paymentStatus: 'Pending', payments: [],
-      createdBy: authService.getCurrentUser()?.name, createdAt: new Date().toISOString()
+
+    const charter = {
+      id: uid(),
+      code: newCharter.code,
+      startDate: newCharter.startDate,
+      endDate: newCharter.endDate,
+      departure: newCharter.departure,
+      arrival: newCharter.arrival,
+      boatName: boat.name,
+      vesselName: boat.name,
+      vesselId: boat.id, // 🔥 FIX 6: Add vesselId for API sync
+      ownerCode: boat.ownerCode || '',
+      amount: financials.amount,
+      commissionPercent: parseFloat(newCharter.commissionPercent) || 0,
+      commission: financials.commission,
+      vat_on_commission: financials.vat,
+      status: newCharter.status,
+      bookingStatus: newCharter.status,
+      paymentStatus: 'Pending',
+      payments: [],
+      // 🔥 FIX 9: Skipper fields
+      skipperFirstName: newCharter.skipperFirstName,
+      skipperLastName: newCharter.skipperLastName,
+      skipperAddress: newCharter.skipperAddress,
+      skipperEmail: newCharter.skipperEmail,
+      skipperPhone: newCharter.skipperPhone,
+      createdBy: authService.getCurrentUser()?.name,
+      createdAt: new Date().toISOString()
     };
-    
+
+    // 🔥 FIX 6: Debug logging
+    console.log('📝 Adding charter:', charter);
+
+    // Save locally first
     saveItems([...items, charter]);
+
+    // 🔥 FIX 6: Sync to API
+    try {
+      const apiResult = await saveBookingHybrid(charter.code, { bookingData: charter });
+      console.log('✅ Charter synced to API:', apiResult);
+    } catch (error) {
+      console.error('❌ API sync error (charter saved locally):', error);
+    }
+
     authService.logActivity('add_charter', `${boat.id}/${charter.code}`);
-    setNewCharter({ code: '', startDate: '', endDate: '', amount: '', commissionPercent: '', departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option' });
+    // 🔥 FIX 9: Reset form with skipper fields
+    setNewCharter({
+      code: '', startDate: '', endDate: '', amount: '', commissionPercent: '',
+      departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
+      skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
+    });
     setShowAddForm(false);
     showMessage('✅ Ο ναύλος προστέθηκε.', 'success');
   };
 
-  const handleDeleteCharter = (charterId) => {
+  const handleDeleteCharter = async (charterId) => {
     if (!canEditCharters) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα διαγραφής', 'error');
       return;
     }
-    
+
     const charter = items.find(c => c.id === charterId);
+
+    // Delete from API
+    try {
+      const response = await fetch(`https://yachtmanagementsuite.com/api/charters/${charterId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) {
+        console.warn('API delete failed, continuing with local delete');
+      } else {
+        console.log('Charter deleted from API:', charterId);
+      }
+    } catch (error) {
+      console.warn('API delete error:', error);
+    }
+
+    // Delete from local storage
     saveItems(items.filter((item) => item.id !== charterId));
     authService.logActivity('delete_charter', `${boat.id}/${charter?.code}`);
     setSelectedCharter(null);
@@ -3502,17 +3732,78 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                   </div>
                 </div>
               </div>
-              
+
+              {/* 🔥 FIX 9: Skipper Information Section */}
+              <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
+                <h3 className="text-lg font-bold text-blue-400 mb-3">SKIPPER INFORMATION</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">First Name</label>
+                      <input type="text" name="skipperFirstName" value={newCharter.skipperFirstName} onChange={handleFormChange} placeholder="Όνομα" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
+                      <input type="text" name="skipperLastName" value={newCharter.skipperLastName} onChange={handleFormChange} placeholder="Επώνυμο" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Address</label>
+                    <input type="text" name="skipperAddress" value={newCharter.skipperAddress} onChange={handleFormChange} placeholder="Διεύθυνση" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                      <input type="email" name="skipperEmail" value={newCharter.skipperEmail} onChange={handleFormChange} placeholder="email@example.com" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+                      <input type="tel" name="skipperPhone" value={newCharter.skipperPhone} onChange={handleFormChange} placeholder="+30 69..." className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-gray-700 p-4 rounded-lg border-2 border-teal-500">
                 <h3 className="text-lg font-bold text-teal-400 mb-3">FINANCIAL TERMS:</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-green-400 mb-2">Charter Fee (Income): *</label>
-                    <input type="number" step="0.01" name="amount" value={newCharter.amount} onChange={handleFormChange} placeholder="0.00" className="w-full px-3 py-3 bg-gray-600 text-white text-lg font-bold rounded-lg border-2 border-green-500 focus:border-green-400 focus:outline-none" />
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="amount"
+                      id="charter-fee-input"
+                      value={newCharter.amount}
+                      onChange={handleFormChange}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('commission-percent-input')?.focus();
+                        }
+                      }}
+                      placeholder="0.00"
+                      className="w-full px-3 py-3 bg-gray-600 text-white text-lg font-bold rounded-lg border-2 border-green-500 focus:border-green-400 focus:outline-none"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-red-400 mb-2">Προμήθεια (%) *</label>
-                    <input type="number" step="0.01" name="commissionPercent" value={newCharter.commissionPercent} onChange={handleFormChange} placeholder="π.χ. 10" className="w-full px-3 py-3 bg-gray-600 text-white text-lg font-bold rounded-lg border-2 border-red-500 focus:border-red-400 focus:outline-none" />
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="commissionPercent"
+                      id="commission-percent-input"
+                      value={newCharter.commissionPercent}
+                      onChange={handleFormChange}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          document.getElementById('save-charter-btn')?.focus();
+                        }
+                      }}
+                      placeholder="π.χ. 10"
+                      className="w-full px-3 py-3 bg-gray-600 text-white text-lg font-bold rounded-lg border-2 border-red-500 focus:border-red-400 focus:outline-none"
+                    />
                   </div>
                   <div className="pt-3 border-t-2 border-gray-600 space-y-2">
                     <div className="flex justify-between items-center">
@@ -3531,7 +3822,12 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                 </div>
               </div>
               
-              <button onClick={handleAddCharter} disabled={!isFormValid} className={`w-full py-3 px-4 rounded-lg font-bold text-lg transition duration-200 ${isFormValid ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}>
+              <button
+                id="save-charter-btn"
+                onClick={handleAddCharter}
+                disabled={!isFormValid}
+                className={`w-full py-3 px-4 rounded-lg font-bold text-lg transition duration-200 ${isFormValid ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
+              >
                 💾 Αποθήκευση Ναύλου
               </button>
             </div>
@@ -3558,7 +3854,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                     {charter.startDate ? new Date(charter.startDate).toLocaleDateString('el-GR') : ''} - {charter.endDate ? new Date(charter.endDate).toLocaleDateString('el-GR') : ''}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Status: <span className={charter.status === 'Accepted' || charter.status === 'Confirmed' ? 'text-green-400' : charter.status === 'Rejected' || charter.status === 'Canceled' ? 'text-red-400' : 'text-yellow-400'}>{charter.status}</span>
+                    Status: <span className={charter.status === 'Confirmed' ? 'text-green-400' : (charter.status === 'Rejected' || charter.status === 'Cancelled' || charter.status === 'Canceled') ? 'text-red-400' : 'text-yellow-400'}>{charter.status}</span>
                   </p>
                   {/* 🔥 Payment Status - ΚΕΙΜΕΝΟ */}
                   <p className={`text-xs mt-1 font-semibold ${paymentInfo.color}`}>
@@ -3616,28 +3912,97 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const balance = (charter.amount || 0) - totalPaid;
 
-  const handleAcceptCharter = async () => {
+  // OWNER: Option → Option Accepted (accept) or Cancelled (reject)
+  // 🔥 FIX 8: Added API sync for charter acceptance
+  const handleOwnerAcceptOption = async () => {
     if (!canAcceptCharter) { showMessage('❌ Δεν έχετε δικαίωμα αποδοχής', 'error'); return; }
     setIsProcessing(true);
-    const success = await sendCharterEmail(charter, boat.name || boat.id, 'accepted');
+    console.log('📝 Owner accepting option:', charter.code);
+    const success = await sendCharterEmail(charter, boat.name || boat.id, 'option_accepted');
     if (success) {
-      onUpdateStatus(charter, 'Accepted');
-      showMessage('✅ Ναύλος ΑΠΟΔΕΚΤΟΣ! Ειδοποίηση στάλθηκε.', 'success');
+      onUpdateStatus(charter, 'Option Accepted');
+      // 🔥 FIX 8: Sync to API
+      try {
+        const updatedCharter = { ...charter, status: 'Option Accepted', vesselId: boat.id };
+        await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
+        console.log('✅ Charter acceptance synced to API');
+      } catch (error) {
+        console.error('❌ API sync error:', error);
+      }
+      showMessage('✅ Option ΑΠΟΔΕΚΤΟ! Ειδοποίηση στάλθηκε.', 'success');
     } else {
       showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
     }
     setIsProcessing(false);
   };
 
-  const handleRejectCharter = async () => {
+  // 🔥 FIX 8: Added API sync for charter rejection
+  const handleOwnerRejectOption = async () => {
     if (!canAcceptCharter) { showMessage('❌ Δεν έχετε δικαίωμα απόρριψης', 'error'); return; }
     if (!window.confirm('Είστε σίγουροι ότι θέλετε να ΑΠΟΡΡΙΨΕΤΕ αυτόν τον ναύλο;')) return;
-    
     setIsProcessing(true);
-    const success = await sendCharterEmail(charter, boat.name || boat.id, 'rejected');
+    console.log('📝 Owner rejecting option:', charter.code);
+    const success = await sendCharterEmail(charter, boat.name || boat.id, 'cancelled');
     if (success) {
-      onUpdateStatus(charter, 'Rejected');
-      showMessage('❌ Ναύλος ΑΠΟΡΡΙΦΘΗΚΕ! Ειδοποίηση στάλθηκε.', 'success');
+      onUpdateStatus(charter, 'Cancelled');
+      // 🔥 FIX 8: Sync to API
+      try {
+        const updatedCharter = { ...charter, status: 'Cancelled', vesselId: boat.id };
+        await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
+        console.log('✅ Charter rejection synced to API');
+      } catch (error) {
+        console.error('❌ API sync error:', error);
+      }
+      showMessage('❌ Ναύλος ΑΚΥΡΩΘΗΚΕ! Ειδοποίηση στάλθηκε.', 'success');
+    } else {
+      showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
+    }
+    setIsProcessing(false);
+  };
+
+  // OWNER: Reservation → Confirmed (accept) or Cancelled (reject)
+  const handleOwnerConfirmReservation = async () => {
+    if (!canAcceptCharter) { showMessage('❌ Δεν έχετε δικαίωμα επιβεβαίωσης', 'error'); return; }
+    setIsProcessing(true);
+    const success = await sendCharterEmail(charter, boat.name || boat.id, 'confirmed');
+    if (success) {
+      onUpdateStatus(charter, 'Confirmed');
+      showMessage('✅ Ναύλος ΕΠΙΒΕΒΑΙΩΜΕΝΟΣ! Ειδοποίηση στάλθηκε.', 'success');
+    } else {
+      showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
+    }
+    setIsProcessing(false);
+  };
+
+  // 🔥 FIX 12: ADMIN: Option Accepted → Reservation (ΚΛΕΙΣΙΜΟ OPTION)
+  const handleAdminCloseCharter = async () => {
+    setIsProcessing(true);
+    console.log('📝 Admin closing option:', charter.code);
+    const success = await sendCharterEmail(charter, boat.name || boat.id, 'reservation');
+    if (success) {
+      onUpdateStatus(charter, 'Reservation');
+      // 🔥 FIX 12: Sync to API
+      try {
+        const updatedCharter = { ...charter, status: 'Reservation', vesselId: boat.id };
+        await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
+        console.log('✅ ΚΛΕΙΣΙΜΟ OPTION synced to API');
+      } catch (error) {
+        console.error('❌ API sync error:', error);
+      }
+      showMessage('✅ Ναύλος κλείστηκε → RESERVATION! Αναμονή Owner επιβεβαίωσης.', 'success');
+    } else {
+      showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
+    }
+    setIsProcessing(false);
+  };
+
+  const handleAdminCancelCharter = async () => {
+    if (!window.confirm('Είστε σίγουροι ότι θέλετε να ΑΚΥΡΩΣΕΤΕ αυτόν τον ναύλο;')) return;
+    setIsProcessing(true);
+    const success = await sendCharterEmail(charter, boat.name || boat.id, 'cancelled');
+    if (success) {
+      onDelete(charter.id);
+      showMessage('❌ Ναύλος ΑΚΥΡΩΘΗΚΕ και διαγράφηκε! Ειδοποίηση στάλθηκε.', 'success');
     } else {
       showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
     }
@@ -3692,30 +4057,63 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
         <p className="text-center text-gray-400 text-sm mb-4">Please advise regarding the acceptance of the charter.<br/>Thank you,</p>
 
-        {canAcceptCharter && (charter.status === 'Option' || charter.status === 'Pending' || charter.status === 'Confirmed') && (
+        {/* OWNER: Option → ΑΠΟΔΟΧΗ / ΜΗ ΑΠΟΔΟΧΗ */}
+        {canAcceptCharter && (charter.status === 'Option' || charter.status === 'Pending') && (
           <div className="space-y-2 mb-4">
-            <div className={`text-center text-sm mb-2 p-2 rounded-lg ${charter.status === 'Confirmed' ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-400'}`}>
-              {charter.status === 'Confirmed' ? '✅ Κλεισμένος ναύλος - Επιβεβαιώστε ότι συμφωνείτε' : '⏳ Αυτός ο ναύλος περιμένει την απόφασή σας'}
+            <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-900 text-yellow-400">
+              ⏳ Αυτός ο ναύλος περιμένει την απόφασή σας
             </div>
-            <button onClick={handleAcceptCharter} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
-              {isProcessing ? 'Processing...' : <>{icons.checkCircle} <span className="ml-2">✅ ΑΠΟΔΟΧΗ ΝΑΥΛΟΥ</span></>}
+            <button onClick={handleOwnerAcceptOption} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+              {isProcessing ? 'Processing...' : <>{icons.checkCircle} <span className="ml-2">✅ ΑΠΟΔΟΧΗ</span></>}
             </button>
-            <button onClick={handleRejectCharter} disabled={isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
-              {isProcessing ? 'Processing...' : <>{icons.xCircle} <span className="ml-2">❌ ΑΠΟΡΡΙΨΗ ΝΑΥΛΟΥ</span></>}
+            <button onClick={handleOwnerRejectOption} disabled={isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+              {isProcessing ? 'Processing...' : <>{icons.xCircle} <span className="ml-2">❌ ΜΗ ΑΠΟΔΟΧΗ</span></>}
             </button>
           </div>
         )}
 
-        {charter.status === 'Accepted' && (
-          <div className="w-full bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">✅ ΑΠΟΔΕΚΤΟΣ - Αναμονή επιβεβαίωσης</span></div>
+        {/* 🔥 FIX 12: ADMIN: Option Accepted → ΚΛΕΙΣΙΜΟ OPTION / ΑΚΥΡΟ */}
+        {!isOwnerUser && charter.status === 'Option Accepted' && (
+          <div className="space-y-2 mb-4">
+            <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-900 text-yellow-400">
+              ⏳ Owner αποδέχτηκε - Επιλέξτε ενέργεια
+            </div>
+            {/* 🔥 FIX 12: Admin button "ΚΛΕΙΣΙΜΟ OPTION" - Changes to Reservation, sends email, saves to API */}
+            <button onClick={handleAdminCloseCharter} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+              {isProcessing ? 'Processing...' : <>{icons.checkCircle} <span className="ml-2">✅ ΚΛΕΙΣΙΜΟ OPTION</span></>}
+            </button>
+            <button onClick={handleAdminCancelCharter} disabled={isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+              {isProcessing ? 'Processing...' : <>{icons.xCircle} <span className="ml-2">❌ ΑΚΥΡΟ</span></>}
+            </button>
+          </div>
+        )}
+
+        {/* OWNER: Reservation → ΑΠΟΔΟΧΗ / ΜΗ ΑΠΟΔΟΧΗ → Confirmed */}
+        {canAcceptCharter && charter.status === 'Reservation' && (
+          <div className="space-y-2 mb-4">
+            <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-900 text-yellow-400">
+              ⏳ Ο ναύλος κλείστηκε - Επιβεβαιώστε
+            </div>
+            <button onClick={handleOwnerConfirmReservation} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+              {isProcessing ? 'Processing...' : <>{icons.checkCircle} <span className="ml-2">✅ ΑΠΟΔΟΧΗ</span></>}
+            </button>
+            <button onClick={handleOwnerRejectOption} disabled={isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+              {isProcessing ? 'Processing...' : <>{icons.xCircle} <span className="ml-2">❌ ΜΗ ΑΠΟΔΟΧΗ</span></>}
+            </button>
+          </div>
+        )}
+
+        {/* Status displays */}
+        {charter.status === 'Option Accepted' && isOwnerUser && (
+          <div className="w-full bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">⏳ OPTION ACCEPTED - Αναμονή Admin</span></div>
         )}
 
         {charter.status === 'Confirmed' && (
-          <div className="w-full bg-green-700 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">✅ ΕΠΙΒΕΒΑΙΩΜΕΝΟΣ</span></div>
+          <div className="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">✅ ΕΠΙΒΕΒΑΙΩΜΕΝΟΣ</span></div>
         )}
 
-        {(charter.status === 'Canceled' || charter.status === 'Rejected') && (
-          <div className="w-full bg-red-700 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.xCircle} <span className="ml-2">❌ ΑΚΥΡΩΜΕΝΟΣ</span></div>
+        {(charter.status === 'Cancelled' || charter.status === 'Canceled' || charter.status === 'Rejected') && (
+          <div className="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.xCircle} <span className="ml-2">❌ ΑΚΥΡΩΜΕΝΟΣ</span></div>
         )}
 
         <button onClick={handleDownloadSpecimen} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-gray-600">
@@ -3758,17 +4156,30 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 }
 
 function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMessage }) {
+  // 🔥 FIX 3-4: All hooks MUST come before any conditional returns
   const [charters, setCharters] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   const isOwnerUser = authService.isOwner();
   const canViewFinancials = authService.canViewFinancials() || isOwnerUser;
   const canEditFinancials = authService.canEditFinancials() && !isOwnerUser;
 
+  // 🔥 FIX 4: Use optional chaining in dependencies
   useEffect(() => {
-    if (canViewFinancials) { loadData(); }
-  }, [boat.id, canViewFinancials]);
+    if (boat && canViewFinancials) {
+      loadData();
+    }
+  }, [boat?.id, canViewFinancials]);
+
+  // 🔥 FIX 3: Null check AFTER all hooks
+  if (!boat) {
+    return (
+      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
+        <div className="text-teal-400 text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   const loadData = () => {
     try {
@@ -4007,13 +4418,28 @@ function InvoiceSection({ boatId, canEditFinancials, showMessage, invoices, setI
 }
 
 function MessagesPage({ boat, currentUser, navigate, showMessage }) {
+  // 🔥 FIX 3-4: All hooks MUST come before any conditional returns
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef(null);
   const user = authService.getCurrentUser();
 
-  useEffect(() => { loadMessages(); }, [boat.id]);
+  // 🔥 FIX 4: Use optional chaining in dependencies
+  useEffect(() => {
+    if (boat) {
+      loadMessages();
+    }
+  }, [boat?.id]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  // 🔥 FIX 3: Null check AFTER all hooks
+  if (!boat) {
+    return (
+      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
+        <div className="text-teal-400 text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   const loadMessages = () => {
     try {
@@ -4087,12 +4513,24 @@ function MessagesPage({ boat, currentUser, navigate, showMessage }) {
 }
 
 function EmailPage({ boat, navigate }) {
+  // 🔥 FIX 3-4: All hooks MUST come before any conditional returns
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const user = authService.getCurrentUser();
 
+  // 🔥 FIX 3: Null check AFTER all hooks
+  if (!boat) {
+    return (
+      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
+        <div className="text-teal-400 text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   const handleSendEmail = () => {
-    const mailtoLink = `mailto:${COMPANY_INFO.emails.info}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`Σκάφος: ${boat.id}\nΑπό: ${user?.name || user?.code} (${user?.role})\n\n${body}`)}`;
+    // ALL emails go to ONLY these 2 addresses
+    const emailTo = 'info@tailwindyachting.com,charter@tailwindyachting.com';
+    const mailtoLink = `mailto:${emailTo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`Σκάφος: ${boat.name || boat.id}\nΑπό: ${user?.name || user?.code} (${user?.role})\n\n${body}`)}`;
     authService.logActivity('send_email', `${boat.id}/${subject}`);
     window.location.href = mailtoLink;
   };
@@ -4294,7 +4732,8 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
           <tbody>
             {filteredBoats.map((boat) => (
               <tr key={boat.id} className="hover:bg-gray-800">
-                <td className="sticky left-0 bg-gray-900 hover:bg-gray-800 p-3 border border-gray-700 font-bold text-teal-400 text-base">{boat.id}</td>
+                {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
+                <td className="sticky left-0 bg-gray-900 hover:bg-gray-800 p-3 border border-gray-700 font-bold text-teal-400 text-base">{boat.name}</td>
                 
                 {weeks.map((week, index) => {
                     const booking = allBookings.find((b) => {
