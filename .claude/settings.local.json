@@ -15,7 +15,10 @@
       "Bash(git push:*)",
       "Bash(node generate-icons.js:*)",
       "Bash(node convert-icons.js:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

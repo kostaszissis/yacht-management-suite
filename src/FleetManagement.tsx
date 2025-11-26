@@ -364,6 +364,7 @@ const sendCharterEmail = async (charter, boatName, action) => {
     const emailTo = ['info@tailwindyachting.com', 'charter@tailwindyachting.com'];
 
     const actionLabels = {
+      'new_charter': 'NEW CHARTER CREATED',
       'option_accepted': 'OPTION ACCEPTED by Owner',
       'cancelled': 'CANCELLED',
       'confirmed': 'CONFIRMED by Owner',
@@ -3607,6 +3608,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     } catch (error) {
       console.error('❌ API sync error (charter saved locally):', error);
     }
+
+    // 🔥 FIX 13: Send email when new charter is created
+    await sendCharterEmail(charter, boat.name, 'new_charter');
 
     authService.logActivity('add_charter', `${boat.id}/${charter.code}`);
     // 🔥 FIX 9: Reset form with skipper fields
