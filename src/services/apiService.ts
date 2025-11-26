@@ -1,5 +1,17 @@
 const API_URL = 'https://yachtmanagementsuite.com/api';
 
+// 🔥 FIX 17: Vessel ID to Name mapping for API calls
+const VESSEL_NAMES: { [key: number]: string } = {
+  1: 'Maria 1',
+  2: 'Maria 2',
+  3: 'Valesia',
+  4: 'Bar Bar',
+  5: 'Kalispera',
+  6: 'Infinity',
+  7: 'Perla',
+  8: 'Bob'
+};
+
 // =====================================================
 // VESSELS API
 // =====================================================
@@ -328,7 +340,10 @@ export async function getBookingsByVesselHybrid(vesselId: number | string): Prom
 
   // Try to fetch from API
   try {
-    const response = await fetch(`${API_URL}/bookings?vessel=${vesselId}`);
+    // 🔥 FIX 17: Convert vessel ID to name for API call
+    const vesselName = typeof vesselId === 'number' ? VESSEL_NAMES[vesselId] : vesselId;
+    console.log(`🔍 API Call: vesselId=${vesselId}, vesselName=${vesselName}`);
+    const response = await fetch(`${API_URL}/bookings?vessel=${encodeURIComponent(vesselName || String(vesselId))}`);
     if (!response.ok) throw new Error('API request failed');
 
     const data = await response.json();
