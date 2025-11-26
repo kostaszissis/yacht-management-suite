@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBoatsForOwner } from './ownerCodes';
+import UserGuide from './UserGuide';
 
 // 🔥 FIX 5: Fleet data with numeric IDs matching API format
 const INITIAL_FLEET = [
@@ -50,6 +51,7 @@ export default function OwnerDashboard() {
   const [language, setLanguage] = useState('en');
   const [ownerCode, setOwnerCode] = useState('');
   const [ownerBoats, setOwnerBoats] = useState<any[]>([]);
+  const [showUserGuide, setShowUserGuide] = useState(false);
   // 🔥 FIX 5: Support numeric keys for boat data
   const [boatData, setBoatData] = useState<{[key: number | string]: {pendingCharters: any[], invoices: any[]}}>({});
   const navigate = useNavigate();
@@ -146,6 +148,12 @@ export default function OwnerDashboard() {
               <div className="px-4 py-2 bg-teal-500 text-white rounded-lg font-semibold">
                 🔑 {ownerCode}
               </div>
+              <button
+                onClick={() => setShowUserGuide(true)}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-semibold text-white transition-colors"
+              >
+                📖 {language === 'en' ? 'Guide' : 'Οδηγίες'}
+              </button>
               <button
                 onClick={() => navigate('/owner-profile', { state: { ownerCode } })}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold text-white transition-colors"
@@ -334,6 +342,9 @@ export default function OwnerDashboard() {
         </div>
 
       </main>
+
+      {/* User Guide Modal */}
+      <UserGuide isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
 
     </div>
   );

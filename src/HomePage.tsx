@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { isOwnerCode } from './ownerCodes';
 import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
+import UserGuide from './UserGuide';
 
 // 🎵 MUSIC RADIO LINKS
 const MUSIC_RADIO_LINKS = {
@@ -21,6 +22,7 @@ export default function HomePage() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showFleetModal, setShowFleetModal] = useState(false);
   const [showMusicModal, setShowMusicModal] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [fleetCode, setFleetCode] = useState('');
@@ -610,12 +612,20 @@ export default function HomePage() {
               <p style={styles.logoSubtitle}>Digital Check-In System</p>
             </div>
           </div>
-          <button 
-            style={styles.langBtn}
-            onClick={() => setLanguage(language === 'en' ? 'gr' : 'en')}
-          >
-            🇬🇷 / 🇬🇧
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              style={{ ...styles.langBtn, background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+              onClick={() => setShowUserGuide(true)}
+            >
+              📖 {language === 'en' ? 'Guide' : 'Οδηγίες'}
+            </button>
+            <button
+              style={styles.langBtn}
+              onClick={() => setLanguage(language === 'en' ? 'gr' : 'en')}
+            >
+              🇬🇷 / 🇬🇧
+            </button>
+          </div>
         </header>
 
         {/* Welcome Banner */}
@@ -924,6 +934,9 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* User Guide Modal */}
+      <UserGuide isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
     </div>
   );
 }

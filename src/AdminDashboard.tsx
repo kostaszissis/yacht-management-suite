@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './authService';
 import ChatManagementModal from './ChatManagementModal';
+import UserGuide from './UserGuide';
 
 // Import icons from FleetManagement or create here
 const icons = {
@@ -82,6 +83,7 @@ export default function AdminDashboard({
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [showChatManagement, setShowChatManagement] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
   const user = authService.getCurrentUser();
   const reactNavigate = useNavigate();
 
@@ -193,16 +195,24 @@ export default function AdminDashboard({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-xl">
-                ��
+                👤
               </div>
               <div>
                 <div className="text-base font-bold text-slate-800">{user?.name || user?.code}</div>
                 <div className="text-xs text-blue-600">{user?.role}</div>
               </div>
             </div>
-            <div className="text-green-600 flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs font-semibold">Online</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowUserGuide(true)}
+                className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded-lg text-sm font-semibold transition-colors"
+              >
+                📖 Οδηγίες
+              </button>
+              <div className="text-green-600 flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs font-semibold">Online</span>
+              </div>
             </div>
           </div>
         </div>
@@ -379,6 +389,9 @@ export default function AdminDashboard({
       {showChatManagement && (
         <ChatManagementModal onClose={() => setShowChatManagement(false)} />
       )}
+
+      {/* User Guide Modal */}
+      <UserGuide isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
     </div>
   );
 }

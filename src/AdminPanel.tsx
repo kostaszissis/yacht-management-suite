@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import UserGuide from './UserGuide';
 import {
   initializeAuth,
   getCurrentUser,
@@ -26,6 +27,7 @@ export default function AdminPanel() {
   const navigate = useNavigate();
   const [language, setLanguage] = useState('en');
   const [activeTab, setActiveTab] = useState<'employees' | 'owners' | 'logs'>('employees');
+  const [showUserGuide, setShowUserGuide] = useState(false);
 
   // Fleet State
   const [vessels, setVessels] = useState<any[]>([]);
@@ -329,6 +331,12 @@ export default function AdminPanel() {
                 className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-lg font-semibold text-white transition-all shadow-lg"
               >
                 💬 {language === 'en' ? 'Technical Support' : 'Τεχνική Υποστήριξη'}
+              </button>
+              <button
+                onClick={() => setShowUserGuide(true)}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-semibold text-white transition-colors"
+              >
+                📖 {language === 'en' ? 'Guide' : 'Οδηγίες'}
               </button>
               <button
                 onClick={() => setLanguage(language === 'en' ? 'el' : 'en')}
@@ -702,6 +710,10 @@ export default function AdminPanel() {
           </div>
         )}
       </div>
+
+      {/* User Guide Modal */}
+      <UserGuide isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
+
     </div>
   );
 }
