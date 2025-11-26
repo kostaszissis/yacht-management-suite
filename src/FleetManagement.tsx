@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import authService from './authService';
 import AdminDashboard from './AdminDashboard';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
-import { saveBookingHybrid, getVessels } from './services/apiService';
+// 🔥 FIX 16: Added API loading functions for multi-device sync
+import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid } from './services/apiService';
 
 // =====================================================
 // FLEET MANAGEMENT - PROFESSIONAL VERSION WITH AUTH
@@ -628,23 +629,32 @@ export default function FleetManagement() {
     loadBoats();
   };
 
-  const loadFinancialsData = () => {
+  // 🔥 FIX 16: Load financials from API first, merge with localStorage
+  const loadFinancialsData = async () => {
     let totalIncome = 0;
     let totalExpenses = 0;
-    const boatsData = [];
+    const boatsData: any[] = [];
 
-    allBoats.forEach(boat => {
-      const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
-      const chartersStored = localStorage.getItem(chartersKey);
-      const charters = chartersStored ? JSON.parse(chartersStored) : [];
+    // Load all boats in parallel for better performance
+    await Promise.all(allBoats.map(async (boat: any) => {
+      // Load charters from API (with localStorage merge and fallback)
+      let charters: any[] = [];
+      try {
+        charters = await getBookingsByVesselHybrid(boat.id);
+      } catch (e) {
+        const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
+        const chartersStored = localStorage.getItem(chartersKey);
+        charters = chartersStored ? JSON.parse(chartersStored) : [];
+      }
 
+      // Load invoices (localStorage only for now)
       const invoicesKey = `fleet_${boat.id}_ΤΙΜΟΛΟΓΙΑ`;
       const invoicesStored = localStorage.getItem(invoicesKey);
       const invoices = invoicesStored ? JSON.parse(invoicesStored) : [];
 
-      const boatIncome = charters.reduce((sum, c) => sum + (c.amount || 0), 0);
-      const charterExpenses = charters.reduce((sum, c) => sum + (c.commission || 0) + (c.vat_on_commission || 0), 0);
-      const invoiceExpenses = invoices.reduce((sum, i) => sum + (i.amount || 0), 0);
+      const boatIncome = charters.reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+      const charterExpenses = charters.reduce((sum: number, c: any) => sum + (c.commission || 0) + (c.vat_on_commission || 0), 0);
+      const invoiceExpenses = invoices.reduce((sum: number, i: any) => sum + (i.amount || 0), 0);
       const boatExpenses = charterExpenses + invoiceExpenses;
       const boatNet = boatIncome - boatExpenses;
 
@@ -660,7 +670,7 @@ export default function FleetManagement() {
         chartersCount: charters.length,
         invoicesCount: invoices.length
       });
-    });
+    }));
 
     setFinancialsData({
       boats: boatsData,
@@ -670,6 +680,7 @@ export default function FleetManagement() {
         net: totalIncome - totalExpenses
       }
     });
+    console.log('✅ FleetManagement: Financials loaded from API');
   };
 
   const handleLogout = () => {
@@ -1852,19 +1863,28 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
     return searchTerms.every(term => boatText.includes(term));
   });
 
-  const loadBoatDetails = (boatId) => {
-    // Load charters
-    const chartersKey = `fleet_${boatId}_ΝΑΥΛΑ`;
-    const chartersStored = localStorage.getItem(chartersKey);
-    const charters = chartersStored ? JSON.parse(chartersStored) : [];
-    
-    // Load invoices
+  // 🔥 FIX 16: Load boat details from API first, merge with localStorage
+  const loadBoatDetails = async (boatId) => {
+    setSelectedBoat(boatId);
+
+    // Load charters from API (with localStorage merge)
+    let charters = [];
+    try {
+      charters = await getBookingsByVesselHybrid(boatId);
+      console.log(`✅ Loaded ${charters.length} charters for boat ${boatId} from API`);
+    } catch (e) {
+      console.warn('⚠️ API failed, using localStorage for charters');
+      const chartersKey = `fleet_${boatId}_ΝΑΥΛΑ`;
+      const chartersStored = localStorage.getItem(chartersKey);
+      charters = chartersStored ? JSON.parse(chartersStored) : [];
+    }
+
+    // Load invoices (localStorage only for now)
     const invoicesKey = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ`;
     const invoicesStored = localStorage.getItem(invoicesKey);
     const invoices = invoicesStored ? JSON.parse(invoicesStored) : [];
 
     setDetailedData({ charters, invoices });
-    setSelectedBoat(boatId);
   };
 
   const formatCurrency = (amount) => {
@@ -2364,27 +2384,40 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
   useEffect(() => {
     loadAllBoatsData();
   }, [boatIds]);
-  
-  const loadAllBoatsData = () => {
-    const data = {};
-    
-    boatIds.forEach(boatId => {
-      const chartersKey = `fleet_${boatId}_ΝΑΥΛΑ`;
-      const chartersStored = localStorage.getItem(chartersKey);
-      const charters = chartersStored ? JSON.parse(chartersStored) : [];
-      
+
+  // 🔥 FIX 16: Load boat data from API first, merge with localStorage
+  const loadAllBoatsData = async () => {
+    const data: { [key: string]: { charters: any[], invoices: any[], documents: any[] } } = {};
+
+    // Load all boats in parallel for better performance
+    await Promise.all(boatIds.map(async (boatId: any) => {
+      // Load charters from API (with localStorage merge and fallback)
+      let charters = [];
+      try {
+        charters = await getBookingsByVesselHybrid(boatId);
+        console.log(`✅ FleetSummary: Loaded ${charters.length} charters for boat ${boatId} from API`);
+      } catch (e) {
+        console.warn(`⚠️ API failed for boat ${boatId}, using localStorage`);
+        const chartersKey = `fleet_${boatId}_ΝΑΥΛΑ`;
+        const chartersStored = localStorage.getItem(chartersKey);
+        charters = chartersStored ? JSON.parse(chartersStored) : [];
+      }
+
+      // Load invoices (localStorage only for now)
       const invoicesKey = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ`;
       const invoicesStored = localStorage.getItem(invoicesKey);
       const invoices = invoicesStored ? JSON.parse(invoicesStored) : [];
-      
+
+      // Load documents (localStorage only)
       const docsKey = `fleet_${boatId}_documents`;
       const docsStored = localStorage.getItem(docsKey);
       const documents = docsStored ? JSON.parse(docsStored) : [];
-      
+
       data[boatId] = { charters, invoices, documents };
-    });
-    
+    }));
+
     setAllBoatsData(data);
+    console.log('✅ FleetSummary: All boat data loaded');
   };
   
   const calculateTotals = () => {
@@ -3241,9 +3274,21 @@ function DetailsPage({ boat, category, navigate, showMessage }) {
     );
   }
 
-  const loadItems = () => {
+  // 🔥 FIX 16: Load from API first for charters, merge with localStorage
+  const loadItems = async () => {
     try {
       const key = `fleet_${boat.id}_${category}`;
+
+      // For ΝΑΥΛΑ (charters): fetch from API first, merge with localStorage
+      if (category === 'ΝΑΥΛΑ') {
+        console.log(`🔄 Loading charters for vessel ${boat.id} from API...`);
+        const charters = await getBookingsByVesselHybrid(boat.id);
+        setItems(charters);
+        setLoading(false);
+        return;
+      }
+
+      // For other categories (ΕΡΓΑΣΙΕΣ, ΤΙΜΟΛΟΓΙΑ, etc.): use localStorage only
       const stored = localStorage.getItem(key);
       if (stored) {
         setItems(JSON.parse(stored));
@@ -3253,6 +3298,14 @@ function DetailsPage({ boat, category, navigate, showMessage }) {
       setLoading(false);
     } catch (e) {
       console.error('Error loading items:', e);
+      // Fallback to localStorage on error
+      try {
+        const key = `fleet_${boat.id}_${category}`;
+        const stored = localStorage.getItem(key);
+        setItems(stored ? JSON.parse(stored) : []);
+      } catch (fallbackError) {
+        setItems([]);
+      }
       setLoading(false);
     }
   };
@@ -4185,24 +4238,34 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
     );
   }
 
-  const loadData = () => {
+  // 🔥 FIX 16: Load data from API first, merge with localStorage
+  const loadData = async () => {
     try {
-      const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
-      const chartersStored = localStorage.getItem(chartersKey);
-      if (chartersStored) {
-        const chartersData = JSON.parse(chartersStored);
-        chartersData.sort((a, b) => (b.startDate && a.startDate) ? new Date(b.startDate).getTime() - new Date(a.startDate).getTime() : 0);
-        setCharters(chartersData);
+      // Load charters from API (with localStorage merge and fallback)
+      let chartersData: any[] = [];
+      try {
+        chartersData = await getBookingsByVesselHybrid(boat.id);
+        console.log(`✅ FinancialsPage: Loaded ${chartersData.length} charters from API`);
+      } catch (apiError) {
+        console.warn('⚠️ API failed, using localStorage for charters');
+        const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
+        const chartersStored = localStorage.getItem(chartersKey);
+        chartersData = chartersStored ? JSON.parse(chartersStored) : [];
       }
-      
+
+      // Sort charters by date
+      chartersData.sort((a: any, b: any) => (b.startDate && a.startDate) ? new Date(b.startDate).getTime() - new Date(a.startDate).getTime() : 0);
+      setCharters(chartersData);
+
+      // Load invoices (localStorage only for now)
       const invoicesKey = `fleet_${boat.id}_ΤΙΜΟΛΟΓΙΑ`;
       const invoicesStored = localStorage.getItem(invoicesKey);
       if (invoicesStored) {
         const invoicesData = JSON.parse(invoicesStored);
-        invoicesData.sort((a, b) => (b.date && a.date) ? new Date(b.date).getTime() - new Date(a.date).getTime() : 0);
+        invoicesData.sort((a: any, b: any) => (b.date && a.date) ? new Date(b.date).getTime() - new Date(a.date).getTime() : 0);
         setInvoices(invoicesData);
       }
-      
+
       authService.logActivity('view_financials', boat.id);
       setLoading(false);
     } catch (e) {

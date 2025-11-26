@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getBoatsForOwner } from './ownerCodes';
 import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
+// 🔥 FIX 16: Import API functions for multi-device sync
+import { getBookingsByVesselHybrid } from './services/apiService';
 
 // 🔥 FIX 5: Fleet data with numeric IDs matching API format
 const INITIAL_FLEET = [
@@ -16,19 +18,27 @@ const INITIAL_FLEET = [
   { id: 3, name: "Valesia", type: "Monohull", model: "Bavaria c42 Cruiser" }
 ];
 
-// 🔥 FIX 5: Function to get pending charters for a boat (supports numeric ID)
-const getPendingCharters = (boatId: number | string) => {
+// 🔥 FIX 16: Async function to get pending charters from API (with localStorage fallback)
+const getPendingChartersAsync = async (boatId: number | string): Promise<any[]> => {
   try {
-    const key = `fleet_${boatId}_ΝΑΥΛΑ`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      const charters = JSON.parse(stored);
-      // 🔥 FIX: Check for Option OR Pending status
-      return charters.filter((c: any) => c.status === 'Pending' || c.status === 'Option');
-    }
-    return [];
+    // Fetch from API first (with localStorage merge and fallback)
+    const charters = await getBookingsByVesselHybrid(boatId);
+    console.log(`✅ OwnerDashboard: Loaded ${charters.length} charters for boat ${boatId}`);
+    // Filter for Option OR Pending status
+    return charters.filter((c: any) => c.status === 'Pending' || c.status === 'Option');
   } catch (e) {
-    console.error('Error loading charters:', e);
+    console.error('Error loading charters from API:', e);
+    // Fallback to localStorage only
+    try {
+      const key = `fleet_${boatId}_ΝΑΥΛΑ`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const charters = JSON.parse(stored);
+        return charters.filter((c: any) => c.status === 'Pending' || c.status === 'Option');
+      }
+    } catch (localError) {
+      console.error('Error loading from localStorage:', localError);
+    }
     return [];
   }
 };
@@ -61,30 +71,37 @@ export default function OwnerDashboard() {
   useEffect(() => {
     // Get owner code from navigation state
     const code = location.state?.ownerCode;
-    
+
     if (!code) {
       // If no code, redirect to home
       navigate('/');
       return;
     }
-    
+
     setOwnerCode(code);
-    
+
     // Get boats for this owner
     const boatIds = getBoatsForOwner(code);
     const boats = INITIAL_FLEET.filter(boat => boatIds.includes(boat.id));
     setOwnerBoats(boats);
-    
-    // 🔥 NEW: Load pending charters and invoices for each boat
-    const data: {[key: string]: {pendingCharters: any[], invoices: any[]}} = {};
-    boats.forEach(boat => {
-      data[boat.id] = {
-        pendingCharters: getPendingCharters(boat.id),
-        invoices: getInvoices(boat.id)
-      };
-    });
-    setBoatData(data);
-    
+
+    // 🔥 FIX 16: Load pending charters from API (async) and invoices for each boat
+    const loadBoatData = async () => {
+      const data: {[key: string]: {pendingCharters: any[], invoices: any[]}} = {};
+
+      // Load all boats in parallel for better performance
+      await Promise.all(boats.map(async (boat) => {
+        const pendingCharters = await getPendingChartersAsync(boat.id);
+        const invoices = getInvoices(boat.id);
+        data[boat.id] = { pendingCharters, invoices };
+      }));
+
+      setBoatData(data);
+      console.log('✅ OwnerDashboard: All boat data loaded from API');
+    };
+
+    loadBoatData();
+
   }, [location, navigate]);
 
   // 🔥 FIX 5: Support numeric boat IDs

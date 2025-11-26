@@ -309,6 +309,150 @@ export async function deleteBookingHybrid(bookingNumber: string) {
 }
 
 /**
+ * Hybrid: Get bookings for a specific vessel from API, merge with localStorage
+ * @param vesselId - The vessel ID to fetch bookings for
+ */
+export async function getBookingsByVesselHybrid(vesselId: number | string): Promise<any[]> {
+  const localKey = `fleet_${vesselId}_ΝΑΥΛΑ`;
+  let localCharters: any[] = [];
+
+  // Load from localStorage first
+  try {
+    const stored = localStorage.getItem(localKey);
+    if (stored) {
+      localCharters = JSON.parse(stored);
+    }
+  } catch (e) {
+    console.warn('⚠️ Error reading localStorage:', e);
+  }
+
+  // Try to fetch from API
+  try {
+    const response = await fetch(`${API_URL}/bookings?vessel=${vesselId}`);
+    if (!response.ok) throw new Error('API request failed');
+
+    const data = await response.json();
+    // 🔥 FIX: API returns bookings as OBJECT {code: data}, convert to array
+    const bookingsObj = data.bookings || {};
+    const apiCharters = Array.isArray(bookingsObj)
+      ? bookingsObj
+      : Object.values(bookingsObj).map((b: any) => b.bookingData || b);
+
+    console.log(`✅ Loaded ${apiCharters.length} charters from API for vessel ${vesselId}`);
+
+    // Merge API data with localStorage (API takes priority for same booking code)
+    const mergedCharters = mergeCharters(apiCharters, localCharters);
+
+    // Update localStorage with merged data
+    localStorage.setItem(localKey, JSON.stringify(mergedCharters));
+
+    return mergedCharters;
+  } catch (error) {
+    console.warn(`⚠️ API failed for vessel ${vesselId}, using localStorage fallback:`, error);
+    return localCharters;
+  }
+}
+
+/**
+ * Hybrid: Get ALL bookings from API, organized by vessel, merged with localStorage
+ */
+export async function getAllBookingsHybrid(): Promise<{ [vesselId: string]: any[] }> {
+  const result: { [vesselId: string]: any[] } = {};
+
+  // Try to fetch all bookings from API
+  try {
+    const response = await fetch(`${API_URL}/bookings`);
+    if (!response.ok) throw new Error('API request failed');
+
+    const data = await response.json();
+    // 🔥 FIX: API returns bookings as OBJECT {code: data}, convert to array
+    const bookingsObj = data.bookings || {};
+    const apiBookings = Array.isArray(bookingsObj)
+      ? bookingsObj
+      : Object.values(bookingsObj);
+
+    console.log(`✅ Loaded ${apiBookings.length} total bookings from API`);
+
+    // Group by vesselId
+    for (const booking of apiBookings) {
+      const bookingData = (booking as any).bookingData || booking;
+      const vesselId = bookingData?.vesselId || (booking as any).vesselId;
+      if (vesselId) {
+        if (!result[vesselId]) result[vesselId] = [];
+        result[vesselId].push(bookingData);
+      }
+    }
+
+    // Merge with localStorage for each vessel
+    const allLocalStorageKeys = Object.keys(localStorage).filter(k => k.startsWith('fleet_') && k.endsWith('_ΝΑΥΛΑ'));
+    for (const key of allLocalStorageKeys) {
+      const vesselIdMatch = key.match(/fleet_(.+)_ΝΑΥΛΑ/);
+      if (vesselIdMatch) {
+        const vesselId = vesselIdMatch[1];
+        try {
+          const localCharters = JSON.parse(localStorage.getItem(key) || '[]');
+          const apiCharters = result[vesselId] || [];
+          result[vesselId] = mergeCharters(apiCharters, localCharters);
+          // Update localStorage
+          localStorage.setItem(key, JSON.stringify(result[vesselId]));
+        } catch (e) {
+          console.warn(`Error merging for ${key}:`, e);
+        }
+      }
+    }
+
+    return result;
+  } catch (error) {
+    console.warn('⚠️ API failed, loading all from localStorage:', error);
+
+    // Fallback: load all from localStorage
+    const allLocalStorageKeys = Object.keys(localStorage).filter(k => k.startsWith('fleet_') && k.endsWith('_ΝΑΥΛΑ'));
+    for (const key of allLocalStorageKeys) {
+      const vesselIdMatch = key.match(/fleet_(.+)_ΝΑΥΛΑ/);
+      if (vesselIdMatch) {
+        const vesselId = vesselIdMatch[1];
+        try {
+          result[vesselId] = JSON.parse(localStorage.getItem(key) || '[]');
+        } catch (e) {
+          console.warn(`Error reading ${key}:`, e);
+        }
+      }
+    }
+
+    return result;
+  }
+}
+
+/**
+ * Helper: Merge API charters with local charters (API takes priority for same code/id)
+ */
+function mergeCharters(apiCharters: any[], localCharters: any[]): any[] {
+  const merged = new Map<string, any>();
+
+  // Add local charters first
+  for (const charter of localCharters) {
+    const key = charter.code || charter.id;
+    if (key) merged.set(key, charter);
+  }
+
+  // Override with API charters (they have priority)
+  for (const charter of apiCharters) {
+    const key = charter.code || charter.id;
+    if (key) {
+      const existing = merged.get(key);
+      if (existing) {
+        // Merge: keep local fields not in API, but API data takes priority
+        merged.set(key, { ...existing, ...charter });
+      } else {
+        merged.set(key, charter);
+      }
+    }
+  }
+
+  return Array.from(merged.values());
+}
+
+/**
  * Sync all unsynced bookings to API
  */
 export async function syncUnsyncedBookings() {

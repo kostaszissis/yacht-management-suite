@@ -4,6 +4,8 @@ import authService from './authService';
 import ChatManagementModal from './ChatManagementModal';
 import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
+// 🔥 FIX 16: Import API functions for multi-device sync
+import { getBookingsByVesselHybrid } from './services/apiService';
 
 // Import icons from FleetManagement or create here
 const icons = {
@@ -105,23 +107,32 @@ export default function AdminDashboard({
     loadFinancialsData();
   }, [boats]);
 
-  const loadFinancialsData = () => {
+  // 🔥 FIX 16: Load financials from API first, merge with localStorage
+  const loadFinancialsData = async () => {
     let totalIncome = 0;
     let totalExpenses = 0;
-    const boatsData = [];
+    const boatsData: any[] = [];
 
-    boats.forEach(boat => {
-      const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
-      const chartersStored = localStorage.getItem(chartersKey);
-      const charters = chartersStored ? JSON.parse(chartersStored) : [];
+    // Load all boats in parallel for better performance
+    await Promise.all(boats.map(async (boat: any) => {
+      // Load charters from API (with localStorage merge and fallback)
+      let charters: any[] = [];
+      try {
+        charters = await getBookingsByVesselHybrid(boat.id);
+      } catch (e) {
+        const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
+        const chartersStored = localStorage.getItem(chartersKey);
+        charters = chartersStored ? JSON.parse(chartersStored) : [];
+      }
 
+      // Load invoices (localStorage only for now)
       const invoicesKey = `fleet_${boat.id}_ΤΙΜΟΛΟΓΙΑ`;
       const invoicesStored = localStorage.getItem(invoicesKey);
       const invoices = invoicesStored ? JSON.parse(invoicesStored) : [];
 
-      const boatIncome = charters.reduce((sum, c) => sum + (c.amount || 0), 0);
-      const charterExpenses = charters.reduce((sum, c) => sum + (c.commission || 0) + (c.vat_on_commission || 0), 0);
-      const invoiceExpenses = invoices.reduce((sum, i) => sum + (i.amount || 0), 0);
+      const boatIncome = charters.reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+      const charterExpenses = charters.reduce((sum: number, c: any) => sum + (c.commission || 0) + (c.vat_on_commission || 0), 0);
+      const invoiceExpenses = invoices.reduce((sum: number, i: any) => sum + (i.amount || 0), 0);
       const boatExpenses = charterExpenses + invoiceExpenses;
       const boatNet = boatIncome - boatExpenses;
 
@@ -137,7 +148,7 @@ export default function AdminDashboard({
         chartersCount: charters.length,
         invoicesCount: invoices.length
       });
-    });
+    }));
 
     setFinancialsData({
       boats: boatsData,
@@ -147,6 +158,7 @@ export default function AdminDashboard({
         net: totalIncome - totalExpenses
       }
     });
+    console.log('✅ AdminDashboard: Financials loaded from API');
   };
 
   const handleBackNavigation = () => {
