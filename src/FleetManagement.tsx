@@ -4,7 +4,7 @@ import authService from './authService';
 import AdminDashboard from './AdminDashboard';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
-import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid } from './services/apiService';
+import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid, deleteBooking } from './services/apiService';
 
 // =====================================================
 // FLEET MANAGEMENT - PROFESSIONAL VERSION WITH AUTH
@@ -3676,32 +3676,39 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     showMessage('✅ Ο ναύλος προστέθηκε.', 'success');
   };
 
-  const handleDeleteCharter = async (charterId) => {
+  // 🔥 FIX 19: Fixed delete to find charter by code OR id (API charters use code)
+  const handleDeleteCharter = async (charterKey) => {
     if (!canEditCharters) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα διαγραφής', 'error');
       return;
     }
 
-    const charter = items.find(c => c.id === charterId);
+    // Find charter by code first (API charters), then by id (local charters)
+    const charter = items.find(c => c.code === charterKey || c.id === charterKey);
+    const bookingCode = charter?.code || charterKey;
 
-    // Delete from API
-    try {
-      const response = await fetch(`https://yachtmanagementsuite.com/api/charters/${charterId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) {
-        console.warn('API delete failed, continuing with local delete');
-      } else {
-        console.log('Charter deleted from API:', charterId);
+    console.log(`🗑️ Deleting charter: key=${charterKey}, code=${bookingCode}, found=${!!charter}`);
+
+    // Delete from API using booking code (not id!)
+    if (bookingCode) {
+      try {
+        const response = await fetch(`https://yachtmanagementsuite.com/api/bookings/${encodeURIComponent(bookingCode)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        if (!response.ok) {
+          console.warn(`API delete failed (status ${response.status}), continuing with local delete`);
+        } else {
+          console.log('✅ Charter deleted from API:', bookingCode);
+        }
+      } catch (error) {
+        console.warn('API delete error:', error);
       }
-    } catch (error) {
-      console.warn('API delete error:', error);
     }
 
-    // Delete from local storage
-    saveItems(items.filter((item) => item.id !== charterId));
-    authService.logActivity('delete_charter', `${boat.id}/${charter?.code}`);
+    // Delete from local storage (filter by code OR id)
+    saveItems(items.filter((item) => item.code !== charterKey && item.id !== charterKey));
+    authService.logActivity('delete_charter', `${boat.id}/${bookingCode}`);
     setSelectedCharter(null);
     showMessage('✅ Ο ναύλος διαγράφηκε.', 'success');
   };
@@ -4203,8 +4210,28 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
         )}
 
         {canEditCharters && (
-          <button onClick={() => onDelete(charter.id)} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center">
-            {icons.x} <span className="ml-2">Διαγραφή Ναύλου</span>
+          <button onClick={async () => {
+            const bookingCode = charter.code || charter.id;
+            console.log('🗑️ DELETE BUTTON CLICKED - bookingCode:', bookingCode);
+            if (!bookingCode) {
+              console.error('❌ No booking code found!');
+              return;
+            }
+            if (!window.confirm(`Οριστική διαγραφή του ναύλου ${bookingCode};`)) {
+              console.log('❌ Delete cancelled by user');
+              return;
+            }
+            try {
+              console.log('🗑️ Calling deleteBooking API...');
+              await deleteBooking(bookingCode);
+              console.log('✅ API delete successful');
+            } catch (error) {
+              console.warn('⚠️ API delete failed:', error);
+            }
+            // Update local state via onDelete
+            onDelete(bookingCode);
+          }} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center">
+            {icons.x} <span className="ml-2">🗑️ Οριστική Διαγραφή</span>
           </button>
         )}
       </div>
