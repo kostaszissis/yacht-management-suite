@@ -8,6 +8,8 @@
 
 The app works as a PWA (Progressive Web App) and can be installed on any device.
 
+> ⭐ **ΣΥΜΒΟΥΛΗ:** Η **ΕΠΙΛΟΓΗ 2** (με το πράσινο button) είναι πιο εύκολη - το button εμφανίζεται αυτόματα!
+
 ---
 
 ### 📱 ΚΙΝΗΤΟ (MOBILE PHONE)
@@ -16,6 +18,8 @@ The app works as a PWA (Progressive Web App) and can be installed on any device.
 **ΠΡΟΣΟΧΗ: Χρησιμοποιήστε ΜΟΝΟ Safari!**
 **ATTENTION: Use ONLY Safari!**
 
+> ⚠️ Στο iOS δεν λειτουργεί το Install Button - χρησιμοποιήστε την παρακάτω μέθοδο.
+
 1. Ανοίξτε το **Safari** (όχι Chrome!)
 2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
 3. Πατήστε το κουμπί **Κοινοποίηση** (τετράγωνο με βέλος ↑)
@@ -23,20 +27,26 @@ The app works as a PWA (Progressive Web App) and can be installed on any device.
 5. Πατήστε **"Προσθήκη"**
 6. Το εικονίδιο με την άγκυρα θα εμφανιστεί στην αρχική οθόνη
 
-*Screenshot: Κουμπί κοινοποίησης Safari → Προσθήκη στην οθόνη Αφετηρίας*
+---
 
-#### Android Phone
-**Χρησιμοποιήστε Chrome**
-**Use Chrome**
+#### Android Phone - Chrome
+**Χρησιμοποιήστε Chrome / Use Chrome**
 
+**ΕΠΙΛΟΓΗ 1: Από το Browser Menu** (Παραδοσιακός τρόπος)
 1. Ανοίξτε το **Chrome**
 2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
-3. Θα εμφανιστεί banner **"Εγκατάσταση εφαρμογής"** - Πατήστε το!
-4. Ή: Πατήστε τις 3 τελείες (⋮) → **"Εγκατάσταση εφαρμογής"**
+3. Πατήστε τις 3 τελείες (⋮) πάνω δεξιά
+4. Επιλέξτε **"Εγκατάσταση εφαρμογής"** ή **"Add to Home screen"**
 5. Πατήστε **"Εγκατάσταση"**
 6. Το εικονίδιο θα εμφανιστεί στην αρχική οθόνη
 
-*Screenshot: Chrome menu → Εγκατάσταση εφαρμογής*
+**ΕΠΙΛΟΓΗ 2: Από το App Button** ⭐ (Πιο εύκολο!)
+1. Ανοίξτε το **Chrome**
+2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
+3. Βρείτε το **πράσινο button "📥 Εγκατάσταση"** στο header της σελίδας
+4. Πατήστε το - ανοίγει αυτόματα το install prompt!
+5. Πατήστε **"Εγκατάσταση"**
+6. Έτοιμο! Το εικονίδιο εμφανίζεται στην αρχική οθόνη
 
 ---
 
@@ -46,60 +56,92 @@ The app works as a PWA (Progressive Web App) and can be installed on any device.
 **ΠΡΟΣΟΧΗ: Χρησιμοποιήστε ΜΟΝΟ Safari!**
 **ATTENTION: Use ONLY Safari!**
 
+> ⚠️ Στο iPad δεν λειτουργεί το Install Button - χρησιμοποιήστε την παρακάτω μέθοδο.
+
 1. Ανοίξτε το **Safari**
 2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
 3. Πατήστε το κουμπί **Κοινοποίηση** (↑)
 4. Επιλέξτε **"Προσθήκη στην οθόνη Αφετηρίας"**
 5. Πατήστε **"Προσθήκη"**
 
-#### Android Tablet
-**Χρησιμοποιήστε Chrome**
-**Use Chrome**
+---
 
+#### Android Tablet - Chrome
+**Χρησιμοποιήστε Chrome / Use Chrome**
+
+**ΕΠΙΛΟΓΗ 1: Από το Browser Menu** (Παραδοσιακός τρόπος)
 1. Ανοίξτε το **Chrome**
 2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
 3. Πατήστε τις 3 τελείες (⋮) → **"Εγκατάσταση εφαρμογής"**
 4. Πατήστε **"Εγκατάσταση"**
 
+**ΕΠΙΛΟΓΗ 2: Από το App Button** ⭐ (Πιο εύκολο!)
+1. Ανοίξτε το **Chrome**
+2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
+3. Βρείτε το **πράσινο button "📥 Εγκατάσταση"** στο header
+4. Πατήστε το - ανοίγει αυτόματα το install prompt!
+5. Πατήστε **"Εγκατάσταση"**
+
 ---
 
 ### 💻 ΥΠΟΛΟΓΙΣΤΗΣ (DESKTOP PC)
 
-#### Windows PC
-**Χρησιμοποιήστε Chrome ή Edge**
-**Use Chrome or Edge**
+#### Windows PC - Chrome
 
-**Chrome:**
-1. Ανοίξτε το Chrome
+**ΕΠΙΛΟΓΗ 1: Από το Browser** (Παραδοσιακός τρόπος)
+1. Ανοίξτε το **Chrome**
 2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
 3. Κοιτάξτε στη γραμμή διευθύνσεων - θα δείτε εικονίδιο εγκατάστασης (⊕)
 4. Πατήστε το → **"Εγκατάσταση"**
 5. Η εφαρμογή θα ανοίξει σε δικό της παράθυρο
 
-**Edge:**
-1. Ανοίξτε το Edge
+**ΕΠΙΛΟΓΗ 2: Από το App Button** ⭐ (Πιο εύκολο!)
+1. Ανοίξτε το **Chrome**
 2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
-3. Πατήστε τις 3 τελείες (...) → **"Εφαρμογές"** → **"Εγκατάσταση αυτού του ιστότοπου ως εφαρμογή"**
+3. Βρείτε το **πράσινο button "📥 Εγκατάσταση"** στο header
+4. Κάντε κλικ - ανοίγει αυτόματα το install prompt!
+5. Πατήστε **"Εγκατάσταση"**
 
-#### Mac (Apple Computer)
-**Χρησιμοποιήστε Chrome ή Edge**
-**Use Chrome or Edge**
+---
 
-1. Ανοίξτε το Chrome ή Edge
+#### Windows PC - Edge
+
+**ΕΠΙΛΟΓΗ 1: Από το Browser** (Παραδοσιακός τρόπος)
+1. Ανοίξτε το **Edge**
+2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
+3. Πατήστε τις 3 τελείες (...) → **"Εφαρμογές"** → **"Εγκατάσταση αυτού του ιστότοπου"**
+
+**ΕΠΙΛΟΓΗ 2: Από το App Button** ⭐ (Πιο εύκολο!)
+1. Ανοίξτε το **Edge**
+2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
+3. Βρείτε το **πράσινο button "📥 Εγκατάσταση"** στο header
+4. Κάντε κλικ - ανοίγει αυτόματα το install prompt!
+5. Πατήστε **"Εγκατάσταση"**
+
+---
+
+#### Mac (Apple Computer) - Chrome/Edge
+
+**ΕΠΙΛΟΓΗ 1: Από το Browser** (Παραδοσιακός τρόπος)
+1. Ανοίξτε το **Chrome** ή **Edge**
 2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
 3. Ακολουθήστε τα ίδια βήματα με Windows
+
+**ΕΠΙΛΟΓΗ 2: Από το App Button** ⭐ (Πιο εύκολο!)
+1. Ανοίξτε το **Chrome** ή **Edge**
+2. Πηγαίνετε στο: `https://yachtmanagementsuite.com`
+3. Βρείτε το **πράσινο button "📥 Εγκατάσταση"** στο header
+4. Κάντε κλικ για εγκατάσταση!
 
 ---
 
 ### 💻 LAPTOP
 
 #### Windows Laptop
-Ίδια διαδικασία με Windows PC (Chrome ή Edge)
-Same process as Windows PC (Chrome or Edge)
+Ίδια διαδικασία με Windows PC (Chrome ή Edge) - χρησιμοποιήστε **ΕΠΙΛΟΓΗ 2** για ευκολία!
 
 #### MacBook
-Ίδια διαδικασία με Mac (Chrome ή Edge)
-Same process as Mac (Chrome or Edge)
+Ίδια διαδικασία με Mac (Chrome ή Edge) - χρησιμοποιήστε **ΕΠΙΛΟΓΗ 2** για ευκολία!
 
 ---
 

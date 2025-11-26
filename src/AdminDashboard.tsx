@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import authService from './authService';
 import ChatManagementModal from './ChatManagementModal';
 import UserGuide from './UserGuide';
+import InstallButton from './InstallButton';
 
 // Import icons from FleetManagement or create here
 const icons = {
@@ -203,6 +204,7 @@ export default function AdminDashboard({
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <InstallButton className="px-3 py-1.5 bg-green-500 hover:bg-green-400 text-white rounded-lg text-sm font-semibold transition-colors" />
               <button
                 onClick={() => setShowUserGuide(true)}
                 className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-white rounded-lg text-sm font-semibold transition-colors"

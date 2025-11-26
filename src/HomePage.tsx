@@ -4,6 +4,7 @@ import { isOwnerCode } from './ownerCodes';
 import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
 import UserGuide from './UserGuide';
+import InstallButton from './InstallButton';
 
 // 🎵 MUSIC RADIO LINKS
 const MUSIC_RADIO_LINKS = {
@@ -613,6 +614,7 @@ export default function HomePage() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <InstallButton />
             <button
               style={{ ...styles.langBtn, background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
               onClick={() => setShowUserGuide(true)}

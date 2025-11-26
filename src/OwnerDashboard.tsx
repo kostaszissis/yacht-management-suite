@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBoatsForOwner } from './ownerCodes';
 import UserGuide from './UserGuide';
+import InstallButton from './InstallButton';
 
 // 🔥 FIX 5: Fleet data with numeric IDs matching API format
 const INITIAL_FLEET = [
@@ -148,6 +149,7 @@ export default function OwnerDashboard() {
               <div className="px-4 py-2 bg-teal-500 text-white rounded-lg font-semibold">
                 🔑 {ownerCode}
               </div>
+              <InstallButton className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-semibold text-white transition-colors" />
               <button
                 onClick={() => setShowUserGuide(true)}
                 className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-semibold text-white transition-colors"
