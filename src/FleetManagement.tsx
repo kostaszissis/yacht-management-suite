@@ -389,8 +389,8 @@ const sendCharterEmail = async (charter, boatName, action) => {
     // 🔥 FIX 11: Log payload before sending
     console.log('📧 Email payload:', JSON.stringify(emailPayload, null, 2));
 
-    // 🔥 FIX 11: Call the actual API endpoint (port 3001)
-    const EMAIL_API_URL = 'https://yachtmanagementsuite.com:3001/send-charter-email';
+    // 🔥 FIX 15: Use nginx proxy for email API
+    const EMAIL_API_URL = 'https://yachtmanagementsuite.com/email/send-charter-email';
     console.log('📧 Calling API:', EMAIL_API_URL);
     console.log('📧 Request body:', JSON.stringify(emailPayload));
 
