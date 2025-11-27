@@ -502,6 +502,214 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
   }
 };
 
+// 🔥 FIX 27: Generate Crew List DOCX with auto-fill
+const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
+  console.log('👥 Crew List button clicked!');
+  console.log('👥 Charter:', charter);
+  console.log('👥 Boat:', boat);
+  console.log('👥 Boat Details:', boatDetails);
+
+  try {
+    console.log('📄 Step 1: Fetching Crew List template...');
+
+    // Load template from public folder
+    const templateUrl = '/templates/Crew-List.docx';
+    console.log('📄 Template URL:', templateUrl);
+
+    const response = await fetch(templateUrl);
+    console.log('📄 Response status:', response.status, response.statusText);
+
+    if (!response.ok) {
+      console.error('❌ Template not found at:', templateUrl);
+      alert(`❌ Template file not found!\n\nPlease place the template at:\npublic/templates/Crew-List.docx`);
+      return;
+    }
+
+    console.log('📄 Step 2: Converting to ArrayBuffer...');
+    const templateBuffer = await response.arrayBuffer();
+    console.log('📄 Template loaded, size:', templateBuffer.byteLength, 'bytes');
+
+    // Get crew members from charter (from API or localStorage)
+    const crewMembers = charter.crewMembers || [];
+    console.log('👥 Crew members found:', crewMembers.length);
+
+    // Format dates
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '';
+      try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+      } catch {
+        return dateStr;
+      }
+    };
+
+    // Prepare crew members array for docxtemplater loop
+    // Each crew member needs: name, dateOfBirth, passport, gender, nationality
+    const crewData = crewMembers.map((member, index) => ({
+      ROW_NUM: (index + 1).toString(),
+      CREW_NAME: member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim(),
+      CREW_DOB: formatDate(member.dateOfBirth) || '',
+      CREW_PASSPORT: member.passport || '',
+      CREW_GENDER: member.gender || '',
+      CREW_NATIONALITY: member.nationality || ''
+    }));
+
+    // Pad array to have at least 10 rows (typical crew list has 10 empty rows)
+    while (crewData.length < 10) {
+      crewData.push({
+        ROW_NUM: (crewData.length + 1).toString(),
+        CREW_NAME: '',
+        CREW_DOB: '',
+        CREW_PASSPORT: '',
+        CREW_GENDER: '',
+        CREW_NATIONALITY: ''
+      });
+    }
+
+    // Prepare data for auto-fill - matches template placeholders
+    const data = {
+      // Table 2: Vessel Info
+      YACHT_NAME: boat?.name || charter.vesselName || charter.boatName || '',
+      YACHT_TYPE: boat?.type || boatDetails?.['Yacht Type'] || '',
+      REGISTRY_PORT: boatDetails?.['Port of Registry'] || 'Piraeus',
+      REGISTRATION_NUMBER: boatDetails?.['Registration Number'] || '',
+      CALL_SIGN: boatDetails?.['Call Sign'] || '',
+      E_MITROO: boatDetails?.['E-Mitroo'] || boatDetails?.['MMSI'] || '',
+      FLAG: boatDetails?.['Flag'] || 'Greek',
+
+      // Table 2: Dates
+      EMBARKATION_DATE: formatDate(charter.startDate),
+      EMBARKATION_PLACE: charter.departure || 'ALIMOS MARINA',
+      DISEMBARKATION_DATE: formatDate(charter.endDate),
+      DISEMBARKATION_PLACE: charter.arrival || 'ALIMOS MARINA',
+
+      // Table 4: Contact Info
+      SKIPPER_MOBILE: charter.skipperPhone || '',
+      CHARTERER_MOBILE: charter.skipperPhone || '',
+      SKIPPER_NAME: charter.skipperFirstName && charter.skipperLastName
+        ? `${charter.skipperFirstName} ${charter.skipperLastName}`
+        : charter.clientName || '',
+
+      // Crew members array for Table 3 loop
+      crew: crewData,
+
+      // Individual crew members (for templates without loop support)
+      CREW1_NAME: crewData[0]?.CREW_NAME || '',
+      CREW1_DOB: crewData[0]?.CREW_DOB || '',
+      CREW1_PASSPORT: crewData[0]?.CREW_PASSPORT || '',
+      CREW1_GENDER: crewData[0]?.CREW_GENDER || '',
+      CREW1_NATIONALITY: crewData[0]?.CREW_NATIONALITY || '',
+
+      CREW2_NAME: crewData[1]?.CREW_NAME || '',
+      CREW2_DOB: crewData[1]?.CREW_DOB || '',
+      CREW2_PASSPORT: crewData[1]?.CREW_PASSPORT || '',
+      CREW2_GENDER: crewData[1]?.CREW_GENDER || '',
+      CREW2_NATIONALITY: crewData[1]?.CREW_NATIONALITY || '',
+
+      CREW3_NAME: crewData[2]?.CREW_NAME || '',
+      CREW3_DOB: crewData[2]?.CREW_DOB || '',
+      CREW3_PASSPORT: crewData[2]?.CREW_PASSPORT || '',
+      CREW3_GENDER: crewData[2]?.CREW_GENDER || '',
+      CREW3_NATIONALITY: crewData[2]?.CREW_NATIONALITY || '',
+
+      CREW4_NAME: crewData[3]?.CREW_NAME || '',
+      CREW4_DOB: crewData[3]?.CREW_DOB || '',
+      CREW4_PASSPORT: crewData[3]?.CREW_PASSPORT || '',
+      CREW4_GENDER: crewData[3]?.CREW_GENDER || '',
+      CREW4_NATIONALITY: crewData[3]?.CREW_NATIONALITY || '',
+
+      CREW5_NAME: crewData[4]?.CREW_NAME || '',
+      CREW5_DOB: crewData[4]?.CREW_DOB || '',
+      CREW5_PASSPORT: crewData[4]?.CREW_PASSPORT || '',
+      CREW5_GENDER: crewData[4]?.CREW_GENDER || '',
+      CREW5_NATIONALITY: crewData[4]?.CREW_NATIONALITY || '',
+
+      CREW6_NAME: crewData[5]?.CREW_NAME || '',
+      CREW6_DOB: crewData[5]?.CREW_DOB || '',
+      CREW6_PASSPORT: crewData[5]?.CREW_PASSPORT || '',
+      CREW6_GENDER: crewData[5]?.CREW_GENDER || '',
+      CREW6_NATIONALITY: crewData[5]?.CREW_NATIONALITY || '',
+
+      CREW7_NAME: crewData[6]?.CREW_NAME || '',
+      CREW7_DOB: crewData[6]?.CREW_DOB || '',
+      CREW7_PASSPORT: crewData[6]?.CREW_PASSPORT || '',
+      CREW7_GENDER: crewData[6]?.CREW_GENDER || '',
+      CREW7_NATIONALITY: crewData[6]?.CREW_NATIONALITY || '',
+
+      CREW8_NAME: crewData[7]?.CREW_NAME || '',
+      CREW8_DOB: crewData[7]?.CREW_DOB || '',
+      CREW8_PASSPORT: crewData[7]?.CREW_PASSPORT || '',
+      CREW8_GENDER: crewData[7]?.CREW_GENDER || '',
+      CREW8_NATIONALITY: crewData[7]?.CREW_NATIONALITY || '',
+
+      CREW9_NAME: crewData[8]?.CREW_NAME || '',
+      CREW9_DOB: crewData[8]?.CREW_DOB || '',
+      CREW9_PASSPORT: crewData[8]?.CREW_PASSPORT || '',
+      CREW9_GENDER: crewData[8]?.CREW_GENDER || '',
+      CREW9_NATIONALITY: crewData[8]?.CREW_NATIONALITY || '',
+
+      CREW10_NAME: crewData[9]?.CREW_NAME || '',
+      CREW10_DOB: crewData[9]?.CREW_DOB || '',
+      CREW10_PASSPORT: crewData[9]?.CREW_PASSPORT || '',
+      CREW10_GENDER: crewData[9]?.CREW_GENDER || '',
+      CREW10_NATIONALITY: crewData[9]?.CREW_NATIONALITY || '',
+
+      // Reference
+      CHARTER_CODE: charter.code || '',
+      BOOKING_CODE: charter.code || ''
+    };
+
+    console.log('📋 Step 4: Auto-fill data prepared:', data);
+
+    // Generate document with docxtemplater
+    console.log('📄 Step 5: Creating PizZip...');
+    const zip = new PizZip(templateBuffer);
+    console.log('📄 Step 6: PizZip created successfully');
+
+    console.log('📄 Step 7: Creating Docxtemplater...');
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+      delimiters: { start: '{{', end: '}}' }
+    });
+    console.log('📄 Step 8: Docxtemplater created successfully');
+
+    // Render with data
+    console.log('📄 Step 9: Rendering document...');
+    doc.render(data);
+    console.log('📄 Step 10: Document rendered successfully');
+
+    // Generate blob
+    console.log('📄 Step 11: Generating blob...');
+    const blob = doc.getZip().generate({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    console.log('📄 Step 12: Blob generated, size:', blob.size, 'bytes');
+
+    // Download file
+    const filename = `Crew-List-${charter.code || 'document'}.docx`;
+    console.log('📄 Step 13: Saving file as:', filename);
+    saveAs(blob, filename);
+
+    console.log('✅ Crew List generated and downloaded successfully!');
+    if (showMessage) {
+      showMessage('✅ Crew List DOCX κατέβηκε επιτυχώς!', 'success');
+    }
+
+  } catch (error: any) {
+    console.error('❌ Error generating Crew List:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error message:', error.message);
+    if (showMessage) {
+      showMessage('❌ Σφάλμα: ' + error.message, 'error');
+    } else {
+      alert('❌ Error: ' + error.message);
+    }
+  }
+};
+
 // 🔥 FIX 11: Enhanced email function with debugging logs
 const sendCharterEmail = async (charter, boatName, action) => {
   // 🔥 FIX 11: Log when called
@@ -4283,6 +4491,15 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
   // 🔥 FIX 23: Charter Party DOCX download handler
   const handleDownloadCharterParty = () => { generateCharterParty(charter, boat, showMessage); };
 
+  // 🔥 FIX 27: Crew List DOCX download handler
+  const handleDownloadCrewList = () => {
+    // Load boatDetails from localStorage
+    const detailsKey = `fleet_${boat.id}_details`;
+    const storedDetails = localStorage.getItem(detailsKey);
+    const boatDetails = storedDetails ? JSON.parse(storedDetails) : {};
+    generateCrewList(charter, boat, boatDetails, showMessage);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 overflow-y-auto max-h-[90vh] border border-gray-700">
@@ -4395,6 +4612,11 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
         {/* 🔥 FIX 23: Charter Party DOCX Button */}
         <button onClick={handleDownloadCharterParty} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-blue-500">
           {icons.fileText} <span className="ml-2">📄 Charter Party (DOCX)</span>
+        </button>
+
+        {/* 🔥 FIX 27: Crew List DOCX Button */}
+        <button onClick={handleDownloadCrewList} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-green-500">
+          {icons.fileText} <span className="ml-2">👥 Crew List (DOCX)</span>
         </button>
 
         {canEditCharters && canViewFinancials && (

@@ -438,17 +438,7 @@ export default function CharterAgreementPage() {
     doc.save(`Charter-Agreement-${bookingData.bookingCode}.pdf`);
   };
 
-  const handleDownloadCrewListTemplate = () => {
-    // Download from Google Drive
-    const fileId = '1ORm74fMSngA6Yin33OablQnCBZpLB_er';
-    const link = document.createElement('a');
-    link.href = `https://drive.google.com/uc?export=download&id=${fileId}`;
-    link.download = 'Crew-List-Template.docx';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // 🔥 FIX 27: Removed handleDownloadCrewListTemplate - now using auto-fill in FleetManagement
 
   const handleSkipperLicenseUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -709,42 +699,16 @@ export default function CharterAgreementPage() {
               {language === 'en' ? 'Crew List' : 'Λίστα Πληρώματος'}
             </h2>
             
+            {/* 🔥 FIX 27: Removed Option 1 (Google Drive download) - now using auto-fill in FleetManagement */}
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                {language === 'en' 
-                  ? 'Choose one of the following options:'
-                  : 'Επιλέξτε μία από τις παρακάτω επιλογές:'}
-              </p>
-
-              <div className="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-gray-800">
-                      {language === 'en' ? 'Option 1: Download Template' : 'Επιλογή 1: Λήψη Template'}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {language === 'en' 
-                        ? 'Download, fill manually and bring with you'
-                        : 'Κατεβάστε, συμπληρώστε χειρόγραφα και φέρτε το μαζί σας'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleDownloadCrewListTemplate}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 transition-all shadow-md"
-                  >
-                    📥 {language === 'en' ? 'Download' : 'Λήψη'}
-                  </button>
-                </div>
-              </div>
-
               <div className="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-400 transition-colors">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="font-semibold text-gray-800">
-                      {language === 'en' ? 'Option 2: Fill Online' : 'Επιλογή 2: Συμπλήρωση Online'}
+                      {language === 'en' ? 'Fill Crew Details Online' : 'Συμπλήρωση Στοιχείων Πληρώματος'}
                     </h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      {language === 'en' 
+                      {language === 'en'
                         ? 'Fill the crew list directly in the app'
                         : 'Συμπληρώστε τη λίστα πληρώματος απευθείας στο app'}
                     </p>
