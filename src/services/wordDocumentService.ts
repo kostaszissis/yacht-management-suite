@@ -50,10 +50,10 @@ export interface DocumentData {
 
 class WordDocumentService {
   /**
-   * Load a Word document template from public/documents folder
+   * Load a Word document template from public/templates folder
    */
   private async loadTemplate(filename: string): Promise<ArrayBuffer> {
-    const response = await fetch(`/documents/${filename}`);
+    const response = await fetch(`/templates/${filename}`);
     if (!response.ok) {
       throw new Error(`Failed to load template: ${filename}`);
     }
@@ -156,19 +156,6 @@ class WordDocumentService {
       });
       throw new Error(`Failed to fill document template: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }
-
-  /**
-   * Fill Charter Agreement (Ναυλοσύμφωνο)
-   */
-  async fillCharterAgreement(bookingData: DocumentData): Promise<void> {
-    const outputFilename = `Charter-Agreement-${bookingData.bookingCode || bookingData.bookingNumber || 'document'}.docx`;
-
-    await this.fillAndDownloadTemplate(
-      'Charter-Agreement.docx',
-      bookingData,
-      outputFilename
-    );
   }
 
   /**

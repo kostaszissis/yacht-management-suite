@@ -356,15 +356,30 @@ const generateSpecimenPdf = (charter, boatData, companyInfo = COMPANY_INFO) => {
 
 // 🔥 FIX 23: Generate Charter Party DOCX with auto-fill
 const generateCharterParty = async (charter, boat, showMessage?) => {
+  console.log('🚀 Charter Party button clicked!');
+  console.log('🚀 Charter:', charter);
+  console.log('🚀 Boat:', boat);
+
   try {
-    console.log('📄 Generating Charter Party...', charter, boat);
+    console.log('📄 Step 1: Fetching template...');
 
     // Load template from public folder
-    const response = await fetch('/templates/FINAL-Charter-Party-Tailwind-2026.docx');
+    const templateUrl = '/templates/FINAL-Charter-Party-Tailwind-2026.docx';
+    console.log('📄 Template URL:', templateUrl);
+
+    const response = await fetch(templateUrl);
+    console.log('📄 Response status:', response.status, response.statusText);
+
     if (!response.ok) {
-      throw new Error('Template not found. Please ensure the template file exists in /public/templates/');
+      console.error('❌ Template not found at:', templateUrl);
+      console.error('❌ Response:', response.status, response.statusText);
+      alert(`❌ Template file not found!\n\nPlease place the template at:\npublic/templates/FINAL-Charter-Party-Tailwind-2026.docx`);
+      return;
     }
+
+    console.log('📄 Step 2: Converting to ArrayBuffer...');
     const templateBuffer = await response.arrayBuffer();
+    console.log('📄 Template loaded, size:', templateBuffer.byteLength, 'bytes');
 
     // Calculate financial values
     const charterAmount = charter.amount || 0;
@@ -437,35 +452,48 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       BOOKING_CODE: charter.code || ''
     };
 
-    console.log('📋 Auto-fill data:', data);
+    console.log('📋 Step 4: Auto-fill data prepared:', data);
 
     // Generate document with docxtemplater
+    console.log('📄 Step 5: Creating PizZip...');
     const zip = new PizZip(templateBuffer);
+    console.log('📄 Step 6: PizZip created successfully');
+
+    console.log('📄 Step 7: Creating Docxtemplater...');
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
       delimiters: { start: '{{', end: '}}' }
     });
+    console.log('📄 Step 8: Docxtemplater created successfully');
 
     // Render with data
+    console.log('📄 Step 9: Rendering document...');
     doc.render(data);
+    console.log('📄 Step 10: Document rendered successfully');
 
     // Generate blob
+    console.log('📄 Step 11: Generating blob...');
     const blob = doc.getZip().generate({
       type: 'blob',
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
+    console.log('📄 Step 12: Blob generated, size:', blob.size, 'bytes');
 
     // Download file
-    saveAs(blob, `Charter-Party-${charter.code || 'document'}.docx`);
+    const filename = `Charter-Party-${charter.code || 'document'}.docx`;
+    console.log('📄 Step 13: Saving file as:', filename);
+    saveAs(blob, filename);
 
-    console.log('✅ Charter Party generated successfully!');
+    console.log('✅ Charter Party generated and downloaded successfully!');
     if (showMessage) {
       showMessage('✅ Charter Party DOCX κατέβηκε επιτυχώς!', 'success');
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error generating Charter Party:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error message:', error.message);
     if (showMessage) {
       showMessage('❌ Σφάλμα: ' + error.message, 'error');
     } else {
