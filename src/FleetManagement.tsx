@@ -5,6 +5,10 @@ import AdminDashboard from './AdminDashboard';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
 import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid, deleteBooking, updateCharterPayments, updateCharterStatus } from './services/apiService';
+// 🔥 FIX 23: Charter Party DOCX generation
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
+import { saveAs } from 'file-saver';
 
 // =====================================================
 // FLEET MANAGEMENT - PROFESSIONAL VERSION WITH AUTH
@@ -347,6 +351,126 @@ const generateSpecimenPdf = (charter, boatData, companyInfo = COMPANY_INFO) => {
   } catch (error) {
     console.error('Error generating PDF:', error);
     alert('Σφάλμα: ' + error.message);
+  }
+};
+
+// 🔥 FIX 23: Generate Charter Party DOCX with auto-fill
+const generateCharterParty = async (charter, boat, showMessage?) => {
+  try {
+    console.log('📄 Generating Charter Party...', charter, boat);
+
+    // Load template from public folder
+    const response = await fetch('/templates/FINAL-Charter-Party-Tailwind-2026.docx');
+    if (!response.ok) {
+      throw new Error('Template not found. Please ensure the template file exists in /public/templates/');
+    }
+    const templateBuffer = await response.arrayBuffer();
+
+    // Calculate financial values
+    const charterAmount = charter.amount || 0;
+    const vatAmount = charterAmount * 0.12; // 12% VAT on charter
+    const totalWithVat = charterAmount + vatAmount;
+
+    // Prepare data for auto-fill - matches template placeholders
+    const data = {
+      // Vessel Info
+      VESSEL_NAME: boat?.name || charter.vesselName || charter.boatName || '',
+      VESSEL_TYPE: boat?.type || '',
+      REGISTER_NUMBER: '',
+
+      // Date
+      DAY: new Date().getDate().toString(),
+      MONTH: (new Date().getMonth() + 1).toString(),
+      YEAR: new Date().getFullYear().toString(),
+
+      // Owner Info (empty - to be filled manually)
+      OWNER_NAME: '',
+      OWNER_ADDRESS: '',
+      OWNER_ID: '',
+      OWNER_PASSPORT: '',
+      OWNER_TAX: '',
+      OWNER_TAX_OFFICE: '',
+      OWNER_PHONE: '',
+      OWNER_EMAIL: '',
+
+      // Broker Info (empty - to be filled manually)
+      BROKER2_NAME: '',
+      BROKER2_ADDRESS: '',
+      BROKER2_TAX: '',
+      BROKER2_TAX_OFFICE: '',
+      BROKER2_PHONE: '',
+      BROKER2_EMAIL: '',
+
+      // Charterer Info - AUTO-FILL from charter data
+      CHARTERER_NAME: charter.skipperFirstName && charter.skipperLastName
+        ? `${charter.skipperFirstName} ${charter.skipperLastName}`
+        : charter.clientName || charter.charterer || '',
+      CHARTERER_ADDRESS: charter.skipperAddress || '',
+      CHARTERER_ID: '',
+      CHARTERER_PASSPORT: '',
+      CHARTERER_TAX: '',
+      CHARTERER_TAX_OFFICE: '',
+      CHARTERER_PHONE: charter.skipperPhone || '',
+      CHARTERER_EMAIL: charter.skipperEmail || '',
+
+      // Charter Dates - AUTO-FILL
+      CHECKIN_DATE: charter.startDate || '',
+      CHECKOUT_DATE: charter.endDate || '',
+      DEPARTURE_PORT: charter.departure || 'ALIMOS MARINA',
+      ARRIVAL_PORT: charter.arrival || 'ALIMOS MARINA',
+
+      // Financial - AUTO-FILL
+      NET_CHARTER_FEE: charterAmount.toFixed(2),
+      VAT_AMOUNT: vatAmount.toFixed(2),
+      TOTAL_CHARTER_PRICE: totalWithVat.toFixed(2),
+      CHARTER_AMOUNT: charterAmount.toFixed(2),
+
+      // Additional fields (empty - to be filled manually)
+      PROFESSIONAL_LICENSE: '',
+      AMEPA: '',
+      SECURITY_DEPOSIT: '',
+      DAMAGE_WAIVER: '',
+      APA_AMOUNT: '',
+
+      // Reference
+      CHARTER_CODE: charter.code || '',
+      BOOKING_CODE: charter.code || ''
+    };
+
+    console.log('📋 Auto-fill data:', data);
+
+    // Generate document with docxtemplater
+    const zip = new PizZip(templateBuffer);
+    const doc = new Docxtemplater(zip, {
+      paragraphLoop: true,
+      linebreaks: true,
+      delimiters: { start: '{{', end: '}}' }
+    });
+
+    // Render with data
+    doc.render(data);
+
+    // Generate blob
+    const blob = doc.getZip().generate({
+      type: 'blob',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    // Download file
+    saveAs(blob, `Charter-Party-${charter.code || 'document'}.docx`);
+
+    console.log('✅ Charter Party generated successfully!');
+    if (showMessage) {
+      showMessage('✅ Charter Party DOCX κατέβηκε επιτυχώς!', 'success');
+    }
+
+  } catch (error) {
+    console.error('❌ Error generating Charter Party:', error);
+    if (showMessage) {
+      showMessage('❌ Σφάλμα: ' + error.message, 'error');
+    } else {
+      alert('❌ Error: ' + error.message);
+    }
   }
 };
 
@@ -4128,6 +4252,9 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
   const handleDownloadSpecimen = () => { generateSpecimenPdf(charter, boat); };
 
+  // 🔥 FIX 23: Charter Party DOCX download handler
+  const handleDownloadCharterParty = () => { generateCharterParty(charter, boat, showMessage); };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 overflow-y-auto max-h-[90vh] border border-gray-700">
@@ -4235,6 +4362,11 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
         <button onClick={handleDownloadSpecimen} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-gray-600">
           {icons.download} <span className="ml-2">Download Specimen</span>
+        </button>
+
+        {/* 🔥 FIX 23: Charter Party DOCX Button */}
+        <button onClick={handleDownloadCharterParty} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-blue-500">
+          {icons.fileText} <span className="ml-2">📄 Charter Party (DOCX)</span>
         </button>
 
         {canEditCharters && canViewFinancials && (
