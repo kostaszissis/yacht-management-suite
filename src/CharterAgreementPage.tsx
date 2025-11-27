@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import wordDocumentService from './services/wordDocumentService';
 import { updateCharterCrew } from './services/apiService';
+import PizZip from 'pizzip';
+import Docxtemplater from 'docxtemplater';
+import { saveAs } from 'file-saver';
 
 // Declare jsPDF as global
 declare global {
@@ -438,7 +441,124 @@ export default function CharterAgreementPage() {
     doc.save(`Charter-Agreement-${bookingData.bookingCode}.pdf`);
   };
 
-  // 🔥 FIX 27: Removed handleDownloadCrewListTemplate - now using auto-fill in FleetManagement
+  // 🔥 FIX 27: Generate Crew List DOCX with auto-fill from bookingData and crewMembers
+  const handleDownloadCrewList = async () => {
+    if (!bookingData) {
+      alert(language === 'en' ? 'No booking data found!' : 'Δεν βρέθηκαν στοιχεία κράτησης!');
+      return;
+    }
+
+    try {
+      console.log('👥 Generating Crew List...');
+
+      // Load template
+      const templateUrl = '/templates/Crew-List.docx';
+      const response = await fetch(templateUrl);
+      if (!response.ok) {
+        alert(`❌ Template not found!\n\nPlease place the template at:\npublic/templates/Crew-List.docx`);
+        return;
+      }
+
+      const templateBuffer = await response.arrayBuffer();
+      console.log('📄 Template loaded, size:', templateBuffer.byteLength, 'bytes');
+
+      // Format date helper
+      const formatDate = (dateStr: string) => {
+        if (!dateStr) return '';
+        try {
+          return new Date(dateStr).toLocaleDateString('en-GB');
+        } catch {
+          return dateStr;
+        }
+      };
+
+      // Prepare crew data (from crewMembers state)
+      const crewData = crewMembers.map((member, index) => ({
+        ROW_NUM: (index + 1).toString(),
+        CREW_NAME: member.name || '',
+        CREW_DOB: formatDate(member.dateOfBirth) || '',
+        CREW_PASSPORT: member.passport || '',
+        CREW_GENDER: member.gender || '',
+        CREW_NATIONALITY: member.nationality || ''
+      }));
+
+      // Pad to 10 rows
+      while (crewData.length < 10) {
+        crewData.push({
+          ROW_NUM: (crewData.length + 1).toString(),
+          CREW_NAME: '', CREW_DOB: '', CREW_PASSPORT: '', CREW_GENDER: '', CREW_NATIONALITY: ''
+        });
+      }
+
+      // Prepare template data
+      const data = {
+        // Vessel Info
+        YACHT_NAME: bookingData.vesselName || bookingData.selectedVessel || '',
+        YACHT_TYPE: '',
+        REGISTRY_PORT: 'Piraeus',
+        REGISTRATION_NUMBER: '',
+        CALL_SIGN: '',
+        E_MITROO: '',
+        FLAG: 'Greek',
+
+        // Dates
+        EMBARKATION_DATE: formatDate(bookingData.checkInDate),
+        EMBARKATION_PLACE: 'ALIMOS MARINA',
+        DISEMBARKATION_DATE: formatDate(bookingData.checkOutDate),
+        DISEMBARKATION_PLACE: 'ALIMOS MARINA',
+
+        // Contact
+        SKIPPER_NAME: `${bookingData.skipperFirstName || ''} ${bookingData.skipperLastName || ''}`.trim(),
+        SKIPPER_MOBILE: bookingData.skipperPhone || '',
+        CHARTERER_MOBILE: bookingData.skipperPhone || '',
+
+        // Crew array for loop
+        crew: crewData,
+
+        // Individual crew placeholders
+        CREW1_NAME: crewData[0]?.CREW_NAME || '', CREW1_DOB: crewData[0]?.CREW_DOB || '', CREW1_PASSPORT: crewData[0]?.CREW_PASSPORT || '', CREW1_GENDER: crewData[0]?.CREW_GENDER || '', CREW1_NATIONALITY: crewData[0]?.CREW_NATIONALITY || '',
+        CREW2_NAME: crewData[1]?.CREW_NAME || '', CREW2_DOB: crewData[1]?.CREW_DOB || '', CREW2_PASSPORT: crewData[1]?.CREW_PASSPORT || '', CREW2_GENDER: crewData[1]?.CREW_GENDER || '', CREW2_NATIONALITY: crewData[1]?.CREW_NATIONALITY || '',
+        CREW3_NAME: crewData[2]?.CREW_NAME || '', CREW3_DOB: crewData[2]?.CREW_DOB || '', CREW3_PASSPORT: crewData[2]?.CREW_PASSPORT || '', CREW3_GENDER: crewData[2]?.CREW_GENDER || '', CREW3_NATIONALITY: crewData[2]?.CREW_NATIONALITY || '',
+        CREW4_NAME: crewData[3]?.CREW_NAME || '', CREW4_DOB: crewData[3]?.CREW_DOB || '', CREW4_PASSPORT: crewData[3]?.CREW_PASSPORT || '', CREW4_GENDER: crewData[3]?.CREW_GENDER || '', CREW4_NATIONALITY: crewData[3]?.CREW_NATIONALITY || '',
+        CREW5_NAME: crewData[4]?.CREW_NAME || '', CREW5_DOB: crewData[4]?.CREW_DOB || '', CREW5_PASSPORT: crewData[4]?.CREW_PASSPORT || '', CREW5_GENDER: crewData[4]?.CREW_GENDER || '', CREW5_NATIONALITY: crewData[4]?.CREW_NATIONALITY || '',
+        CREW6_NAME: crewData[5]?.CREW_NAME || '', CREW6_DOB: crewData[5]?.CREW_DOB || '', CREW6_PASSPORT: crewData[5]?.CREW_PASSPORT || '', CREW6_GENDER: crewData[5]?.CREW_GENDER || '', CREW6_NATIONALITY: crewData[5]?.CREW_NATIONALITY || '',
+        CREW7_NAME: crewData[6]?.CREW_NAME || '', CREW7_DOB: crewData[6]?.CREW_DOB || '', CREW7_PASSPORT: crewData[6]?.CREW_PASSPORT || '', CREW7_GENDER: crewData[6]?.CREW_GENDER || '', CREW7_NATIONALITY: crewData[6]?.CREW_NATIONALITY || '',
+        CREW8_NAME: crewData[7]?.CREW_NAME || '', CREW8_DOB: crewData[7]?.CREW_DOB || '', CREW8_PASSPORT: crewData[7]?.CREW_PASSPORT || '', CREW8_GENDER: crewData[7]?.CREW_GENDER || '', CREW8_NATIONALITY: crewData[7]?.CREW_NATIONALITY || '',
+        CREW9_NAME: crewData[8]?.CREW_NAME || '', CREW9_DOB: crewData[8]?.CREW_DOB || '', CREW9_PASSPORT: crewData[8]?.CREW_PASSPORT || '', CREW9_GENDER: crewData[8]?.CREW_GENDER || '', CREW9_NATIONALITY: crewData[8]?.CREW_NATIONALITY || '',
+        CREW10_NAME: crewData[9]?.CREW_NAME || '', CREW10_DOB: crewData[9]?.CREW_DOB || '', CREW10_PASSPORT: crewData[9]?.CREW_PASSPORT || '', CREW10_GENDER: crewData[9]?.CREW_GENDER || '', CREW10_NATIONALITY: crewData[9]?.CREW_NATIONALITY || '',
+
+        CHARTER_CODE: bookingData.bookingCode || '',
+        BOOKING_CODE: bookingData.bookingCode || ''
+      };
+
+      console.log('📋 Data prepared:', data);
+
+      // Generate document
+      const zip = new PizZip(templateBuffer);
+      const doc = new Docxtemplater(zip, {
+        paragraphLoop: true,
+        linebreaks: true,
+        delimiters: { start: '{{', end: '}}' }
+      });
+
+      doc.render(data);
+
+      const blob = doc.getZip().generate({
+        type: 'blob',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      const filename = `Crew-List-${bookingData.bookingCode || 'document'}.docx`;
+      saveAs(blob, filename);
+
+      console.log('✅ Crew List downloaded:', filename);
+      alert(language === 'en' ? '✅ Crew List downloaded!' : '✅ Η Λίστα Πληρώματος κατέβηκε!');
+
+    } catch (error: any) {
+      console.error('❌ Error generating Crew List:', error);
+      alert('❌ Error: ' + error.message);
+    }
+  };
 
   const handleSkipperLicenseUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -626,6 +746,27 @@ export default function CharterAgreementPage() {
                 className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all shadow-md"
               >
                 📥 {language === 'en' ? 'Download' : 'Λήψη'}
+              </button>
+            </div>
+
+            {/* 🔥 FIX 27: Crew List DOCX Download Button */}
+            <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-200 mt-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <span className="text-2xl">👥</span>
+                  {language === 'en' ? 'Crew List (Λίστα Πληρώματος)' : 'Λίστα Πληρώματος (Crew List)'}
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {language === 'en'
+                    ? 'Download auto-filled crew list document'
+                    : 'Κατεβάστε την αυτόματα συμπληρωμένη λίστα πληρώματος'}
+                </p>
+              </div>
+              <button
+                onClick={handleDownloadCrewList}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md"
+              >
+                👥 {language === 'en' ? 'Download' : 'Λήψη'}
               </button>
             </div>
 
