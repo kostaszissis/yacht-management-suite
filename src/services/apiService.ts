@@ -184,6 +184,39 @@ export async function updateCharterStatus(
 }
 
 /**
+ * 🔥 FIX 26: Update charter crew members
+ * @param bookingNumber - The booking number/code
+ * @param crewMembers - Array of crew member objects
+ */
+export async function updateCharterCrew(
+  bookingNumber: string,
+  crewMembers: Array<{
+    name: string;
+    passport: string;
+    dateOfBirth?: string;
+    nationality?: string;
+  }>
+) {
+  console.log('👥 Saving crew to API...', { bookingNumber, crewMembers });
+
+  const response = await fetch(`${API_URL}/update-charter-crew.php`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      bookingNumber,
+      crewMembers
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to save crew members');
+  }
+
+  console.log('✅ Crew saved successfully');
+  return response.json();
+}
+
+/**
  * Update charter payments
  * @param bookingNumber - The booking number/code
  * @param payments - Array of payment objects {date, amount}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import wordDocumentService from './services/wordDocumentService';
+import { updateCharterCrew } from './services/apiService';
 
 // Declare jsPDF as global
 declare global {
@@ -38,6 +39,14 @@ export default function CharterAgreementPage() {
         };
         console.log('✅ Setting bookingData:', data);
         setBookingData(data);
+
+        // 🔥 FIX 26: Load crew members from API data (or localStorage fallback)
+        const savedCrew = data.crewMembers || booking.charterAgreementData?.crewMembers;
+        if (savedCrew && savedCrew.length > 0) {
+          console.log('👥 Loading saved crew members:', savedCrew);
+          setCrewMembers(savedCrew);
+          setShowCrewForm(true);
+        }
       } else {
         console.warn('⚠️ No bookingData found for:', bookingCode);
       }
@@ -477,10 +486,11 @@ export default function CharterAgreementPage() {
     setCrewMembers(updated);
   };
 
-  const handleSubmit = () => {
+  // 🔥 FIX 26: Updated to save crew to API
+  const handleSubmit = async () => {
     if (!bookingData) {
-      alert(language === 'en' 
-        ? 'No booking data found!' 
+      alert(language === 'en'
+        ? 'No booking data found!'
         : 'Δεν βρέθηκαν στοιχεία κράτησης!');
       return;
     }
@@ -499,27 +509,34 @@ export default function CharterAgreementPage() {
       return;
     }
 
+    const bookingCode = bookingData.bookingCode;
+    const crewToSave = showCrewForm ? crewMembers : [];
+
     try {
+      // 🔥 FIX 26: Save crew members to API
+      if (crewToSave.length > 0) {
+        console.log('👥 Saving crew to API...', { bookingCode, crewMembers: crewToSave });
+        await updateCharterCrew(bookingCode, crewToSave);
+      }
+
+      // Also save to localStorage for backwards compatibility
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      const bookingCode = bookingData.bookingCode;
-      
       if (bookings[bookingCode]) {
         bookings[bookingCode].charterAgreementData = {
           skipperLicense,
-          crewMembers: showCrewForm ? crewMembers : [],
+          crewMembers: crewToSave,
           submittedAt: new Date().toISOString()
         };
-        
         localStorage.setItem('bookings', JSON.stringify(bookings));
-        
-        alert(language === 'en'
-          ? '✅ Charter Agreement documents submitted successfully!'
-          : '✅ Τα έγγραφα του Ναυλοσυμφώνου υποβλήθηκαν επιτυχώς!');
-        
-        navigate('/');
       }
+
+      alert(language === 'en'
+        ? '✅ Charter Agreement documents submitted successfully!'
+        : '✅ Τα έγγραφα του Ναυλοσυμφώνου υποβλήθηκαν επιτυχώς!');
+
+      navigate('/');
     } catch (error) {
-      console.error('Error saving charter agreement data:', error);
+      console.error('❌ Error saving charter agreement data:', error);
       alert(language === 'en'
         ? 'Error saving data. Please try again.'
         : 'Σφάλμα αποθήκευσης. Παρακαλώ δοκιμάστε ξανά.');
