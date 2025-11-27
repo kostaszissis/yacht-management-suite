@@ -147,6 +147,88 @@ export async function updateBooking(
 }
 
 /**
+ * Update charter status
+ * @param bookingNumber - The booking number/code
+ * @param status - New status (Option, Reservation, Confirmed, Cancelled, etc.)
+ */
+export async function updateCharterStatus(
+  bookingNumber: string,
+  status: string
+) {
+  console.log('📋 updateCharterStatus called:', { bookingNumber, status });
+
+  const existing = await getBooking(bookingNumber);
+  if (!existing) {
+    throw new Error('Booking not found');
+  }
+
+  const updatedBookingData = {
+    ...(existing.bookingData || existing),
+    status,
+    updatedAt: new Date().toISOString()
+  };
+
+  const encodedBookingNumber = encodeURIComponent(bookingNumber);
+  const response = await fetch(`${API_URL}/bookings/${encodedBookingNumber}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookingData: updatedBookingData })
+  });
+
+  console.log('📋 API response status:', response.status);
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Booking not found');
+    throw new Error('Failed to update status');
+  }
+  return response.json();
+}
+
+/**
+ * Update charter payments
+ * @param bookingNumber - The booking number/code
+ * @param payments - Array of payment objects {date, amount}
+ * @param paymentStatus - Payment status (Pending, Partial, Paid)
+ */
+export async function updateCharterPayments(
+  bookingNumber: string,
+  payments: Array<{date: string, amount: number}>,
+  paymentStatus: string
+) {
+  console.log('💰 updateCharterPayments called:', { bookingNumber, payments, paymentStatus });
+
+  // First get the existing booking
+  const existing = await getBooking(bookingNumber);
+  console.log('💰 Existing booking:', existing);
+  if (!existing) {
+    throw new Error('Booking not found');
+  }
+
+  // Update the bookingData with payments
+  const updatedBookingData = {
+    ...(existing.bookingData || existing),
+    payments,
+    paymentStatus,
+    updatedAt: new Date().toISOString()
+  };
+  console.log('💰 Updated bookingData:', updatedBookingData);
+
+  // 🔥 FIX 21: Encode booking number for URL (handles spaces in "CHARTER PARTY NO 2")
+  const encodedBookingNumber = encodeURIComponent(bookingNumber);
+  const response = await fetch(`${API_URL}/bookings/${encodedBookingNumber}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookingData: updatedBookingData })
+  });
+
+  console.log('💰 API response status:', response.status);
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Booking not found');
+    throw new Error('Failed to update payments');
+  }
+  return response.json();
+}
+
+/**
  * Delete booking
  * @param bookingNumber - The booking number
  */
@@ -456,8 +538,17 @@ function mergeCharters(apiCharters: any[], localCharters: any[]): any[] {
     if (key) {
       const existing = merged.get(key);
       if (existing) {
-        // Merge: keep local fields not in API, but API data takes priority
-        merged.set(key, { ...existing, ...charter });
+        // Merge: API data takes priority, but keep local payments if API doesn't have them
+        const mergedCharter = { ...existing, ...charter };
+        // 🔥 FIX 21: Preserve payments - use API payments if available, otherwise keep local
+        if (charter.payments && charter.payments.length > 0) {
+          mergedCharter.payments = charter.payments;
+          mergedCharter.paymentStatus = charter.paymentStatus;
+        } else if (existing.payments && existing.payments.length > 0) {
+          mergedCharter.payments = existing.payments;
+          mergedCharter.paymentStatus = existing.paymentStatus;
+        }
+        merged.set(key, mergedCharter);
       } else {
         merged.set(key, charter);
       }

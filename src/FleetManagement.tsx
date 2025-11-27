@@ -4,7 +4,7 @@ import authService from './authService';
 import AdminDashboard from './AdminDashboard';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
-import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid, deleteBooking } from './services/apiService';
+import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid, deleteBooking, updateCharterPayments, updateCharterStatus } from './services/apiService';
 
 // =====================================================
 // FLEET MANAGEMENT - PROFESSIONAL VERSION WITH AUTH
@@ -3713,27 +3713,59 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     showMessage('✅ Ο ναύλος διαγράφηκε.', 'success');
   };
 
-  const handleUpdateStatus = (charter, newStatus) => {
+  const handleUpdateStatus = async (charter, newStatus) => {
+    console.log('📋 handleUpdateStatus called:', { charterId: charter.id, code: charter.code, newStatus });
+
+    // Update local state first
     const updated = items.map((item) => item.id === charter.id ? { ...item, status: newStatus, updatedBy: authService.getCurrentUser()?.name, updatedAt: new Date().toISOString() } : item);
     saveItems(updated);
-    authService.logActivity('update_charter_status', `${boat.id}/${charter.code}/${newStatus}`);
     setSelectedCharter({ ...charter, status: newStatus });
-    showMessage(`✅ Η κατάσταση άλλαξε σε ${newStatus}`, 'success');
+
+    // 🔥 FIX 22: Save status to API for multi-device sync
+    const bookingCode = charter.code || charter.id;
+    try {
+      await updateCharterStatus(bookingCode, newStatus);
+      console.log('✅ Status synced to API:', bookingCode, newStatus);
+      showMessage(`✅ Η κατάσταση άλλαξε σε ${newStatus}`, 'success');
+    } catch (error) {
+      console.error('❌ API sync failed for status:', error);
+      showMessage(`⚠️ Κατάσταση αποθηκεύτηκε τοπικά (API error)`, 'warning');
+    }
+
+    authService.logActivity('BOOKING_UPDATED', `${boat.id}/${bookingCode}/${newStatus}`);
   };
 
-  const handleUpdatePayments = (charterId, newPayments) => {
+  const handleUpdatePayments = async (charterId, newPayments) => {
+    console.log('💰 handleUpdatePayments called:', { charterId, newPayments });
+
     const totalPaid = newPayments.reduce((sum, p) => sum + p.amount, 0);
     const charter = items.find((c) => c.id === charterId);
+    console.log('💰 Found charter:', charter);
+
     const totalAmount = charter?.amount || 0;
     let newPaymentStatus = "Pending";
     if (totalPaid >= totalAmount) newPaymentStatus = "Paid";
     else if (totalPaid > 0) newPaymentStatus = "Partial";
-    
+
+    // Update local state first
     const updated = items.map((item) => item.id === charterId ? { ...item, payments: newPayments, paymentStatus: newPaymentStatus, updatedBy: authService.getCurrentUser()?.name, updatedAt: new Date().toISOString() } : item);
     saveItems(updated);
-    authService.logActivity('update_charter_payments', `${boat.id}/${charter?.code}`);
     setSelectedCharter((prev) => ({ ...prev, payments: newPayments, paymentStatus: newPaymentStatus }));
-    showMessage('✅ Οι πληρωμές ενημερώθηκαν.', 'success');
+    console.log('💰 Local state updated');
+
+    // 🔥 FIX 21: Save to API for multi-device sync
+    const bookingCode = charter?.code || charterId;
+    console.log('💰 Saving to API with bookingCode:', bookingCode);
+    try {
+      await updateCharterPayments(bookingCode, newPayments, newPaymentStatus);
+      console.log('✅ Payments synced to API:', bookingCode);
+      showMessage('✅ Οι πληρωμές αποθηκεύτηκαν!', 'success');
+    } catch (error) {
+      console.error('❌ API sync failed for payments:', error);
+      showMessage('⚠️ Πληρωμές αποθηκεύτηκαν τοπικά (API error)', 'warning');
+    }
+
+    authService.logActivity('BOOKING_UPDATED', `${boat.id}/${bookingCode}`);
   };
 
   const handleSelectCharter = (charter) => {
@@ -3958,12 +3990,26 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
   const [isProcessing, setIsProcessing] = useState(false);
 
   const addPayment = () => {
+    console.log('💳 addPayment clicked:', { newPayDate, newPayAmount, canEditCharters });
     if (!canEditCharters) { showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error'); return; }
     const amount = parseFloat(newPayAmount) || 0;
-    if (!newPayDate || amount <= 0) return;
-    setPayments([...payments, { date: newPayDate, amount: amount }]);
+    console.log('💳 Parsed amount:', amount);
+    if (!newPayDate) {
+      console.log('💳 No date selected');
+      showMessage('❌ Επιλέξτε ημερομηνία πληρωμής', 'error');
+      return;
+    }
+    if (amount <= 0) {
+      console.log('💳 Invalid amount');
+      showMessage('❌ Εισάγετε έγκυρο ποσό πληρωμής', 'error');
+      return;
+    }
+    const newPayments = [...payments, { date: newPayDate, amount: amount }];
+    console.log('💳 New payments list:', newPayments);
+    setPayments(newPayments);
     setNewPayDate('');
     setNewPayAmount('');
+    showMessage('✅ Πληρωμή προστέθηκε - Πατήστε "Αποθήκευση" για να σωθεί', 'success');
   };
   
   const removePayment = (index) => {
@@ -3971,7 +4017,14 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
     setPayments(payments.filter((_, i) => i !== index));
   };
   
-  const savePayments = () => { onUpdatePayments(charter.id, payments); };
+  const savePayments = async () => {
+    try {
+      await onUpdatePayments(charter.id, payments);
+    } catch (error) {
+      console.error('❌ Error saving payments:', error);
+      showMessage('❌ Σφάλμα αποθήκευσης πληρωμών', 'error');
+    }
+  };
   
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const balance = (charter.amount || 0) - totalPaid;
@@ -4204,8 +4257,8 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
               <input type="date" value={newPayDate} onChange={(e) => setNewPayDate(e.target.value)} className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
               <input type="number" step="0.01" value={newPayAmount} onChange={(e) => setNewPayAmount(e.target.value)} placeholder="Ποσό" className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
             </div>
-            <button onClick={addPayment} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-sm mb-3">Προσθήκη Πληρωμής</button>
-            <button onClick={savePayments} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg">Αποθήκευση Πληρωμών</button>
+            <button type="button" onClick={addPayment} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-sm mb-3">Προσθήκη Πληρωμής</button>
+            <button type="button" onClick={savePayments} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg">Αποθήκευση Πληρωμών</button>
           </div>
         )}
 
