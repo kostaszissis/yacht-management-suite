@@ -763,10 +763,10 @@ Status: ΕΠΙΒΕΒΑΙΩΘΗΚΕ (OPTION)
 
 Ευχαριστούμε Πολύ
 Tailwind Yachting`;
-    } else if (action === 'reservation' || action === 'confirmed') {
-      // Email 2 - When charter is FINALIZED (closed/confirmed)
-      subject = `CHARTER CONFIRMATION ${bookingNumber}/${year}`;
-      emailBody = `TAILWIND YACHTING - CHARTER CONFIRMATION
+    } else if (action === 'pending_final_confirmation') {
+      // 🔥 FIX 29: Email when admin sends for final owner approval
+      subject = `CHARTER PENDING FINAL CONFIRMATION ${bookingNumber}/${year}`;
+      emailBody = `TAILWIND YACHTING - ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ
 
 CHARTER: ${bookingNumber}/${year}
 COMPANY: ${ownerCompany}
@@ -785,7 +785,37 @@ minus VAT ON THE COMMISSION (24%)   -€${vatOnCommission.toFixed(2)}
 
 ${ownerCompany} WILL RECEIVE IN CASH   €${finalAmount.toFixed(2)}
 
-Status: ΟΡΙΣΤΙΚΟΠΟΙΗΘΗΚΕ
+Status: ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ ΑΠΟ ΙΔΙΟΚΤΗΤΗ
+
+Παρακαλούμε επιβεβαιώστε τελικά τον ναύλο.
+
+Ευχαριστούμε Πολύ
+Tailwind Yachting`;
+    } else if (action === 'confirmed') {
+      // Email when charter is FINALLY CONFIRMED by owner
+      subject = `CHARTER CONFIRMED ${bookingNumber}/${year}`;
+      emailBody = `TAILWIND YACHTING - ΕΠΙΒΕΒΑΙΩΜΕΝΟΣ ΝΑΥΛΟΣ
+
+CHARTER: ${bookingNumber}/${year}
+COMPANY: ${ownerCompany}
+BOAT: ${boatName}
+
+FROM: ${charter.startDate || ''}
+DEPARTURE: ${charter.checkinLocation || 'ALIMOS MARINA'}
+
+TILL: ${charter.endDate || ''}
+ARRIVAL: ${charter.checkoutLocation || 'ALIMOS MARINA'}
+
+FINANCIAL TERMS:
+NET CHARTERING AMOUNT          €${charterAmount.toFixed(2)}
+minus COMMISSION OF TAILWIND IKE    -€${commission.toFixed(2)}
+minus VAT ON THE COMMISSION (24%)   -€${vatOnCommission.toFixed(2)}
+
+${ownerCompany} WILL RECEIVE IN CASH   €${finalAmount.toFixed(2)}
+
+Status: ΟΡΙΣΤΙΚΟΠΟΙΗΘΗΚΕ ✅
+
+Ο ναύλος επιβεβαιώθηκε τελικά από τον ιδιοκτήτη.
 
 Ευχαριστούμε Πολύ
 Tailwind Yachting`;
@@ -3232,7 +3262,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
 
   const formatDate = (date) => date.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' });
 
-  // 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00)
+  // 🔥 FIX 10 + FIX 29: Status colors including Pending Final Confirmation
   const getStatusColor = (status) => {
     switch(status) {
       case 'Option':
@@ -3241,6 +3271,8 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
       case 'Accepted':
       case 'Option Accepted':
         return 'bg-yellow-400 border-yellow-300'; // 🔥 FIX 28: Bright yellow
+      case 'Pending Final Confirmation':
+        return 'bg-yellow-400 border-yellow-300'; // 🔥 FIX 29: Yellow (same as other pending statuses)
       case 'Confirmed':
         return 'bg-green-700 border-green-500';
       case 'Canceled':
@@ -3251,7 +3283,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
     }
   };
 
-  // 🔥 FIX 10 + FIX 28: Changed Option/Accepted to BRIGHT YELLOW
+  // 🔥 FIX 10 + FIX 28 + FIX 29: Status text including Pending Final Confirmation
   const getStatusText = (status) => {
     switch(status) {
       case 'Option':
@@ -3259,8 +3291,8 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
         return { text: 'OPTION', color: 'text-black', bg: '#FFFF00' }; // BRIGHT YELLOW
       case 'Option Accepted':
         return { text: 'OPTION ACCEPTED', color: 'text-black', bg: 'bg-yellow-400' }; // 🔥 FIX 28: Bright yellow
-      case 'Reservation':
-        return { text: 'RESERVATION', color: 'text-black', bg: 'bg-yellow-400' }; // 🔥 FIX 28: Bright yellow
+      case 'Pending Final Confirmation':
+        return { text: 'ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ', color: 'text-black', bg: 'bg-yellow-400' }; // 🔥 FIX 29: Yellow
       case 'Confirmed':
         return { text: 'CONFIRMED', color: 'text-green-300', bg: 'bg-green-500' };
       case 'Cancelled':
@@ -4546,16 +4578,22 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
     setIsProcessing(false);
   };
 
-  // OWNER: Reservation → Confirmed (accept) or Cancelled (reject)
-  // 🔥 FIX 28: Added inline status messages
-  const handleOwnerConfirmReservation = async () => {
+  // 🔥 FIX 29: OWNER: Pending Final Confirmation → Confirmed (ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ)
+  const handleOwnerFinalConfirmation = async () => {
     if (!canAcceptCharter) { showMessage('❌ Δεν έχετε δικαίωμα επιβεβαίωσης', 'error'); return; }
     setIsProcessing(true);
     setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
     const success = await sendCharterEmail(charter, boat.name || boat.id, 'confirmed');
     if (success) {
       onUpdateStatus(charter, 'Confirmed');
-      setStatusMessage({ text: '✅ Charter οριστικοποιήθηκε!', type: 'success' });
+      try {
+        const updatedCharter = { ...charter, status: 'Confirmed', vesselId: boat.id };
+        await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
+        console.log('✅ Final confirmation synced to API');
+      } catch (error) {
+        console.error('❌ API sync error:', error);
+      }
+      setStatusMessage({ text: '✅ Ναύλος επιβεβαιώθηκε τελικά!', type: 'success' });
       clearStatusAfterDelay();
     } else {
       setStatusMessage({ text: '❌ Σφάλμα', type: 'error' });
@@ -4564,22 +4602,22 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
     setIsProcessing(false);
   };
 
-  // 🔥 FIX 12 + FIX 28: ADMIN: Option Accepted → Reservation (ΚΛΕΙΣΙΜΟ OPTION)
-  const handleAdminCloseCharter = async () => {
+  // 🔥 FIX 29: ADMIN: Option Accepted → Pending Final Confirmation (ΑΠΟΣΤΟΛΗ ΓΙΑ ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ)
+  const handleAdminSendForFinalApproval = async () => {
     setIsProcessing(true);
     setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
-    console.log('📝 Admin closing option:', charter.code);
-    const success = await sendCharterEmail(charter, boat.name || boat.id, 'reservation');
+    console.log('📝 Admin sending for final approval:', charter.code);
+    const success = await sendCharterEmail(charter, boat.name || boat.id, 'pending_final_confirmation');
     if (success) {
-      onUpdateStatus(charter, 'Reservation');
+      onUpdateStatus(charter, 'Pending Final Confirmation');
       try {
-        const updatedCharter = { ...charter, status: 'Reservation', vesselId: boat.id };
+        const updatedCharter = { ...charter, status: 'Pending Final Confirmation', vesselId: boat.id };
         await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
-        console.log('✅ ΚΛΕΙΣΙΜΟ OPTION synced to API');
+        console.log('✅ Sent for final approval - synced to API');
       } catch (error) {
         console.error('❌ API sync error:', error);
       }
-      setStatusMessage({ text: '✅ Charter οριστικοποιήθηκε!', type: 'success' });
+      setStatusMessage({ text: '✅ Αποστάλθηκε για τελική επιβεβαίωση!', type: 'success' });
       clearStatusAfterDelay();
     } else {
       setStatusMessage({ text: '❌ Σφάλμα', type: 'error' });
@@ -4691,15 +4729,15 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           </div>
         )}
 
-        {/* 🔥 FIX 12: ADMIN: Option Accepted → ΚΛΕΙΣΙΜΟ OPTION / ΑΚΥΡΟ */}
+        {/* 🔥 FIX 29: ADMIN: Option Accepted → ΑΠΟΣΤΟΛΗ ΓΙΑ ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ / ΑΚΥΡΟ */}
         {!isOwnerUser && charter.status === 'Option Accepted' && (
           <div className="space-y-2 mb-4">
             <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-900 text-yellow-400">
-              ⏳ Owner αποδέχτηκε - Επιλέξτε ενέργεια
+              ⏳ Owner αποδέχτηκε - Στείλτε για τελική επιβεβαίωση
             </div>
-            {/* 🔥 FIX 12: Admin button "ΚΛΕΙΣΙΜΟ OPTION" - Changes to Reservation, sends email, saves to API */}
-            <button onClick={handleAdminCloseCharter} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
-              {isProcessing ? 'Processing...' : <>{icons.checkCircle} <span className="ml-2">✅ ΚΛΕΙΣΙΜΟ OPTION</span></>}
+            {/* 🔥 FIX 29: Admin button sends to owner for final approval */}
+            <button onClick={handleAdminSendForFinalApproval} disabled={isProcessing} className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+              {isProcessing ? 'Processing...' : <>{icons.checkCircle} <span className="ml-2">📤 ΑΠΟΣΤΟΛΗ ΓΙΑ ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ</span></>}
             </button>
             <button onClick={handleAdminCancelCharter} disabled={isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
               {isProcessing ? 'Processing...' : <>{icons.xCircle} <span className="ml-2">❌ ΑΚΥΡΟ</span></>}
@@ -4707,14 +4745,14 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           </div>
         )}
 
-        {/* OWNER: Reservation → ΑΠΟΔΟΧΗ / ΜΗ ΑΠΟΔΟΧΗ → Confirmed */}
-        {canAcceptCharter && charter.status === 'Reservation' && (
+        {/* 🔥 FIX 29: OWNER: Pending Final Confirmation → ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ / ΜΗ ΑΠΟΔΟΧΗ → Confirmed */}
+        {canAcceptCharter && charter.status === 'Pending Final Confirmation' && (
           <div className="space-y-2 mb-4">
             <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-900 text-yellow-400">
-              ⏳ Ο ναύλος κλείστηκε - Επιβεβαιώστε
+              ⏳ Αναμονή τελικής επιβεβαίωσης - Αποφασίστε
             </div>
-            <button onClick={handleOwnerConfirmReservation} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
-              {isProcessing ? 'Processing...' : <>{icons.checkCircle} <span className="ml-2">✅ ΑΠΟΔΟΧΗ</span></>}
+            <button onClick={handleOwnerFinalConfirmation} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
+              {isProcessing ? 'Processing...' : <>{icons.checkCircle} <span className="ml-2">✅ ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ</span></>}
             </button>
             <button onClick={handleOwnerRejectOption} disabled={isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
               {isProcessing ? 'Processing...' : <>{icons.xCircle} <span className="ml-2">❌ ΜΗ ΑΠΟΔΟΧΗ</span></>}
@@ -4725,6 +4763,11 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
         {/* Status displays */}
         {charter.status === 'Option Accepted' && isOwnerUser && (
           <div className="w-full bg-yellow-400 text-black font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">⏳ OPTION ACCEPTED - Αναμονή Admin</span></div>
+        )}
+
+        {/* 🔥 FIX 29: Show pending status to Admin */}
+        {charter.status === 'Pending Final Confirmation' && !isOwnerUser && (
+          <div className="w-full bg-yellow-400 text-black font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">⏳ ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ - Αναμονή Owner</span></div>
         )}
 
         {charter.status === 'Confirmed' && (

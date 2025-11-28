@@ -20,14 +20,19 @@ const INITIAL_FLEET = [
   { id: 3, name: "Valesia", type: "Monohull", model: "Bavaria c42 Cruiser" }
 ];
 
-// 🔥 FIX 16: Async function to get pending charters from API (with localStorage fallback)
+// 🔥 FIX 16 + FIX 29: Async function to get pending charters from API (with localStorage fallback)
+// Now includes "Pending Final Confirmation" status for second owner approval
 const getPendingChartersAsync = async (boatId: number | string): Promise<any[]> => {
   try {
     // Fetch from API first (with localStorage merge and fallback)
     const charters = await getBookingsByVesselHybrid(boatId);
     console.log(`✅ OwnerDashboard: Loaded ${charters.length} charters for boat ${boatId}`);
-    // Filter for Option OR Pending status
-    return charters.filter((c: any) => c.status === 'Pending' || c.status === 'Option');
+    // Filter for statuses needing owner attention: Option, Pending, OR Pending Final Confirmation
+    return charters.filter((c: any) =>
+      c.status === 'Pending' ||
+      c.status === 'Option' ||
+      c.status === 'Pending Final Confirmation'
+    );
   } catch (e) {
     console.error('Error loading charters from API:', e);
     // Fallback to localStorage only
@@ -36,7 +41,11 @@ const getPendingChartersAsync = async (boatId: number | string): Promise<any[]> 
       const stored = localStorage.getItem(key);
       if (stored) {
         const charters = JSON.parse(stored);
-        return charters.filter((c: any) => c.status === 'Pending' || c.status === 'Option');
+        return charters.filter((c: any) =>
+          c.status === 'Pending' ||
+          c.status === 'Option' ||
+          c.status === 'Pending Final Confirmation'
+        );
       }
     } catch (localError) {
       console.error('Error loading from localStorage:', localError);
