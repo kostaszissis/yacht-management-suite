@@ -217,6 +217,28 @@ export async function updateCharterCrew(
 }
 
 /**
+ * 🔥 Load charter crew members from API
+ * @param bookingNumber - The booking number/code
+ * @returns Array of crew members or null if not found
+ */
+export async function loadCharterCrew(bookingNumber: string) {
+  console.log('👥 Loading crew from API...', { bookingNumber });
+
+  try {
+    const booking = await getBooking(bookingNumber);
+    if (booking && booking.bookingData?.crewMembers) {
+      console.log('✅ Crew loaded successfully:', booking.bookingData.crewMembers);
+      return booking.bookingData.crewMembers;
+    }
+    console.log('ℹ️ No crew members found for booking');
+    return null;
+  } catch (error) {
+    console.error('❌ Error loading crew:', error);
+    return null;
+  }
+}
+
+/**
  * Update charter payments
  * @param bookingNumber - The booking number/code
  * @param payments - Array of payment objects {date, amount}

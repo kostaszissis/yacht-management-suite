@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import wordDocumentService from './services/wordDocumentService';
-import { updateCharterCrew } from './services/apiService';
+import { updateCharterCrew, loadCharterCrew } from './services/apiService';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
+import { useAutoRefresh } from './hooks/useAutoRefresh';
 
 // Declare jsPDF as global
 declare global {
@@ -21,12 +22,35 @@ export default function CharterAgreementPage() {
   const [crewMembers, setCrewMembers] = useState([
     { name: '', passport: '', dateOfBirth: '', nationality: '' }
   ]);
+  // 🔥 Auto-refresh: Track last update time
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const navigate = useNavigate();
   const location = useLocation();
 
-  useEffect(() => {
-    const bookingCode = location.state?.bookingCode || localStorage.getItem('currentBooking');
+  // Get booking code for use in loadCrewData
+  const bookingCode = location.state?.bookingCode || localStorage.getItem('currentBooking');
 
+  // 🔥 Auto-refresh: Memoized loadCrewData function
+  const loadCrewData = useCallback(async () => {
+    if (!bookingCode) return;
+
+    try {
+      const savedCrew = await loadCharterCrew(bookingCode);
+      if (savedCrew && savedCrew.length > 0) {
+        console.log('👥 Auto-refresh: Loading crew members:', savedCrew);
+        setCrewMembers(savedCrew);
+        setShowCrewForm(true);
+      }
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('❌ Error loading crew data:', error);
+    }
+  }, [bookingCode]);
+
+  // 🔥 Auto-refresh: Poll crew data every 5 minutes
+  useAutoRefresh(loadCrewData, 5);
+
+  useEffect(() => {
     console.log('🔍 CharterAgreementPage: Loading booking:', bookingCode);
 
     if (bookingCode) {
@@ -50,13 +74,14 @@ export default function CharterAgreementPage() {
           setCrewMembers(savedCrew);
           setShowCrewForm(true);
         }
+        setLastUpdated(new Date());
       } else {
         console.warn('⚠️ No bookingData found for:', bookingCode);
       }
     } else {
       console.warn('⚠️ No booking code found!');
     }
-  }, [location.state]);
+  }, [bookingCode]);
 
   const handleDownloadBoardingPass = () => {
     if (!bookingData) {
@@ -665,13 +690,18 @@ export default function CharterAgreementPage() {
                 {language === 'en' ? 'Charter Agreement & Documents' : 'Ναυλοσύμφωνο & Έγγραφα'}
               </h1>
               {bookingData && (
-                <p className="text-sm text-gray-600">
-                  {language === 'en' ? 'Booking' : 'Κράτηση'}: <span className="font-bold text-blue-600">{bookingData.bookingCode}</span>
-                </p>
+                <>
+                  <p className="text-sm text-gray-600">
+                    {language === 'en' ? 'Booking' : 'Κράτηση'}: <span className="font-bold text-blue-600">{bookingData.bookingCode}</span>
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {language === 'en' ? 'Last updated' : 'Τελ. ενημέρωση'}: {lastUpdated.toLocaleTimeString()}
+                  </p>
+                </>
               )}
             </div>
           </div>
-          
+
           <button
             onClick={() => setLanguage(language === 'en' ? 'el' : 'en')}
             className="px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg font-semibold text-blue-900 transition-colors"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import authService from './authService';
 import AdminDashboard from './AdminDashboard';
@@ -9,6 +9,8 @@ import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBooking
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
+// 🔥 Auto-refresh hook for polling API data
+import { useAutoRefresh } from './hooks/useAutoRefresh';
 
 // =====================================================
 // FLEET MANAGEMENT - PROFESSIONAL VERSION WITH AUTH
@@ -3031,6 +3033,8 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   // 🔥 FIX 7: Add vessels state for API data
   const [vessels, setVessels] = useState([]);
+  // 🔥 Auto-refresh: Track last update time
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const isOwnerUser = authService.isOwner();
   const isTechnicalUser = authService.isTechnical();
@@ -3038,12 +3042,32 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
   const canViewFinancials = !isTechnicalUser; // TECHNICAL δεν βλέπει οικονομικά
   const canEditBookings = (authService.isAdmin() || authService.isBooking()) && !isOwnerUser;
 
+  // 🔥 Auto-refresh: Memoized loadBookings function
+  const loadBookings = useCallback(async () => {
+    if (!boat) return;
+    try {
+      const key = `fleet_${boat.id}_ΝΑΥΛΑ`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        setBookings(JSON.parse(stored));
+      }
+      setLoading(false);
+      setLastUpdated(new Date());
+    } catch (e) {
+      console.error('Error loading bookings:', e);
+      setLoading(false);
+    }
+  }, [boat]);
+
+  // 🔥 Auto-refresh: Poll bookings every 5 minutes
+  useAutoRefresh(loadBookings, 5);
+
   // 🔥 FIX 4: Use optional chaining in dependencies
   useEffect(() => {
     if (boat) {
       loadBookings();
     }
-  }, [boat?.id]);
+  }, [boat?.id, loadBookings]);
 
   // 🔥 FIX 7: Load vessels from API
   useEffect(() => {
@@ -3067,20 +3091,6 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
       </div>
     );
   }
-
-  const loadBookings = () => {
-    try {
-      const key = `fleet_${boat.id}_ΝΑΥΛΑ`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        setBookings(JSON.parse(stored));
-      }
-      setLoading(false);
-    } catch (e) {
-      console.error('Error loading bookings:', e);
-      setLoading(false);
-    }
-  };
 
   const cycleBookingStatus = (booking) => {
     if (!canEditBookings) {
@@ -3211,7 +3221,10 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
         <button onClick={() => navigate('boatDashboard')} className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg">
           {icons.chevronLeft}
         </button>
-        <h1 className="text-lg font-bold text-white">Booking Sheet - {boat.name || boat.id}</h1>
+        <div className="flex flex-col items-center">
+          <h1 className="text-lg font-bold text-white">Booking Sheet - {boat.name || boat.id}</h1>
+          <span className="text-xs text-gray-400">Last updated: {lastUpdated.toLocaleTimeString()}</span>
+        </div>
         <div className="w-10"></div>
       </div>
 
