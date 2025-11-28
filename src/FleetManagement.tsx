@@ -819,6 +819,35 @@ Status: ΟΡΙΣΤΙΚΟΠΟΙΗΘΗΚΕ ✅
 
 Ευχαριστούμε Πολύ
 Tailwind Yachting`;
+    } else if (action === 'expired') {
+      // 🔥 FIX 31: Email when option expires after 6 days
+      subject = `⚠️ OPTION EXPIRED ${bookingNumber}/${year}`;
+      emailBody = `TAILWIND YACHTING - OPTION EXPIRED
+
+⚠️ OPTION EXPIRED AFTER 6 DAYS ⚠️
+
+CHARTER: ${bookingNumber}/${year}
+COMPANY: ${ownerCompany}
+BOAT: ${boatName}
+
+FROM: ${charter.startDate || ''}
+DEPARTURE: ${charter.checkinLocation || 'ALIMOS MARINA'}
+
+TILL: ${charter.endDate || ''}
+ARRIVAL: ${charter.checkoutLocation || 'ALIMOS MARINA'}
+
+FINANCIAL TERMS:
+NET CHARTERING AMOUNT          €${charterAmount.toFixed(2)}
+minus COMMISSION OF TAILWIND IKE    -€${commission.toFixed(2)}
+minus VAT ON THE COMMISSION (24%)   -€${vatOnCommission.toFixed(2)}
+
+${ownerCompany} WOULD HAVE RECEIVED   €${finalAmount.toFixed(2)}
+
+Status: ΕΛΗΞΕ (6 ΗΜΕΡΕΣ ΧΩΡΙΣ ΑΠΟΦΑΣΗ)
+
+Η επιλογή έληξε αυτόματα μετά από 6 ημέρες χωρίς απόφαση από τον ιδιοκτήτη.
+
+Tailwind Yachting`;
     } else if (action === 'cancelled') {
       subject = `CHARTER CANCELLED ${bookingNumber}/${year}`;
       emailBody = `TAILWIND YACHTING - CHARTER CANCELLED
@@ -3262,7 +3291,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
 
   const formatDate = (date) => date.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' });
 
-  // 🔥 FIX 10 + FIX 29: Status colors including Pending Final Confirmation
+  // 🔥 FIX 10 + FIX 29 + FIX 31: Status colors including Expired
   const getStatusColor = (status) => {
     switch(status) {
       case 'Option':
@@ -3278,12 +3307,14 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
       case 'Canceled':
       case 'Rejected':
         return 'bg-red-700 border-red-500';
+      case 'Expired':
+        return 'bg-gray-500 border-gray-400'; // 🔥 FIX 31: Gray for expired
       default:
         return 'bg-gray-800 border-gray-700';
     }
   };
 
-  // 🔥 FIX 10 + FIX 28 + FIX 29: Status text including Pending Final Confirmation
+  // 🔥 FIX 10 + FIX 28 + FIX 29 + FIX 31: Status text including Expired
   const getStatusText = (status) => {
     switch(status) {
       case 'Option':
@@ -3300,6 +3331,8 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
         return { text: 'CANCELLED', color: 'text-red-300', bg: 'bg-red-500' };
       case 'Rejected':
         return { text: 'REJECTED', color: 'text-red-300', bg: 'bg-red-500' };
+      case 'Expired':
+        return { text: 'EXPIRED (6 DAYS)', color: 'text-gray-300', bg: 'bg-gray-500' }; // 🔥 FIX 31: Gray
       default:
         return { text: status, color: 'text-gray-300', bg: 'bg-gray-500' };
     }
@@ -4472,6 +4505,16 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 }
 
 function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters, canAcceptCharter, isOwnerUser, onClose, onDelete, onUpdateStatus, onUpdatePayments, showMessage }) {
+  // 🔥 DEBUG: Log permissions for troubleshooting
+  console.log('🔍 CharterDetailModal - Permissions:', {
+    charterCode: charter.code,
+    charterStatus: charter.status,
+    isOwnerUser,
+    canAcceptCharter,
+    canEditCharters,
+    showOwnerButtons: canAcceptCharter && charter.status === 'Pending Final Confirmation'
+  });
+
   const totalExpense = (charter.commission || 0) + (charter.vat_on_commission || 0);
   const netIncome = (charter.amount || 0) - totalExpense;
   const [payments, setPayments] = useState(charter.payments || []);
@@ -4745,29 +4788,45 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           </div>
         )}
 
-        {/* 🔥 FIX 29: OWNER: Pending Final Confirmation → ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ / ΜΗ ΑΠΟΔΟΧΗ → Confirmed */}
+        {/* 🔥 FIX 30 + FIX 31: OWNER: Pending Final Confirmation → BIG CLICKABLE YELLOW BANNER (NO REJECT - only admin can cancel) */}
         {canAcceptCharter && charter.status === 'Pending Final Confirmation' && (
-          <div className="space-y-2 mb-4">
-            <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-900 text-yellow-400">
-              ⏳ Αναμονή τελικής επιβεβαίωσης - Αποφασίστε
+          <div className="space-y-3 mb-4">
+            {/* 🔥 BIG CLICKABLE YELLOW BANNER - Primary action for owner */}
+            <button
+              onClick={handleOwnerFinalConfirmation}
+              disabled={isProcessing}
+              className="w-full bg-yellow-400 hover:bg-yellow-500 active:bg-yellow-600 text-black font-bold py-5 px-4 rounded-lg flex flex-col items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xl border-4 border-yellow-600 transform hover:scale-[1.02] transition-all duration-200 animate-pulse"
+            >
+              {isProcessing ? (
+                <span className="text-xl">⏳ Processing...</span>
+              ) : (
+                <>
+                  <span className="text-2xl mb-1">👆 ΚΛΙΚ ΓΙΑ ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ</span>
+                  <span className="text-sm font-normal">Πατήστε για να επιβεβαιώσετε τον ναύλο</span>
+                </>
+              )}
+            </button>
+            {/* 🔥 FIX 31: NO reject button here - only admin can cancel after option is accepted */}
+            <div className="text-center text-xs text-gray-500">
+              Για ακύρωση επικοινωνήστε με τον Admin
             </div>
-            <button onClick={handleOwnerFinalConfirmation} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
-              {isProcessing ? 'Processing...' : <>{icons.checkCircle} <span className="ml-2">✅ ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ</span></>}
-            </button>
-            <button onClick={handleOwnerRejectOption} disabled={isProcessing} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
-              {isProcessing ? 'Processing...' : <>{icons.xCircle} <span className="ml-2">❌ ΜΗ ΑΠΟΔΟΧΗ</span></>}
-            </button>
           </div>
         )}
 
-        {/* Status displays */}
+        {/* Status displays - NOT CLICKABLE, just informational */}
         {charter.status === 'Option Accepted' && isOwnerUser && (
-          <div className="w-full bg-yellow-400 text-black font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">⏳ OPTION ACCEPTED - Αναμονή Admin</span></div>
+          <div className="w-full bg-yellow-400/70 text-black font-bold py-3 px-4 rounded-lg mb-3 flex flex-col items-center justify-center cursor-not-allowed border-2 border-dashed border-yellow-600">
+            <div className="flex items-center">{icons.checkCircle} <span className="ml-2">⏳ OPTION ACCEPTED</span></div>
+            <span className="text-xs font-normal mt-1">Αναμονή ενέργειας από Admin...</span>
+          </div>
         )}
 
-        {/* 🔥 FIX 29: Show pending status to Admin */}
+        {/* 🔥 FIX 29: Show pending status to Admin - NOT CLICKABLE */}
         {charter.status === 'Pending Final Confirmation' && !isOwnerUser && (
-          <div className="w-full bg-yellow-400 text-black font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">⏳ ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ - Αναμονή Owner</span></div>
+          <div className="w-full bg-yellow-400/70 text-black font-bold py-3 px-4 rounded-lg mb-3 flex flex-col items-center justify-center cursor-not-allowed border-2 border-dashed border-yellow-600">
+            <div className="flex items-center">{icons.checkCircle} <span className="ml-2">⏳ ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ</span></div>
+            <span className="text-xs font-normal mt-1">Αναμονή επιβεβαίωσης από Owner...</span>
+          </div>
         )}
 
         {charter.status === 'Confirmed' && (

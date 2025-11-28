@@ -856,3 +856,70 @@ export async function updateChatStatus(chatId: string, status: 'ACTIVE' | 'CLOSE
     return { success: false, updated: 0 };
   }
 }
+
+// =====================================================
+// 🔥 FIX 31: AUTO-EXPIRE OPTIONS AFTER 6 DAYS
+// =====================================================
+
+/**
+ * Check for expired options (older than 6 days) and update their status
+ * This function should be called on dashboard load and during auto-refresh
+ *
+ * @returns Array of expired charter codes
+ */
+export async function checkExpiredOptions(): Promise<string[]> {
+  const expiredCharters: string[] = [];
+  const now = new Date();
+  const EXPIRE_DAYS = 6;
+
+  try {
+    console.log('🔍 Checking for expired options...');
+
+    // Get all bookings from all vessels
+    const allBookings = await getAllBookingsHybrid();
+
+    for (const vesselId in allBookings) {
+      const charters = allBookings[vesselId] || [];
+
+      for (const charter of charters) {
+        // Only check "Option" or "Pending" status
+        if (charter.status !== 'Option' && charter.status !== 'Pending') {
+          continue;
+        }
+
+        // Get creation date - use createdAt, created_at, or startDate as fallback
+        const createdDateStr = charter.createdAt || charter.created_at || charter.startDate;
+        if (!createdDateStr) continue;
+
+        const createdDate = new Date(createdDateStr);
+        const daysDiff = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (daysDiff >= EXPIRE_DAYS) {
+          console.log(`⏰ Option expired: ${charter.code} - ${daysDiff.toFixed(1)} days old`);
+
+          try {
+            // Update status to "Expired"
+            const updatedCharter = { ...charter, status: 'Expired' };
+            await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
+
+            expiredCharters.push(charter.code);
+            console.log(`✅ Charter ${charter.code} marked as Expired`);
+          } catch (updateError) {
+            console.error(`❌ Failed to expire charter ${charter.code}:`, updateError);
+          }
+        }
+      }
+    }
+
+    if (expiredCharters.length > 0) {
+      console.log(`⚠️ Expired ${expiredCharters.length} option(s):`, expiredCharters);
+    } else {
+      console.log('✅ No expired options found');
+    }
+
+    return expiredCharters;
+  } catch (error) {
+    console.error('❌ Error checking expired options:', error);
+    return [];
+  }
+}

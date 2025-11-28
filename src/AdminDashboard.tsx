@@ -5,7 +5,8 @@ import ChatManagementModal from './ChatManagementModal';
 import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
 // 🔥 FIX 16: Import API functions for multi-device sync
-import { getBookingsByVesselHybrid } from './services/apiService';
+// 🔥 FIX 31: Added checkExpiredOptions for auto-expire
+import { getBookingsByVesselHybrid, checkExpiredOptions } from './services/apiService';
 // 🔥 Auto-refresh hook for polling API data
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 
@@ -148,6 +149,16 @@ export default function AdminDashboard({
         invoicesCount: invoices.length
       });
     }));
+
+    // 🔥 FIX 31: Check for expired options (6 days old)
+    try {
+      const expiredCharters = await checkExpiredOptions();
+      if (expiredCharters.length > 0) {
+        console.log(`✅ Auto-expired ${expiredCharters.length} options:`, expiredCharters);
+      }
+    } catch (e) {
+      console.log('⚠️ Could not check expired options:', e);
+    }
 
     setFinancialsData({
       boats: boatsData,
