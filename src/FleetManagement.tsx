@@ -4243,7 +4243,19 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                 <div className="grid grid-cols-1 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Κωδικός Ναύλου *</label>
-                    <input type="text" name="code" value={newCharter.code} onChange={handleFormChange} placeholder="π.χ. NAY-002" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
+                    {/* 🔥 FIX 30: Added autoComplete="off" to fix Chrome typing issue */}
+                    <input
+                      type="text"
+                      name="code"
+                      value={newCharter.code}
+                      onChange={handleFormChange}
+                      placeholder="π.χ. NAY-002"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -5016,7 +5028,8 @@ function InvoiceSection({ boatId, canEditFinancials, showMessage, invoices, setI
           
           {showAddForm && (
             <div className="mt-4 p-4 bg-gray-800 rounded-lg space-y-3 border border-gray-700">
-              <input type="text" name="code" value={newInvoice.code} onChange={handleFormChange} placeholder="Κωδικός (π.χ. TIM-001)" className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
+              {/* 🔥 FIX 30: Added autoComplete="off" to fix Chrome typing issue */}
+              <input type="text" name="code" value={newInvoice.code} onChange={handleFormChange} placeholder="Κωδικός (π.χ. TIM-001)" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
               <input type="date" name="date" value={newInvoice.date} onChange={handleFormChange} className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
               <input type="text" name="description" value={newInvoice.description} onChange={handleFormChange} placeholder="Περιγραφή (π.χ. Αναλώσιμα)" className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
               <input type="number" step="0.01" name="amount" value={newInvoice.amount} onChange={handleFormChange} placeholder="Ποσό (€)" className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
