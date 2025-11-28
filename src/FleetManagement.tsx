@@ -712,9 +712,8 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
   }
 };
 
-// 🔥 FIX 11: Enhanced email function with debugging logs
-const sendCharterEmail = async (charter, boatName, action) => {
-  // 🔥 FIX 11: Log when called
+// 🔥 FIX 28: Enhanced email function with proper templates for accept/finalize
+const sendCharterEmail = async (charter, boatName, action, ownerCompany = 'OWNER') => {
   console.log('📧 sendCharterEmail CALLED');
   console.log('📧 Charter:', charter.code);
   console.log('📧 Boat:', boatName);
@@ -726,36 +725,117 @@ const sendCharterEmail = async (charter, boatName, action) => {
     // ALL emails go to ONLY these 2 addresses
     const emailTo = ['info@tailwindyachting.com', 'charter@tailwindyachting.com'];
 
-    const actionLabels = {
-      'new_charter': 'NEW CHARTER CREATED',
-      'option_accepted': 'OPTION ACCEPTED by Owner',
-      'cancelled': 'CANCELLED',
-      'confirmed': 'CONFIRMED by Owner',
-      'reservation': 'RESERVATION - Charter Closed'
-    };
+    // Calculate financial terms
+    const charterAmount = charter.amount || 0;
+    const commission = charter.commission || 0;
+    const vatOnCommission = charter.vat_on_commission || 0;
+    const finalAmount = charterAmount - commission - vatOnCommission;
+    const year = new Date().getFullYear();
+    const bookingNumber = charter.code || '';
+
+    // 🔥 FIX 28: Create proper email templates based on action
+    let subject = '';
+    let emailBody = '';
+
+    if (action === 'option_accepted') {
+      // Email 1 - When charter is ACCEPTED (option confirmed)
+      subject = `CHARTERING INFORMATION OPTION ${bookingNumber}/${year}`;
+      emailBody = `TAILWIND YACHTING - CHARTERING INFORMATION
+
+OPTION: ${bookingNumber}/${year}
+COMPANY: ${ownerCompany}
+BOAT: ${boatName}
+
+FROM: ${charter.startDate || ''}
+DEPARTURE: ${charter.checkinLocation || 'ALIMOS MARINA'}
+
+TILL: ${charter.endDate || ''}
+ARRIVAL: ${charter.checkoutLocation || 'ALIMOS MARINA'}
+
+FINANCIAL TERMS:
+NET CHARTERING AMOUNT          €${charterAmount.toFixed(2)}
+minus COMMISSION OF TAILWIND IKE    -€${commission.toFixed(2)}
+minus VAT ON THE COMMISSION (24%)   -€${vatOnCommission.toFixed(2)}
+
+${ownerCompany} WILL RECEIVE IN CASH   €${finalAmount.toFixed(2)}
+
+Status: ΕΠΙΒΕΒΑΙΩΘΗΚΕ (OPTION)
+
+Ευχαριστούμε Πολύ
+Tailwind Yachting`;
+    } else if (action === 'reservation' || action === 'confirmed') {
+      // Email 2 - When charter is FINALIZED (closed/confirmed)
+      subject = `CHARTER CONFIRMATION ${bookingNumber}/${year}`;
+      emailBody = `TAILWIND YACHTING - CHARTER CONFIRMATION
+
+CHARTER: ${bookingNumber}/${year}
+COMPANY: ${ownerCompany}
+BOAT: ${boatName}
+
+FROM: ${charter.startDate || ''}
+DEPARTURE: ${charter.checkinLocation || 'ALIMOS MARINA'}
+
+TILL: ${charter.endDate || ''}
+ARRIVAL: ${charter.checkoutLocation || 'ALIMOS MARINA'}
+
+FINANCIAL TERMS:
+NET CHARTERING AMOUNT          €${charterAmount.toFixed(2)}
+minus COMMISSION OF TAILWIND IKE    -€${commission.toFixed(2)}
+minus VAT ON THE COMMISSION (24%)   -€${vatOnCommission.toFixed(2)}
+
+${ownerCompany} WILL RECEIVE IN CASH   €${finalAmount.toFixed(2)}
+
+Status: ΟΡΙΣΤΙΚΟΠΟΙΗΘΗΚΕ
+
+Ευχαριστούμε Πολύ
+Tailwind Yachting`;
+    } else if (action === 'cancelled') {
+      subject = `CHARTER CANCELLED ${bookingNumber}/${year}`;
+      emailBody = `TAILWIND YACHTING - CHARTER CANCELLED
+
+CHARTER: ${bookingNumber}/${year}
+BOAT: ${boatName}
+
+FROM: ${charter.startDate || ''}
+TILL: ${charter.endDate || ''}
+
+Status: ΑΚΥΡΩΘΗΚΕ
+
+Tailwind Yachting`;
+    } else {
+      // Default/new charter template
+      subject = `CHARTER ${action.toUpperCase()} ${bookingNumber}/${year}`;
+      emailBody = `TAILWIND YACHTING - CHARTER ${action.toUpperCase()}
+
+CHARTER: ${bookingNumber}/${year}
+BOAT: ${boatName}
+FROM: ${charter.startDate || ''}
+TILL: ${charter.endDate || ''}
+AMOUNT: €${charterAmount.toFixed(2)}
+
+Tailwind Yachting`;
+    }
 
     const emailPayload = {
       to: emailTo,
+      subject: subject,
+      text: emailBody,
+      // Legacy fields for backwards compatibility
       code: charter.code,
       boatName: boatName,
       action: action,
       startDate: charter.startDate,
       endDate: charter.endDate,
       amount: charter.amount,
-      netIncome: (charter.amount || 0) - (charter.commission || 0) - (charter.vat_on_commission || 0),
-      // 🔥 FIX 9: Include skipper info in email
-      skipperName: `${charter.skipperFirstName || ''} ${charter.skipperLastName || ''}`.trim(),
-      skipperEmail: charter.skipperEmail || '',
-      skipperPhone: charter.skipperPhone || ''
+      netIncome: finalAmount
     };
 
-    // 🔥 FIX 11: Log payload before sending
-    console.log('📧 Email payload:', JSON.stringify(emailPayload, null, 2));
+    console.log('📧 Email subject:', subject);
+    console.log('📧 Email body:', emailBody);
 
     // 🔥 FIX 15: Use nginx proxy for email API
     const EMAIL_API_URL = 'https://yachtmanagementsuite.com/email/send-charter-email';
     console.log('📧 Calling API:', EMAIL_API_URL);
-    console.log('📧 Request body:', JSON.stringify(emailPayload));
 
     try {
       const response = await fetch(EMAIL_API_URL, {
@@ -768,20 +848,9 @@ const sendCharterEmail = async (charter, boatName, action) => {
         body: JSON.stringify(emailPayload)
       });
 
-      // 🔥 FIX 11: Log API response
       console.log('📧 API Response status:', response.status);
-      console.log('📧 API Response ok:', response.ok);
-
       const responseText = await response.text();
       console.log('📧 API Response text:', responseText);
-
-      let responseData = {};
-      try {
-        responseData = JSON.parse(responseText);
-        console.log('📧 API Response data:', responseData);
-      } catch (parseError) {
-        console.log('📧 Response is not JSON:', responseText);
-      }
 
       if (!response.ok) {
         console.error('📧 API Error: Non-OK status', response.status, responseText);
@@ -789,19 +858,13 @@ const sendCharterEmail = async (charter, boatName, action) => {
         console.log('📧 ✅ Email sent successfully via API!');
       }
     } catch (apiError) {
-      // 🔥 FIX 11: Log API errors with full details
       console.error('📧 API fetch error:', apiError);
-      console.error('📧 Error name:', apiError.name);
-      console.error('📧 Error message:', apiError.message);
-      // Continue even if API fails - show alert anyway
+      // Continue even if API fails
     }
 
-    alert(`Email sent to:\n${emailTo.join('\n')}\n\nCharter ${charter.code} - ${actionLabels[action] || action}`);
     console.log('📧 Email process completed successfully');
-
     return true;
   } catch (error) {
-    // 🔥 FIX 11: Log errors
     console.error('📧 Email send error:', error);
     return false;
   }
@@ -3174,7 +3237,8 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
       case 'Pending':
         return 'border-yellow-400'; // Will use inline style for #FFFF00 bg
       case 'Accepted':
-        return 'bg-yellow-600 border-yellow-400';
+      case 'Option Accepted':
+        return 'bg-yellow-400 border-yellow-300'; // 🔥 FIX 28: Bright yellow
       case 'Confirmed':
         return 'bg-green-700 border-green-500';
       case 'Canceled':
@@ -3185,16 +3249,16 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
     }
   };
 
-  // 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00)
+  // 🔥 FIX 10 + FIX 28: Changed Option/Accepted to BRIGHT YELLOW
   const getStatusText = (status) => {
     switch(status) {
       case 'Option':
       case 'Pending':
         return { text: 'OPTION', color: 'text-black', bg: '#FFFF00' }; // BRIGHT YELLOW
       case 'Option Accepted':
-        return { text: 'OPTION ACCEPTED', color: 'text-yellow-300', bg: 'bg-yellow-400' };
+        return { text: 'OPTION ACCEPTED', color: 'text-black', bg: 'bg-yellow-400' }; // 🔥 FIX 28: Bright yellow
       case 'Reservation':
-        return { text: 'RESERVATION', color: 'text-yellow-300', bg: 'bg-yellow-400' };
+        return { text: 'RESERVATION', color: 'text-black', bg: 'bg-yellow-400' }; // 🔥 FIX 28: Bright yellow
       case 'Confirmed':
         return { text: 'CONFIRMED', color: 'text-green-300', bg: 'bg-green-500' };
       case 'Cancelled':
@@ -4368,6 +4432,8 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
   const [newPayDate, setNewPayDate] = useState('');
   const [newPayAmount, setNewPayAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  // 🔥 FIX 28: Inline status messages inside modal
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'loading' | 'success' | 'error' } | null>(null);
 
   const addPayment = () => {
     console.log('💳 addPayment clicked:', { newPayDate, newPayAmount, canEditCharters });
@@ -4409,16 +4475,21 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const balance = (charter.amount || 0) - totalPaid;
 
+  // 🔥 FIX 28: Helper to clear status message after delay
+  const clearStatusAfterDelay = () => {
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
+
   // OWNER: Option → Option Accepted (accept) or Cancelled (reject)
-  // 🔥 FIX 8: Added API sync for charter acceptance
+  // 🔥 FIX 8 + FIX 28: Added inline status messages
   const handleOwnerAcceptOption = async () => {
     if (!canAcceptCharter) { showMessage('❌ Δεν έχετε δικαίωμα αποδοχής', 'error'); return; }
     setIsProcessing(true);
+    setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
     console.log('📝 Owner accepting option:', charter.code);
     const success = await sendCharterEmail(charter, boat.name || boat.id, 'option_accepted');
     if (success) {
       onUpdateStatus(charter, 'Option Accepted');
-      // 🔥 FIX 8: Sync to API
       try {
         const updatedCharter = { ...charter, status: 'Option Accepted', vesselId: boat.id };
         await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
@@ -4426,23 +4497,25 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
       } catch (error) {
         console.error('❌ API sync error:', error);
       }
-      showMessage('✅ Option ΑΠΟΔΕΚΤΟ! Ειδοποίηση στάλθηκε.', 'success');
+      setStatusMessage({ text: '✅ Charter επιβεβαιώθηκε!', type: 'success' });
+      clearStatusAfterDelay();
     } else {
-      showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
+      setStatusMessage({ text: '❌ Σφάλμα', type: 'error' });
+      clearStatusAfterDelay();
     }
     setIsProcessing(false);
   };
 
-  // 🔥 FIX 8: Added API sync for charter rejection
+  // 🔥 FIX 8 + FIX 28: Added inline status messages
   const handleOwnerRejectOption = async () => {
     if (!canAcceptCharter) { showMessage('❌ Δεν έχετε δικαίωμα απόρριψης', 'error'); return; }
     if (!window.confirm('Είστε σίγουροι ότι θέλετε να ΑΠΟΡΡΙΨΕΤΕ αυτόν τον ναύλο;')) return;
     setIsProcessing(true);
+    setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
     console.log('📝 Owner rejecting option:', charter.code);
     const success = await sendCharterEmail(charter, boat.name || boat.id, 'cancelled');
     if (success) {
       onUpdateStatus(charter, 'Cancelled');
-      // 🔥 FIX 8: Sync to API
       try {
         const updatedCharter = { ...charter, status: 'Cancelled', vesselId: boat.id };
         await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
@@ -4450,35 +4523,41 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
       } catch (error) {
         console.error('❌ API sync error:', error);
       }
-      showMessage('❌ Ναύλος ΑΚΥΡΩΘΗΚΕ! Ειδοποίηση στάλθηκε.', 'success');
+      setStatusMessage({ text: '❌ Ναύλος ακυρώθηκε!', type: 'success' });
+      clearStatusAfterDelay();
     } else {
-      showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
+      setStatusMessage({ text: '❌ Σφάλμα', type: 'error' });
+      clearStatusAfterDelay();
     }
     setIsProcessing(false);
   };
 
   // OWNER: Reservation → Confirmed (accept) or Cancelled (reject)
+  // 🔥 FIX 28: Added inline status messages
   const handleOwnerConfirmReservation = async () => {
     if (!canAcceptCharter) { showMessage('❌ Δεν έχετε δικαίωμα επιβεβαίωσης', 'error'); return; }
     setIsProcessing(true);
+    setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
     const success = await sendCharterEmail(charter, boat.name || boat.id, 'confirmed');
     if (success) {
       onUpdateStatus(charter, 'Confirmed');
-      showMessage('✅ Ναύλος ΕΠΙΒΕΒΑΙΩΜΕΝΟΣ! Ειδοποίηση στάλθηκε.', 'success');
+      setStatusMessage({ text: '✅ Charter οριστικοποιήθηκε!', type: 'success' });
+      clearStatusAfterDelay();
     } else {
-      showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
+      setStatusMessage({ text: '❌ Σφάλμα', type: 'error' });
+      clearStatusAfterDelay();
     }
     setIsProcessing(false);
   };
 
-  // 🔥 FIX 12: ADMIN: Option Accepted → Reservation (ΚΛΕΙΣΙΜΟ OPTION)
+  // 🔥 FIX 12 + FIX 28: ADMIN: Option Accepted → Reservation (ΚΛΕΙΣΙΜΟ OPTION)
   const handleAdminCloseCharter = async () => {
     setIsProcessing(true);
+    setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
     console.log('📝 Admin closing option:', charter.code);
     const success = await sendCharterEmail(charter, boat.name || boat.id, 'reservation');
     if (success) {
       onUpdateStatus(charter, 'Reservation');
-      // 🔥 FIX 12: Sync to API
       try {
         const updatedCharter = { ...charter, status: 'Reservation', vesselId: boat.id };
         await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
@@ -4486,22 +4565,28 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
       } catch (error) {
         console.error('❌ API sync error:', error);
       }
-      showMessage('✅ Ναύλος κλείστηκε → RESERVATION! Αναμονή Owner επιβεβαίωσης.', 'success');
+      setStatusMessage({ text: '✅ Charter οριστικοποιήθηκε!', type: 'success' });
+      clearStatusAfterDelay();
     } else {
-      showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
+      setStatusMessage({ text: '❌ Σφάλμα', type: 'error' });
+      clearStatusAfterDelay();
     }
     setIsProcessing(false);
   };
 
+  // 🔥 FIX 28: Added inline status messages
   const handleAdminCancelCharter = async () => {
     if (!window.confirm('Είστε σίγουροι ότι θέλετε να ΑΚΥΡΩΣΕΤΕ αυτόν τον ναύλο;')) return;
     setIsProcessing(true);
+    setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
     const success = await sendCharterEmail(charter, boat.name || boat.id, 'cancelled');
     if (success) {
       onDelete(charter.id);
-      showMessage('❌ Ναύλος ΑΚΥΡΩΘΗΚΕ και διαγράφηκε! Ειδοποίηση στάλθηκε.', 'success');
+      setStatusMessage({ text: '❌ Ναύλος ακυρώθηκε!', type: 'success' });
+      clearStatusAfterDelay();
     } else {
-      showMessage('❌ Σφάλμα. Δοκιμάστε ξανά.', 'error');
+      setStatusMessage({ text: '❌ Σφάλμα', type: 'error' });
+      clearStatusAfterDelay();
     }
     setIsProcessing(false);
   };
@@ -4531,6 +4616,17 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
         {isOwnerUser && (
           <div className="mb-4 p-2 bg-blue-900 rounded-lg text-center border border-blue-700">
             <div className="flex items-center justify-center gap-2 text-blue-200 text-sm">{icons.eye}<span>Owner Mode - Αποδοχή/Απόρριψη</span></div>
+          </div>
+        )}
+
+        {/* 🔥 FIX 28: Inline status message display */}
+        {statusMessage && (
+          <div className={`mb-4 p-3 rounded-lg text-center font-semibold ${
+            statusMessage.type === 'loading' ? 'bg-blue-600 text-white animate-pulse' :
+            statusMessage.type === 'success' ? 'bg-green-600 text-white' :
+            'bg-red-600 text-white'
+          }`}>
+            {statusMessage.text}
           </div>
         )}
 
@@ -4614,7 +4710,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
         {/* Status displays */}
         {charter.status === 'Option Accepted' && isOwnerUser && (
-          <div className="w-full bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">⏳ OPTION ACCEPTED - Αναμονή Admin</span></div>
+          <div className="w-full bg-yellow-400 text-black font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">⏳ OPTION ACCEPTED - Αναμονή Admin</span></div>
         )}
 
         {charter.status === 'Confirmed' && (
@@ -5302,10 +5398,11 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
                     
                     if (isBooked) {
                       switch(status) {
-                        case 'Option': case 'Pending': bgColor = 'bg-yellow-900'; textColor = 'text-white'; statusColor = 'text-yellow-300'; break;
-                        case 'Accepted': bgColor = 'bg-yellow-800'; textColor = 'text-white'; statusColor = 'text-yellow-200'; break;
-                        case 'Confirmed': bgColor = 'bg-green-900'; textColor = 'text-white'; statusColor = 'text-green-300'; break;
-                        case 'Canceled': case 'Rejected': bgColor = 'bg-red-900'; textColor = 'text-white'; statusColor = 'text-red-300'; break;
+                        // 🔥 FIX 28: Bright yellow for Option/Accepted
+                        case 'Option': case 'Pending': bgColor = 'bg-yellow-400'; textColor = 'text-black'; statusColor = 'text-black'; break;
+                        case 'Accepted': case 'Option Accepted': bgColor = 'bg-yellow-400'; textColor = 'text-black'; statusColor = 'text-black'; break;
+                        case 'Confirmed': bgColor = 'bg-green-500'; textColor = 'text-white'; statusColor = 'text-green-100'; break;
+                        case 'Canceled': case 'Rejected': bgColor = 'bg-red-500'; textColor = 'text-white'; statusColor = 'text-red-100'; break;
                         default: bgColor = 'bg-gray-800';
                       }
                     }
