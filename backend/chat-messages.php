@@ -71,6 +71,51 @@ try {
     exit();
 }
 
+// Auto-create tables if they don't exist
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS chats (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        chat_id VARCHAR(100) UNIQUE NOT NULL,
+        booking_code VARCHAR(100) NOT NULL,
+        vessel_name VARCHAR(255) DEFAULT NULL,
+        customer_name VARCHAR(255) DEFAULT NULL,
+        category ENUM('TECHNICAL', 'FINANCIAL', 'BOOKING') NOT NULL DEFAULT 'BOOKING',
+        status ENUM('ACTIVE', 'CLOSED') DEFAULT 'ACTIVE',
+        is_visitor TINYINT(1) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_booking_code (booking_code),
+        INDEX idx_category (category),
+        INDEX idx_status (status),
+        INDEX idx_is_visitor (is_visitor)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $pdo->exec("CREATE TABLE IF NOT EXISTS chat_messages (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        chat_id VARCHAR(100) NOT NULL,
+        booking_code VARCHAR(100) NOT NULL,
+        vessel_name VARCHAR(255) DEFAULT NULL,
+        customer_name VARCHAR(255) DEFAULT NULL,
+        sender_id VARCHAR(100) NOT NULL,
+        sender_name VARCHAR(255) NOT NULL,
+        sender_role ENUM('CUSTOMER', 'TECHNICAL', 'FINANCIAL', 'BOOKING', 'ADMIN') NOT NULL,
+        recipient_role ENUM('TECHNICAL', 'FINANCIAL', 'BOOKING', 'ADMIN') NOT NULL,
+        category ENUM('TECHNICAL', 'FINANCIAL', 'BOOKING') NOT NULL,
+        message TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        read_status TINYINT(1) DEFAULT 0,
+        is_visitor TINYINT(1) DEFAULT 0,
+        INDEX idx_chat_id (chat_id),
+        INDEX idx_booking_code (booking_code),
+        INDEX idx_recipient_role (recipient_role),
+        INDEX idx_category (category),
+        INDEX idx_read_status (read_status),
+        INDEX idx_timestamp (timestamp)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} catch(PDOException $e) {
+    // Tables already exist or creation failed - continue anyway
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $path = isset($_GET['action']) ? $_GET['action'] : '';
 
