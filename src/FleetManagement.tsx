@@ -2740,14 +2740,15 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
                   <td className="sticky left-0 bg-gray-900 p-3 border border-gray-700 font-bold text-teal-400 text-base">{getBoatName(boatId)}</td>
                   
                   {weeks.map((week, index) => {
+                    // 🔥 FIX 29: Charter displays ONLY in the week where check-in date falls (no spanning)
                     const charter = charters.find((c) => {
                       if (!c.startDate) return false;
                       const charterStart = new Date(c.startDate);
-                      const charterEnd = c.endDate ? new Date(c.endDate) : new Date(charterStart.getTime() + 7*24*60*60*1000);
                       const weekStart = new Date(week.startDateString);
                       const weekEnd = new Date(weekStart.getTime() + 7*24*60*60*1000);
-                      
-                      return charterStart.getTime() < weekEnd.getTime() && charterEnd.getTime() > weekStart.getTime();
+
+                      // Charter appears ONLY in the week where its START DATE falls
+                      return charterStart.getTime() >= weekStart.getTime() && charterStart.getTime() < weekEnd.getTime();
                     });
                     const style = charter ? getStatusStyle(charter.status) : { bg: 'bg-gray-900', text: 'text-gray-700', status: 'text-gray-600' };
                     
@@ -3214,14 +3215,15 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
     let weekEnd = new Date(currentWeekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
     
+    // 🔥 FIX 29: Charter displays ONLY in the week where check-in date falls (no spanning)
     const booking = bookings.find((b) => {
       if (!b.startDate) return false;
       const charterStart = new Date(b.startDate);
-      const charterEnd = b.endDate ? new Date(b.endDate) : new Date(charterStart.getTime() + 7*24*60*60*1000);
       const weekStartTime = currentWeekStart.getTime();
       const weekEndTime = weekEnd.getTime();
-      
-      return charterStart.getTime() < weekEndTime && charterEnd.getTime() > weekStartTime;
+
+      // Charter appears ONLY in the week where its START DATE falls
+      return charterStart.getTime() >= weekStartTime && charterStart.getTime() < weekEndTime;
     });
 
     weeks.push({ start: new Date(currentWeekStart), end: weekEnd, booking: booking || null });
