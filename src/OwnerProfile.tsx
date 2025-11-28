@@ -33,6 +33,10 @@ export default function OwnerProfile() {
     address: ''
   });
 
+  // 🔥 FIX 37: Support admin navigation from boat dashboard
+  const fromAdmin = location.state?.fromAdmin || false;
+  const boatId = location.state?.boatId || null;
+
   useEffect(() => {
     const code = location.state?.ownerCode;
 
@@ -172,7 +176,14 @@ export default function OwnerProfile() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => navigate('/owner-dashboard', { state: { ownerCode } })}
+                onClick={() => {
+                  // 🔥 FIX 37: Navigate back to FleetManagement if came from admin
+                  if (fromAdmin) {
+                    navigate('/fleet-management', { state: { boatId: boatId } });
+                  } else {
+                    navigate('/owner-dashboard', { state: { ownerCode } });
+                  }
+                }}
                 className="text-3xl hover:scale-110 transition-transform"
               >
                 ←

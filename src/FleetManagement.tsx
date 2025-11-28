@@ -11,6 +11,10 @@ import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
 // 🔥 Auto-refresh hook for polling API data
 import { useAutoRefresh } from './hooks/useAutoRefresh';
+// 🔥 FIX 35: Professional PDF generation service
+import { generateOwnerCharterPDF } from './services/pdfTemplateService';
+// 🔥 FIX 36: Professional HTML email service (no PDF attachment)
+import { sendOwnerCharterEmail } from './services/emailTemplateService';
 
 // =====================================================
 // FLEET MANAGEMENT - PROFESSIONAL VERSION WITH AUTH
@@ -145,7 +149,9 @@ const icons = {
   lock: (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>),
   edit: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>),
   shield: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>),
-  eye: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>)
+  eye: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>),
+  // 🔥 FIX 37: Owner profile icon
+  userProfile: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>)
 };
 
 let globalShowMessage = (text, type) => console.log(text, type);
@@ -712,9 +718,9 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
   }
 };
 
-// 🔥 FIX 28: Enhanced email function with proper templates for accept/finalize
+// 🔥 FIX 36: Enhanced email function using professional HTML template service
 const sendCharterEmail = async (charter, boatName, action, ownerCompany = 'OWNER') => {
-  console.log('📧 sendCharterEmail CALLED');
+  console.log('📧 sendCharterEmail CALLED (using HTML template service)');
   console.log('📧 Charter:', charter.code);
   console.log('📧 Boat:', boatName);
   console.log('📧 Action:', action);
@@ -722,207 +728,38 @@ const sendCharterEmail = async (charter, boatName, action, ownerCompany = 'OWNER
   try {
     authService.logActivity(`send_charter_${action}`, charter.code);
 
-    // ALL emails go to ONLY these 2 addresses
-    const emailTo = ['info@tailwindyachting.com', 'charter@tailwindyachting.com'];
+    // Map action to status for the email template
+    let emailStatus = action;
+    if (action === 'option_accepted') emailStatus = 'Option Accepted';
+    else if (action === 'pending_final_confirmation') emailStatus = 'Pending Final Confirmation';
+    else if (action === 'confirmed') emailStatus = 'Confirmed';
+    else if (action === 'cancelled') emailStatus = 'Cancelled';
+    else if (action === 'expired') emailStatus = 'Expired';
+    else if (action === 'new_charter') emailStatus = 'Option';
 
-    // Calculate financial terms
-    const charterAmount = charter.amount || 0;
-    const commission = charter.commission || 0;
-    const vatOnCommission = charter.vat_on_commission || 0;
-    const finalAmount = charterAmount - commission - vatOnCommission;
-    const year = new Date().getFullYear();
-    const bookingNumber = charter.code || '';
-
-    // 🔥 FIX 28: Create proper email templates based on action
-    let subject = '';
-    let emailBody = '';
-
-    if (action === 'option_accepted') {
-      // Email 1 - When charter is ACCEPTED (option confirmed)
-      subject = `CHARTERING INFORMATION OPTION ${bookingNumber}/${year}`;
-      emailBody = `TAILWIND YACHTING - CHARTERING INFORMATION
-
-OPTION: ${bookingNumber}/${year}
-COMPANY: ${ownerCompany}
-BOAT: ${boatName}
-
-FROM: ${charter.startDate || ''}
-DEPARTURE: ${charter.checkinLocation || 'ALIMOS MARINA'}
-
-TILL: ${charter.endDate || ''}
-ARRIVAL: ${charter.checkoutLocation || 'ALIMOS MARINA'}
-
-FINANCIAL TERMS:
-NET CHARTERING AMOUNT          €${charterAmount.toFixed(2)}
-minus COMMISSION OF TAILWIND IKE    -€${commission.toFixed(2)}
-minus VAT ON THE COMMISSION (24%)   -€${vatOnCommission.toFixed(2)}
-
-${ownerCompany} WILL RECEIVE IN CASH   €${finalAmount.toFixed(2)}
-
-Status: ΕΠΙΒΕΒΑΙΩΘΗΚΕ (OPTION)
-
-Ευχαριστούμε Πολύ
-Tailwind Yachting`;
-    } else if (action === 'pending_final_confirmation') {
-      // 🔥 FIX 29: Email when admin sends for final owner approval
-      subject = `CHARTER PENDING FINAL CONFIRMATION ${bookingNumber}/${year}`;
-      emailBody = `TAILWIND YACHTING - ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ
-
-CHARTER: ${bookingNumber}/${year}
-COMPANY: ${ownerCompany}
-BOAT: ${boatName}
-
-FROM: ${charter.startDate || ''}
-DEPARTURE: ${charter.checkinLocation || 'ALIMOS MARINA'}
-
-TILL: ${charter.endDate || ''}
-ARRIVAL: ${charter.checkoutLocation || 'ALIMOS MARINA'}
-
-FINANCIAL TERMS:
-NET CHARTERING AMOUNT          €${charterAmount.toFixed(2)}
-minus COMMISSION OF TAILWIND IKE    -€${commission.toFixed(2)}
-minus VAT ON THE COMMISSION (24%)   -€${vatOnCommission.toFixed(2)}
-
-${ownerCompany} WILL RECEIVE IN CASH   €${finalAmount.toFixed(2)}
-
-Status: ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ ΑΠΟ ΙΔΙΟΚΤΗΤΗ
-
-Παρακαλούμε επιβεβαιώστε τελικά τον ναύλο.
-
-Ευχαριστούμε Πολύ
-Tailwind Yachting`;
-    } else if (action === 'confirmed') {
-      // Email when charter is FINALLY CONFIRMED by owner
-      subject = `CHARTER CONFIRMED ${bookingNumber}/${year}`;
-      emailBody = `TAILWIND YACHTING - ΕΠΙΒΕΒΑΙΩΜΕΝΟΣ ΝΑΥΛΟΣ
-
-CHARTER: ${bookingNumber}/${year}
-COMPANY: ${ownerCompany}
-BOAT: ${boatName}
-
-FROM: ${charter.startDate || ''}
-DEPARTURE: ${charter.checkinLocation || 'ALIMOS MARINA'}
-
-TILL: ${charter.endDate || ''}
-ARRIVAL: ${charter.checkoutLocation || 'ALIMOS MARINA'}
-
-FINANCIAL TERMS:
-NET CHARTERING AMOUNT          €${charterAmount.toFixed(2)}
-minus COMMISSION OF TAILWIND IKE    -€${commission.toFixed(2)}
-minus VAT ON THE COMMISSION (24%)   -€${vatOnCommission.toFixed(2)}
-
-${ownerCompany} WILL RECEIVE IN CASH   €${finalAmount.toFixed(2)}
-
-Status: ΟΡΙΣΤΙΚΟΠΟΙΗΘΗΚΕ ✅
-
-Ο ναύλος επιβεβαιώθηκε τελικά από τον ιδιοκτήτη.
-
-Ευχαριστούμε Πολύ
-Tailwind Yachting`;
-    } else if (action === 'expired') {
-      // 🔥 FIX 31: Email when option expires after 6 days
-      subject = `⚠️ OPTION EXPIRED ${bookingNumber}/${year}`;
-      emailBody = `TAILWIND YACHTING - OPTION EXPIRED
-
-⚠️ OPTION EXPIRED AFTER 6 DAYS ⚠️
-
-CHARTER: ${bookingNumber}/${year}
-COMPANY: ${ownerCompany}
-BOAT: ${boatName}
-
-FROM: ${charter.startDate || ''}
-DEPARTURE: ${charter.checkinLocation || 'ALIMOS MARINA'}
-
-TILL: ${charter.endDate || ''}
-ARRIVAL: ${charter.checkoutLocation || 'ALIMOS MARINA'}
-
-FINANCIAL TERMS:
-NET CHARTERING AMOUNT          €${charterAmount.toFixed(2)}
-minus COMMISSION OF TAILWIND IKE    -€${commission.toFixed(2)}
-minus VAT ON THE COMMISSION (24%)   -€${vatOnCommission.toFixed(2)}
-
-${ownerCompany} WOULD HAVE RECEIVED   €${finalAmount.toFixed(2)}
-
-Status: ΕΛΗΞΕ (6 ΗΜΕΡΕΣ ΧΩΡΙΣ ΑΠΟΦΑΣΗ)
-
-Η επιλογή έληξε αυτόματα μετά από 6 ημέρες χωρίς απόφαση από τον ιδιοκτήτη.
-
-Tailwind Yachting`;
-    } else if (action === 'cancelled') {
-      subject = `CHARTER CANCELLED ${bookingNumber}/${year}`;
-      emailBody = `TAILWIND YACHTING - CHARTER CANCELLED
-
-CHARTER: ${bookingNumber}/${year}
-BOAT: ${boatName}
-
-FROM: ${charter.startDate || ''}
-TILL: ${charter.endDate || ''}
-
-Status: ΑΚΥΡΩΘΗΚΕ
-
-Tailwind Yachting`;
-    } else {
-      // Default/new charter template
-      subject = `CHARTER ${action.toUpperCase()} ${bookingNumber}/${year}`;
-      emailBody = `TAILWIND YACHTING - CHARTER ${action.toUpperCase()}
-
-CHARTER: ${bookingNumber}/${year}
-BOAT: ${boatName}
-FROM: ${charter.startDate || ''}
-TILL: ${charter.endDate || ''}
-AMOUNT: €${charterAmount.toFixed(2)}
-
-Tailwind Yachting`;
-    }
-
-    const emailPayload = {
-      to: emailTo,
-      subject: subject,
-      text: emailBody,
-      // Legacy fields for backwards compatibility
-      code: charter.code,
-      boatName: boatName,
-      action: action,
-      startDate: charter.startDate,
-      endDate: charter.endDate,
-      amount: charter.amount,
-      netIncome: finalAmount
+    // Create boat object for email service
+    const boatData = {
+      name: boatName,
+      id: boatName,
+      ownerCompany: ownerCompany
     };
 
-    console.log('📧 Email subject:', subject);
-    console.log('📧 Email body:', emailBody);
+    // Create owner object for email service
+    const ownerData = {
+      company: ownerCompany,
+      name: ownerCompany
+    };
 
-    // 🔥 FIX 15: Use nginx proxy for email API
-    const EMAIL_API_URL = 'https://yachtmanagementsuite.com/email/send-charter-email';
-    console.log('📧 Calling API:', EMAIL_API_URL);
+    // 🔥 FIX 36: Use professional HTML email service (NO PDF attachment)
+    const success = await sendOwnerCharterEmail(charter, boatData, ownerData, emailStatus);
 
-    try {
-      const response = await fetch(EMAIL_API_URL, {
-        method: 'POST',
-        mode: 'cors',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(emailPayload)
-      });
-
-      console.log('📧 API Response status:', response.status);
-      const responseText = await response.text();
-      console.log('📧 API Response text:', responseText);
-
-      if (!response.ok) {
-        console.error('📧 API Error: Non-OK status', response.status, responseText);
-      } else {
-        console.log('📧 ✅ Email sent successfully via API!');
-      }
-    } catch (apiError) {
-      console.error('📧 API fetch error:', apiError);
-      // Continue even if API fails
+    if (success) {
+      console.log('📧 ✅ Professional HTML email sent successfully!');
+    } else {
+      console.error('📧 ❌ Failed to send HTML email');
     }
 
-    console.log('📧 Email process completed successfully');
-    return true;
+    return success;
   } catch (error) {
     console.error('📧 Email send error:', error);
     return false;
@@ -1228,9 +1065,9 @@ export default function FleetManagement() {
 
   const selectCategory = (categoryName) => {
     setSelectedCategory(categoryName);
-    
+
     authService.logActivity('select_category', categoryName);
-    
+
     if (categoryName === 'ΟΙΚΟΝΟΜΙΚΑ') {
       setPage('financials');
     } else if (categoryName === 'ΑΠΟΣΤΟΛΗ E-MAIL') {
@@ -1239,6 +1076,14 @@ export default function FleetManagement() {
       setPage('bookingSheet');
     } else if (categoryName === 'ΕΓΓΡΑΦΑ & ΣΤΟΙΧΕΙΑ') {
       setPage('documents');
+    } else if (categoryName === 'ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ') {
+      // 🔥 FIX 37: Navigate to Owner Profile with boat's ownerCode
+      const boatOwnerCode = boatData?.ownerCode || boatData?.owner_code || '';
+      if (boatOwnerCode) {
+        navigate('/owner-profile', { state: { ownerCode: boatOwnerCode, fromAdmin: true, boatId: boatData?.id } });
+      } else {
+        showMessage('❌ Δεν βρέθηκε κωδικός ιδιοκτήτη για αυτό το σκάφος', 'error');
+      }
     } else {
       setPage('details');
     }
@@ -2582,12 +2427,13 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
     { name: 'ΝΑΥΛΑ', icon: icons.charter, description: 'Διαχείριση ναύλων' },
     { name: 'BOOKING SHEET', icon: icons.bookingSheet, description: 'Πρόγραμμα κρατήσεων' },
     { name: 'ΟΙΚΟΝΟΜΙΚΑ', icon: icons.financials, description: 'Οικονομικά στοιχεία' },
+    { name: 'ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ', icon: icons.userProfile, description: 'Προφίλ ιδιοκτήτη σκάφους' },
     { name: 'ΑΠΟΣΤΟΛΗ E-MAIL', icon: icons.email, description: 'Επικοινωνία με εταιρία' },
   ];
   
   const isTechnicalUser = authService.isTechnical();
   
-  const visibleCategories = isOwnerUser 
+  const visibleCategories = isOwnerUser
     ? allCategories
     : allCategories.filter(cat => {
         if (cat.name === 'ΕΓΓΡΑΦΑ & ΣΤΟΙΧΕΙΑ' || cat.name === 'ΑΠΟΣΤΟΛΗ E-MAIL') return true;
@@ -2597,6 +2443,8 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
         if (cat.name === 'ΝΑΥΛΑ') return authService.canDoCheckInOut() && !isTechnicalUser;
         if (cat.name === 'BOOKING SHEET') return authService.canDoCheckInOut();
         if (cat.name === 'ΟΙΚΟΝΟΜΙΚΑ') return authService.canViewFinancials();
+        // 🔥 FIX 37: ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ - only Admin and Booking can see
+        if (cat.name === 'ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ') return authService.isAdmin() || authService.isBooking();
         return false;
       });
 
@@ -4688,6 +4536,18 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
   const handleDownloadSpecimen = () => { generateSpecimenPdf(charter, boat); };
 
+  // 🔥 FIX 35: Professional PDF download handler
+  const handleDownloadProfessionalPDF = async () => {
+    try {
+      showMessage('Generating PDF...', 'info');
+      await generateOwnerCharterPDF(charter, boat, { company: boat.ownerCompany || boat.name || 'OWNER' });
+      showMessage('PDF downloaded successfully!', 'success');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      showMessage('Error generating PDF', 'error');
+    }
+  };
+
   // 🔥 FIX 23: Charter Party DOCX download handler
   const handleDownloadCharterParty = () => { generateCharterParty(charter, boat, showMessage); };
 
@@ -4837,12 +4697,17 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           <div className="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.xCircle} <span className="ml-2">❌ ΑΚΥΡΩΜΕΝΟΣ</span></div>
         )}
 
+        {/* 🔥 FIX 35: Professional PDF Download Button */}
+        <button onClick={handleDownloadProfessionalPDF} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-blue-400 shadow-lg">
+          {icons.download} <span className="ml-2">📥 Download PDF (Professional)</span>
+        </button>
+
         <button onClick={handleDownloadSpecimen} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-gray-600">
           {icons.download} <span className="ml-2">Download Specimen</span>
         </button>
 
         {/* 🔥 FIX 23: Charter Party DOCX Button */}
-        <button onClick={handleDownloadCharterParty} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-blue-500">
+        <button onClick={handleDownloadCharterParty} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-indigo-500">
           {icons.fileText} <span className="ml-2">📄 Charter Party (DOCX)</span>
         </button>
 
