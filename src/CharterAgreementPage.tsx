@@ -48,7 +48,7 @@ export default function CharterAgreementPage() {
   }, [bookingCode]);
 
   // 🔥 Auto-refresh: Poll crew data every 5 minutes
-  useAutoRefresh(loadCrewData, 5);
+  const { isRefreshing } = useAutoRefresh(loadCrewData, 5);
 
   useEffect(() => {
     console.log('🔍 CharterAgreementPage: Loading booking:', bookingCode);
@@ -694,9 +694,16 @@ export default function CharterAgreementPage() {
                   <p className="text-sm text-gray-600">
                     {language === 'en' ? 'Booking' : 'Κράτηση'}: <span className="font-bold text-blue-600">{bookingData.bookingCode}</span>
                   </p>
-                  <p className="text-xs text-gray-400">
-                    {language === 'en' ? 'Last updated' : 'Τελ. ενημέρωση'}: {lastUpdated.toLocaleTimeString()}
-                  </p>
+                  <div className="flex items-center">
+                    <p className="text-xs text-gray-400">
+                      {language === 'en' ? 'Last updated' : 'Τελ. ενημέρωση'}: {lastUpdated.toLocaleTimeString()}
+                    </p>
+                    {isRefreshing && (
+                      <span className="ml-3 px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full animate-pulse">
+                        🔄 {language === 'en' ? 'Updating...' : 'Ανανέωση...'}
+                      </span>
+                    )}
+                  </div>
                 </>
               )}
             </div>

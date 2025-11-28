@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export const useAutoRefresh = (
   fetchFunction: () => Promise<void>,
@@ -6,6 +6,7 @@ export const useAutoRefresh = (
 ) => {
   const intervalRef = useRef<NodeJS.Timeout>();
   const fetchRef = useRef(fetchFunction);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Keep the ref updated with latest function to avoid stale closures
   useEffect(() => {
@@ -14,8 +15,10 @@ export const useAutoRefresh = (
 
   useEffect(() => {
     // Set up interval
-    intervalRef.current = setInterval(() => {
-      fetchRef.current();
+    intervalRef.current = setInterval(async () => {
+      setIsRefreshing(true);
+      await fetchRef.current();
+      setTimeout(() => setIsRefreshing(false), 2000);
     }, intervalMinutes * 60 * 1000);
 
     // Cleanup on unmount
@@ -25,4 +28,6 @@ export const useAutoRefresh = (
       }
     };
   }, [intervalMinutes]);
+
+  return { isRefreshing };
 };

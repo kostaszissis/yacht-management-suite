@@ -3060,7 +3060,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
   }, [boat]);
 
   // 🔥 Auto-refresh: Poll bookings every 5 minutes
-  useAutoRefresh(loadBookings, 5);
+  const { isRefreshing } = useAutoRefresh(loadBookings, 5);
 
   // 🔥 FIX 4: Use optional chaining in dependencies
   useEffect(() => {
@@ -3223,7 +3223,14 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
         </button>
         <div className="flex flex-col items-center">
           <h1 className="text-lg font-bold text-white">Booking Sheet - {boat.name || boat.id}</h1>
-          <span className="text-xs text-gray-400">Last updated: {lastUpdated.toLocaleTimeString()}</span>
+          <div className="flex items-center">
+            <span className="text-xs text-gray-400">Last updated: {lastUpdated.toLocaleTimeString()}</span>
+            {isRefreshing && (
+              <span className="ml-3 px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full animate-pulse">
+                🔄 Updating...
+              </span>
+            )}
+          </div>
         </div>
         <div className="w-10"></div>
       </div>
