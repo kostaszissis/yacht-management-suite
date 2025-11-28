@@ -1,5 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
-import technicalSupportService, { Message } from './services/technicalSupportService';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  getChatMessages,
+  getChatUnreadCount,
+  createChat,
+  sendChatMessage,
+  markChatMessagesRead,
+  ChatMessage
+} from './services/apiService';
+
+// Converted Message type for internal use (matching old interface)
+interface Message {
+  id: string;
+  chatId: string;
+  sender: 'CUSTOMER' | 'TECHNICAL' | 'FINANCIAL' | 'BOOKING' | 'ADMIN';
+  senderName: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  category: 'TECHNICAL' | 'FINANCIAL' | 'BOOKING';
+}
+
+// Convert API message to internal format
+const convertApiMessage = (msg: ChatMessage): Message => ({
+  id: String(msg.id || msg.chat_id + '-' + msg.timestamp),
+  chatId: msg.chat_id,
+  sender: msg.sender_role,
+  senderName: msg.sender_name,
+  message: msg.message,
+  timestamp: msg.timestamp || new Date().toISOString(),
+  read: msg.read_status === 1,
+  category: msg.category
+});
 
 export default function FloatingChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,102 +41,19 @@ export default function FloatingChatWidget() {
   const [customerName, setCustomerName] = useState('');
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<'TECHNICAL' | 'FINANCIAL' | 'BOOKING' | null>(null);
+  const [isVisitor, setIsVisitor] = useState(false);
+  const [bookingCode, setBookingCode] = useState('');
+  const [vesselName, setVesselName] = useState('');
+  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Global unread counter - always running even when chat is closed
+  // Get booking info on mount
   useEffect(() => {
-    const updateUnreadCount = () => {
-      let bookingCode = '';
-      try {
-        const currentBookingCode = localStorage.getItem('currentBooking');
-        if (currentBookingCode) {
-          const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-          if (bookings[currentBookingCode]?.bookingData) {
-            bookingCode = currentBookingCode;
-          }
-        }
-      } catch (e) {
-        // Ignore error
-      }
-
-      if (!bookingCode) {
-        const guestBookingCode = localStorage.getItem('guestBookingCode');
-        if (guestBookingCode) {
-          bookingCode = guestBookingCode;
-        } else {
-          bookingCode = 'GUEST-' + Date.now();
-          localStorage.setItem('guestBookingCode', bookingCode);
-        }
-      }
-
-      const allChats = technicalSupportService.getAllChats();
-      const userChats = allChats.filter(c => c.bookingCode === bookingCode);
-
-      let totalUnread = 0;
-      userChats.forEach(chat => {
-        const unread = chat.messages.filter(msg => msg.sender !== 'CUSTOMER' && !msg.read).length;
-        totalUnread += unread;
-      });
-
-      setUnreadCount(totalUnread);
-    };
-
-    updateUnreadCount();
-    const interval = setInterval(updateUnreadCount, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Smart deep linking - auto-open chat with unread messages
-  useEffect(() => {
-    if (!isOpen || selectedCategory) return;
-
-    let bookingCode = '';
-    try {
-      const currentBookingCode = localStorage.getItem('currentBooking');
-      if (currentBookingCode) {
-        const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-        if (bookings[currentBookingCode]?.bookingData) {
-          bookingCode = currentBookingCode;
-        }
-      }
-    } catch (e) {
-      // Ignore error
-    }
-
-    if (!bookingCode) {
-      const guestBookingCode = localStorage.getItem('guestBookingCode');
-      if (guestBookingCode) {
-        bookingCode = guestBookingCode;
-      } else {
-        bookingCode = 'GUEST-' + Date.now();
-        localStorage.setItem('guestBookingCode', bookingCode);
-      }
-    }
-
-    const allChats = technicalSupportService.getAllChats();
-    const userChats = allChats.filter(c => c.bookingCode === bookingCode);
-
-    const categoriesWithUnread: Array<'TECHNICAL' | 'FINANCIAL' | 'BOOKING'> = [];
-
-    userChats.forEach(chat => {
-      const hasUnread = chat.messages.some(msg => msg.sender !== 'CUSTOMER' && !msg.read);
-      if (hasUnread && !categoriesWithUnread.includes(chat.category)) {
-        categoriesWithUnread.push(chat.category);
-      }
-    });
-
-    if (categoriesWithUnread.length === 1) {
-      setSelectedCategory(categoriesWithUnread[0]);
-    }
-  }, [isOpen, selectedCategory]);
-
-  // Initialize chat - only when category is selected
-  useEffect(() => {
-    if (!selectedCategory) return;
-
-    let bookingCode = '';
-    let vesselName = '';
-    let finalCustomerName = 'Guest Customer';
+    let code = '';
+    let vessel = '';
+    let name = 'Guest Customer';
+    let visitor = true;
 
     try {
       const currentBookingCode = localStorage.getItem('currentBooking');
@@ -113,96 +61,146 @@ export default function FloatingChatWidget() {
         const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
         const booking = bookings[currentBookingCode];
         if (booking?.bookingData) {
-          bookingCode = currentBookingCode;
-          vesselName = booking.bookingData.vesselName || booking.bookingData.selectedVessel;
-          finalCustomerName = `${booking.bookingData.skipperFirstName || ''} ${booking.bookingData.skipperLastName || ''}`.trim() || 'Guest Customer';
+          code = currentBookingCode;
+          vessel = booking.bookingData.vesselName || booking.bookingData.selectedVessel || '';
+          name = `${booking.bookingData.skipperFirstName || ''} ${booking.bookingData.skipperLastName || ''}`.trim() || 'Guest Customer';
+          visitor = false;
         }
       }
     } catch (e) {
-      console.error('Error loading booking from localStorage:', e);
+      console.error('Error loading booking:', e);
     }
 
-    if (!bookingCode) {
-      const guestBookingCode = localStorage.getItem('guestBookingCode');
-      if (guestBookingCode) {
-        bookingCode = guestBookingCode;
+    // If no booking, create/get guest code
+    if (!code) {
+      const guestCode = localStorage.getItem('guestBookingCode');
+      if (guestCode) {
+        code = guestCode;
       } else {
-        bookingCode = 'GUEST-' + Date.now();
-        localStorage.setItem('guestBookingCode', bookingCode);
+        code = 'VISITOR-' + Date.now();
+        localStorage.setItem('guestBookingCode', code);
       }
-      vesselName = 'General Inquiry';
+      vessel = 'General Inquiry';
+      visitor = true;
     }
 
-    setCustomerName(finalCustomerName);
+    setBookingCode(code);
+    setVesselName(vessel);
+    setCustomerName(name);
+    setIsVisitor(visitor);
+  }, []);
 
-    const allChats = technicalSupportService.getAllChats();
-    let chat = allChats.find(c => c.bookingCode === bookingCode && c.category === selectedCategory);
-
-    if (!chat) {
-      chat = technicalSupportService.createChat(bookingCode, vesselName, finalCustomerName, selectedCategory);
-    }
-
-    setChatId(chat.id);
-    setMessages(chat.messages);
-
-    const unsubscribe = technicalSupportService.subscribeToChat(chat.id, (updatedMessages) => {
-      setMessages(updatedMessages);
-      scrollToBottom();
-    });
-
-    return () => unsubscribe();
-  }, [selectedCategory]);
-
-  // Mark messages as read when chat is opened and category is selected
+  // Global unread counter - polling every 30 seconds
   useEffect(() => {
-    if (isOpen && chatId && selectedCategory) {
-      technicalSupportService.markMessagesAsRead(chatId, 'CUSTOMER');
+    if (!bookingCode) return;
 
-      const chat = technicalSupportService.getChatById(chatId);
-      if (chat) {
-        setMessages(chat.messages);
+    const updateUnreadCount = async () => {
+      try {
+        const result = await getChatUnreadCount({ booking_code: bookingCode });
+        if (result.success) {
+          setUnreadCount(result.unread_count);
+        }
+      } catch (e) {
+        console.error('Error fetching unread count:', e);
       }
+    };
 
-      setTimeout(() => {
-        let bookingCode = '';
-        try {
-          const currentBookingCode = localStorage.getItem('currentBooking');
-          if (currentBookingCode) {
-            const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-            if (bookings[currentBookingCode]?.bookingData) {
-              bookingCode = currentBookingCode;
-            }
-          }
-        } catch (e) {
-          // Ignore
-        }
+    updateUnreadCount();
+    const interval = setInterval(updateUnreadCount, 30000); // 30 seconds
+    return () => clearInterval(interval);
+  }, [bookingCode]);
 
-        if (!bookingCode) {
-          const guestBookingCode = localStorage.getItem('guestBookingCode');
-          if (guestBookingCode) {
-            bookingCode = guestBookingCode;
-          }
-        }
+  // Auto-select BOOKING category for visitors (no charter code)
+  useEffect(() => {
+    if (isOpen && isVisitor && !selectedCategory) {
+      // Visitors auto-route to BOOKING manager
+      setSelectedCategory('BOOKING');
+    }
+  }, [isOpen, isVisitor, selectedCategory]);
 
-        const allChats = technicalSupportService.getAllChats();
-        const userChats = allChats.filter(c => c.bookingCode === bookingCode);
+  // Initialize chat when category is selected
+  useEffect(() => {
+    if (!selectedCategory || !bookingCode) return;
 
-        let totalUnread = 0;
-        userChats.forEach(chat => {
-          const unread = chat.messages.filter(msg => msg.sender !== 'CUSTOMER' && !msg.read).length;
-          totalUnread += unread;
+    const initChat = async () => {
+      setLoading(true);
+      try {
+        // Create or get existing chat
+        const result = await createChat({
+          booking_code: bookingCode,
+          vessel_name: vesselName,
+          customer_name: customerName,
+          category: selectedCategory,
+          is_visitor: isVisitor ? 1 : 0
         });
 
-        setUnreadCount(totalUnread);
-      }, 100);
+        if (result.success && result.chat) {
+          setChatId(result.chat.chat_id);
+
+          // Load messages
+          const msgResult = await getChatMessages(result.chat.chat_id);
+          if (msgResult.success) {
+            setMessages(msgResult.messages.map(convertApiMessage));
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing chat:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initChat();
+  }, [selectedCategory, bookingCode, vesselName, customerName, isVisitor]);
+
+  // Poll for new messages when chat is open (every 30 seconds)
+  useEffect(() => {
+    if (!isOpen || !chatId) return;
+
+    const pollMessages = async () => {
+      try {
+        const result = await getChatMessages(chatId);
+        if (result.success) {
+          setMessages(result.messages.map(convertApiMessage));
+        }
+      } catch (e) {
+        console.error('Error polling messages:', e);
+      }
+    };
+
+    pollingRef.current = setInterval(pollMessages, 30000); // 30 seconds
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [isOpen, chatId]);
+
+  // Mark messages as read when chat is opened
+  useEffect(() => {
+    if (isOpen && chatId && selectedCategory) {
+      markChatMessagesRead(chatId, 'CUSTOMER');
+
+      // Update unread count
+      setTimeout(async () => {
+        const result = await getChatUnreadCount({ booking_code: bookingCode });
+        if (result.success) {
+          setUnreadCount(result.unread_count);
+        }
+      }, 500);
     }
-  }, [isOpen, chatId, selectedCategory]);
+  }, [isOpen, chatId, selectedCategory, bookingCode]);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!newMessage.trim() || !chatId || sending || !selectedCategory) return;
@@ -210,40 +208,42 @@ export default function FloatingChatWidget() {
     setSending(true);
 
     try {
-      const message = technicalSupportService.sendMessage(
-        chatId,
-        'CUSTOMER',
-        customerName,
-        newMessage.trim(),
-        selectedCategory
-      );
+      const result = await sendChatMessage({
+        chat_id: chatId,
+        booking_code: bookingCode,
+        vessel_name: vesselName,
+        customer_name: customerName,
+        sender_id: bookingCode,
+        sender_name: customerName,
+        sender_role: 'CUSTOMER',
+        recipient_role: selectedCategory, // Route to selected category manager
+        category: selectedCategory,
+        message: newMessage.trim(),
+        is_visitor: isVisitor ? 1 : 0
+      });
 
-      setMessages(prev => [...prev, message]);
-      setNewMessage('');
-      setTimeout(() => scrollToBottom(), 100);
+      if (result.success && result.message) {
+        setMessages((prev: Message[]) => [...prev, convertApiMessage(result.message)]);
+        setNewMessage('');
+        setTimeout(scrollToBottom, 100);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      alert('Αποτυχία αποστολής. Παρακαλώ δοκιμάστε ξανά.');
     } finally {
       setSending(false);
     }
   };
 
-  // 🔥 FIX: Handle back button to return to category selector
   const handleBackToCategories = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log('✅ Back button clicked - returning to category selector');
-    
-    // Reset all chat-related state
+
+    // Reset chat state
     setSelectedCategory(null);
     setMessages([]);
     setChatId(null);
     setNewMessage('');
-    
-    // Keep widget open, just show category selector
-    // DON'T call setIsOpen(false)
   };
 
   const formatTime = (timestamp: string) => {
@@ -267,8 +267,8 @@ export default function FloatingChatWidget() {
         <span className="text-2xl">{isOpen ? '✕' : '💬'}</span>
       </button>
 
-      {/* Category Selector */}
-      {isOpen && !selectedCategory && (
+      {/* Category Selector - Only for users WITH booking (non-visitors) */}
+      {isOpen && !selectedCategory && !isVisitor && (
         <div
           className="fixed bottom-24 right-6 w-96 bg-white rounded-2xl shadow-2xl p-6"
           style={{
@@ -325,7 +325,7 @@ export default function FloatingChatWidget() {
       )}
 
       {/* Chat Modal */}
-      {isOpen && selectedCategory && (
+      {isOpen && (selectedCategory || isVisitor) && (
         <div
           className="fixed bottom-24 right-6 w-96 h-[600px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
           style={{
@@ -338,40 +338,47 @@ export default function FloatingChatWidget() {
           {/* Chat Header */}
           <div
             className={`text-white p-4 flex items-center justify-between ${
+              isVisitor ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
               selectedCategory === 'TECHNICAL' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' :
               selectedCategory === 'FINANCIAL' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
               'bg-gradient-to-r from-purple-500 to-pink-500'
             }`}
           >
             <div className="flex items-center gap-2">
-              {/* 🔥 FIXED BACK BUTTON */}
-              <button
-                onClick={handleBackToCategories}
-                className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
-                title="Αλλαγή Κατηγορίας"
-                type="button"
-              >
-                ←
-              </button>
+              {/* Back button - only for non-visitors */}
+              {!isVisitor && (
+                <button
+                  onClick={handleBackToCategories}
+                  className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                  title="Αλλαγή Κατηγορίας"
+                  type="button"
+                >
+                  ←
+                </button>
+              )}
               <span className="text-2xl">
-                {selectedCategory === 'TECHNICAL' && '🔧'}
-                {selectedCategory === 'FINANCIAL' && '💰'}
-                {selectedCategory === 'BOOKING' && '📅'}
+                {isVisitor && '📅'}
+                {!isVisitor && selectedCategory === 'TECHNICAL' && '🔧'}
+                {!isVisitor && selectedCategory === 'FINANCIAL' && '💰'}
+                {!isVisitor && selectedCategory === 'BOOKING' && '📅'}
               </span>
               <div>
                 <h3 className="font-bold text-lg">
-                  {selectedCategory === 'TECHNICAL' && 'Technical Support'}
-                  {selectedCategory === 'FINANCIAL' && 'Financial Support'}
-                  {selectedCategory === 'BOOKING' && 'Booking Support'}
+                  {isVisitor && 'Επικοινωνία'}
+                  {!isVisitor && selectedCategory === 'TECHNICAL' && 'Technical Support'}
+                  {!isVisitor && selectedCategory === 'FINANCIAL' && 'Financial Support'}
+                  {!isVisitor && selectedCategory === 'BOOKING' && 'Booking Support'}
                 </h3>
                 <p className={`text-sm ${
+                  isVisitor ? 'text-purple-100' :
                   selectedCategory === 'TECHNICAL' ? 'text-blue-100' :
                   selectedCategory === 'FINANCIAL' ? 'text-green-100' :
                   'text-purple-100'
                 }`}>
-                  {selectedCategory === 'TECHNICAL' && 'Τεχνικά θέματα'}
-                  {selectedCategory === 'FINANCIAL' && 'Οικονομικά'}
-                  {selectedCategory === 'BOOKING' && 'Κρατήσεις'}
+                  {isVisitor && 'Γενική ερώτηση'}
+                  {!isVisitor && selectedCategory === 'TECHNICAL' && 'Τεχνικά θέματα'}
+                  {!isVisitor && selectedCategory === 'FINANCIAL' && 'Οικονομικά'}
+                  {!isVisitor && selectedCategory === 'BOOKING' && 'Κρατήσεις'}
                 </p>
               </div>
             </div>
@@ -391,11 +398,21 @@ export default function FloatingChatWidget() {
 
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-br from-slate-50 to-blue-50">
-            {messages.length === 0 && (
+            {loading && (
+              <div className="text-center p-4">
+                <div className="animate-spin text-4xl mb-2">⏳</div>
+                <p className="text-sm text-gray-600">Φόρτωση...</p>
+              </div>
+            )}
+
+            {!loading && messages.length === 0 && (
               <div className="text-center p-4 bg-white/50 rounded-lg">
                 <div className="text-4xl mb-2">👋</div>
                 <p className="text-sm text-gray-600">
-                  Καλώς ήρθες! Πώς μπορώ να σε βοηθήσω;
+                  {isVisitor
+                    ? 'Καλώς ήρθατε! Πώς μπορούμε να σας βοηθήσουμε;'
+                    : 'Καλώς ήρθες! Πώς μπορώ να σε βοηθήσω;'
+                  }
                 </p>
               </div>
             )}
@@ -447,11 +464,12 @@ export default function FloatingChatWidget() {
                   color: '#1f2937',
                   backgroundColor: '#ffffff'
                 }}
-                disabled={sending}
+                disabled={sending || loading}
+                autoComplete="off"
               />
               <button
                 type="submit"
-                disabled={!newMessage.trim() || sending}
+                disabled={!newMessage.trim() || sending || loading}
                 className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
               >
                 {sending ? '...' : '📤'}

@@ -660,3 +660,199 @@ export async function syncUnsyncedBookings() {
   console.log(`✅ Sync complete: ${success} succeeded, ${failed} failed`);
   return { success, failed };
 }
+
+// =====================================================
+// CHAT MESSAGES API
+// =====================================================
+
+const CHAT_API_URL = 'https://yachtmanagementsuite.com/api/chat-messages.php';
+
+export interface ChatMessage {
+  id?: number;
+  chat_id: string;
+  booking_code: string;
+  vessel_name?: string;
+  customer_name?: string;
+  sender_id: string;
+  sender_name: string;
+  sender_role: 'CUSTOMER' | 'TECHNICAL' | 'FINANCIAL' | 'BOOKING' | 'ADMIN';
+  recipient_role: 'TECHNICAL' | 'FINANCIAL' | 'BOOKING' | 'ADMIN';
+  category: 'TECHNICAL' | 'FINANCIAL' | 'BOOKING';
+  message: string;
+  timestamp?: string;
+  read_status?: number;
+  is_visitor?: number;
+}
+
+export interface Chat {
+  id?: number;
+  chat_id: string;
+  booking_code: string;
+  vessel_name?: string;
+  customer_name?: string;
+  category: 'TECHNICAL' | 'FINANCIAL' | 'BOOKING';
+  status?: 'ACTIVE' | 'CLOSED';
+  is_visitor?: number;
+  messages?: ChatMessage[];
+  unread_count?: number;
+  last_message?: string;
+  last_message_at?: string;
+}
+
+/**
+ * Get all chats with optional filters
+ */
+export async function getChats(filters?: {
+  category?: 'TECHNICAL' | 'FINANCIAL' | 'BOOKING' | 'ALL';
+  booking_code?: string;
+  recipient_role?: string;
+  status?: 'ACTIVE' | 'CLOSED';
+}): Promise<{ success: boolean; chats: Chat[] }> {
+  try {
+    const params = new URLSearchParams();
+    params.append('action', 'chats');
+    if (filters?.category) params.append('category', filters.category);
+    if (filters?.booking_code) params.append('booking_code', filters.booking_code);
+    if (filters?.recipient_role) params.append('recipient_role', filters.recipient_role);
+    if (filters?.status) params.append('status', filters.status);
+
+    const response = await fetch(`${CHAT_API_URL}?${params.toString()}`);
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('❌ Error fetching chats:', error);
+    return { success: false, chats: [] };
+  }
+}
+
+/**
+ * Get messages for a specific chat
+ */
+export async function getChatMessages(chatId: string, since?: string): Promise<{ success: boolean; messages: ChatMessage[] }> {
+  try {
+    const params = new URLSearchParams();
+    params.append('action', 'messages');
+    params.append('chat_id', chatId);
+    if (since) params.append('since', since);
+
+    const response = await fetch(`${CHAT_API_URL}?${params.toString()}`);
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('❌ Error fetching messages:', error);
+    return { success: false, messages: [] };
+  }
+}
+
+/**
+ * Get unread message count
+ */
+export async function getChatUnreadCount(filters: {
+  booking_code?: string;
+  role?: string;
+}): Promise<{ success: boolean; unread_count: number }> {
+  try {
+    const params = new URLSearchParams();
+    params.append('action', 'unread');
+    if (filters.booking_code) params.append('booking_code', filters.booking_code);
+    if (filters.role) params.append('role', filters.role);
+
+    const response = await fetch(`${CHAT_API_URL}?${params.toString()}`);
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('❌ Error fetching unread count:', error);
+    return { success: false, unread_count: 0 };
+  }
+}
+
+/**
+ * Create a new chat
+ */
+export async function createChat(data: {
+  chat_id?: string;
+  booking_code: string;
+  vessel_name?: string;
+  customer_name?: string;
+  category: 'TECHNICAL' | 'FINANCIAL' | 'BOOKING';
+  is_visitor?: number;
+}): Promise<{ success: boolean; chat: Chat; existing: boolean }> {
+  try {
+    const response = await fetch(`${CHAT_API_URL}?action=chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('❌ Error creating chat:', error);
+    throw error;
+  }
+}
+
+/**
+ * Send a chat message
+ */
+export async function sendChatMessage(data: {
+  chat_id: string;
+  booking_code: string;
+  vessel_name?: string;
+  customer_name?: string;
+  sender_id: string;
+  sender_name: string;
+  sender_role: 'CUSTOMER' | 'TECHNICAL' | 'FINANCIAL' | 'BOOKING' | 'ADMIN';
+  recipient_role: 'TECHNICAL' | 'FINANCIAL' | 'BOOKING' | 'ADMIN';
+  category: 'TECHNICAL' | 'FINANCIAL' | 'BOOKING';
+  message: string;
+  is_visitor?: number;
+}): Promise<{ success: boolean; message: ChatMessage }> {
+  try {
+    const response = await fetch(`${CHAT_API_URL}?action=message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('❌ Error sending message:', error);
+    throw error;
+  }
+}
+
+/**
+ * Mark messages as read
+ */
+export async function markChatMessagesRead(chatId: string, reader: string): Promise<{ success: boolean; updated: number }> {
+  try {
+    const response = await fetch(`${CHAT_API_URL}?action=mark-read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, reader })
+    });
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('❌ Error marking messages as read:', error);
+    return { success: false, updated: 0 };
+  }
+}
+
+/**
+ * Update chat status (ACTIVE/CLOSED)
+ */
+export async function updateChatStatus(chatId: string, status: 'ACTIVE' | 'CLOSED'): Promise<{ success: boolean; updated: number }> {
+  try {
+    const response = await fetch(`${CHAT_API_URL}?action=chat-status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, status })
+    });
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('❌ Error updating chat status:', error);
+    return { success: false, updated: 0 };
+  }
+}
