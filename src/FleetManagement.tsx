@@ -5383,13 +5383,14 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
                 <td className="sticky left-0 bg-gray-900 hover:bg-gray-800 p-3 border border-gray-700 font-bold text-teal-400 text-base">{boat.name}</td>
                 
                 {weeks.map((week, index) => {
+                    // 🔥 FIX 29: Charter displays ONLY in the week where check-in date falls (no spanning)
                     const booking = allBookings.find((b) => {
                       if (b.boatId !== boat.id || !b.startDate) return false;
                       const charterStart = new Date(b.startDate);
-                      const charterEnd = b.endDate ? new Date(b.endDate) : new Date(charterStart.getTime() + 7*24*60*60*1000);
                       const weekStart = new Date(week.startDateString);
                       const weekEnd = new Date(weekStart.getTime() + 7*24*60*60*1000);
-                      return charterStart.getTime() < weekEnd.getTime() && charterEnd.getTime() > weekStart.getTime();
+                      // Charter appears ONLY in the week where its START DATE falls
+                      return charterStart.getTime() >= weekStart.getTime() && charterStart.getTime() < weekEnd.getTime();
                     });
                     const isBooked = !!booking;
                     const status = booking?.status || 'Pending';
