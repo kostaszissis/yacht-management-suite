@@ -25,6 +25,13 @@ export interface OwnerCode {
   code: string;
   boatIds: string[];
   enabled: boolean;
+  // 🔥 FIX 38: Owner details for charter emails
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerCompany?: string;
+  ownerTaxId?: string;
+  ownerPhone?: string;
+  ownerAddress?: string;
 }
 
 // Activity Log Structure
@@ -310,6 +317,13 @@ export const getAllOwnerCodes = (): OwnerCode[] => {
 export const getOwnerByCode = (code: string): OwnerCode | null => {
   const codes = getAllOwnerCodes();
   return codes.find(owner => owner.code === code && owner.enabled) || null;
+};
+
+// 🔥 FIX 38: Get owner details by boat ID for charter emails
+export const getOwnerByBoatId = (boatId: string | number): OwnerCode | null => {
+  const codes = getAllOwnerCodes();
+  const boatIdStr = String(boatId);
+  return codes.find(owner => owner.enabled && owner.boatIds.some(id => String(id) === boatIdStr)) || null;
 };
 
 export const addOwnerCode = (owner: Omit<OwnerCode, 'enabled'>): boolean => {
@@ -608,6 +622,7 @@ export default {
   // Owner Codes
   getAllOwnerCodes,
   getOwnerByCode,
+  getOwnerByBoatId,
   addOwnerCode,
   updateOwnerCode,
   deleteOwnerCode,

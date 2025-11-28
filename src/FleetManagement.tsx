@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import authService from './authService';
+import authService, { getOwnerByBoatId } from './authService';
 import AdminDashboard from './AdminDashboard';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
@@ -77,25 +77,33 @@ const FleetService = {
   addBoat(boat) {
     try {
       const boats = this.getAllBoats();
-      
+
       if (boats.find(b => b.id.toUpperCase() === boat.id.toUpperCase())) {
         throw new Error(`Boat with ID "${boat.id}" already exists`);
       }
-      
+
+      // 🔥 FIX 37: Include owner details when adding boat
       boats.push({
         id: boat.id.toUpperCase(),
         name: boat.name,
         type: boat.type,
         model: boat.model || '',
+        ownerCode: boat.ownerCode || '',
+        ownerName: boat.ownerName || '',
+        ownerEmail: boat.ownerEmail || '',
+        ownerCompany: boat.ownerCompany || '',
+        ownerTaxId: boat.ownerTaxId || '',
+        ownerPhone: boat.ownerPhone || '',
+        ownerAddress: boat.ownerAddress || '',
         createdAt: new Date().toISOString()
       });
-      
+
       boats.sort((a, b) => a.id.localeCompare(b.id));
       localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(boats));
       console.log('✅ Boat added:', boat.id);
-      
+
       authService.logActivity('add_boat', boat.id);
-      
+
       return true;
     } catch (error) {
       console.error('Error adding boat:', error);
@@ -149,9 +157,7 @@ const icons = {
   lock: (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>),
   edit: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>),
   shield: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>),
-  eye: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>),
-  // 🔥 FIX 37: Owner profile icon
-  userProfile: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>)
+  eye: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>)
 };
 
 let globalShowMessage = (text, type) => console.log(text, type);
@@ -719,10 +725,14 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
 };
 
 // 🔥 FIX 36: Enhanced email function using professional HTML template service
-const sendCharterEmail = async (charter, boatName, action, ownerCompany = 'OWNER') => {
+// 🔥 FIX 38: Updated to use getOwnerByBoatId for owner details from AdminPanel
+const sendCharterEmail = async (charter, boat, action) => {
+  const boatName = typeof boat === 'string' ? boat : (boat.name || boat.id);
+  const boatId = typeof boat === 'string' ? boat : boat.id;
+
   console.log('📧 sendCharterEmail CALLED (using HTML template service)');
   console.log('📧 Charter:', charter.code);
-  console.log('📧 Boat:', boatName);
+  console.log('📧 Boat:', boatName, '(ID:', boatId, ')');
   console.log('📧 Action:', action);
 
   try {
@@ -737,18 +747,28 @@ const sendCharterEmail = async (charter, boatName, action, ownerCompany = 'OWNER
     else if (action === 'expired') emailStatus = 'Expired';
     else if (action === 'new_charter') emailStatus = 'Option';
 
+    // 🔥 FIX 38: Fetch owner details from AdminPanel-managed data
+    const ownerFromAdmin = getOwnerByBoatId(boatId);
+    console.log('📧 Owner from AdminPanel:', ownerFromAdmin);
+
     // Create boat object for email service
     const boatData = {
       name: boatName,
-      id: boatName,
-      ownerCompany: ownerCompany
+      id: boatId,
+      ownerCompany: ownerFromAdmin?.ownerCompany || 'OWNER'
     };
 
-    // Create owner object for email service
+    // Create owner object for email service with full details from AdminPanel
     const ownerData = {
-      company: ownerCompany,
-      name: ownerCompany
+      company: ownerFromAdmin?.ownerCompany || '',
+      name: ownerFromAdmin?.ownerName || '',
+      email: ownerFromAdmin?.ownerEmail || '',
+      phone: ownerFromAdmin?.ownerPhone || '',
+      taxId: ownerFromAdmin?.ownerTaxId || '',
+      address: ownerFromAdmin?.ownerAddress || ''
     };
+
+    console.log('📧 Owner email will be sent to:', ownerData.email || '(not set - admin notifications only)');
 
     // 🔥 FIX 36: Use professional HTML email service (NO PDF attachment)
     const success = await sendOwnerCharterEmail(charter, boatData, ownerData, emailStatus);
@@ -1076,14 +1096,6 @@ export default function FleetManagement() {
       setPage('bookingSheet');
     } else if (categoryName === 'ΕΓΓΡΑΦΑ & ΣΤΟΙΧΕΙΑ') {
       setPage('documents');
-    } else if (categoryName === 'ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ') {
-      // 🔥 FIX 37: Navigate to Owner Profile with boat's ownerCode
-      const boatOwnerCode = boatData?.ownerCode || boatData?.owner_code || '';
-      if (boatOwnerCode) {
-        navigate('/owner-profile', { state: { ownerCode: boatOwnerCode, fromAdmin: true, boatId: boatData?.id } });
-      } else {
-        showMessage('❌ Δεν βρέθηκε κωδικός ιδιοκτήτη για αυτό το σκάφος', 'error');
-      }
     } else {
       setPage('details');
     }
@@ -1255,9 +1267,46 @@ function AddBoatModal({ onClose, onBoatAdded }) {
     id: '',
     name: '',
     type: 'Monohull',
-    model: ''
+    model: '',
+    // 🔥 FIX 37: Owner details fields
+    ownerCode: '',
+    ownerName: '',
+    ownerEmail: '',
+    ownerCompany: '',
+    ownerTaxId: '',
+    ownerPhone: '',
+    ownerAddress: ''
   });
   const [error, setError] = useState('');
+  const [existingOwners, setExistingOwners] = useState<any[]>([]);
+
+  // 🔥 FIX 37: Load existing owners for auto-fill
+  useEffect(() => {
+    const owners = authService.getAllOwnerCodes();
+    setExistingOwners(owners);
+  }, []);
+
+  // 🔥 FIX 37: Auto-fill owner details when owner code is selected
+  const handleOwnerCodeChange = (code: string) => {
+    setNewBoat(prev => ({ ...prev, ownerCode: code }));
+
+    if (code) {
+      // Find existing owner with this code
+      const existingOwner = existingOwners.find(o => o.code === code);
+      if (existingOwner) {
+        setNewBoat(prev => ({
+          ...prev,
+          ownerCode: code,
+          ownerName: existingOwner.ownerName || '',
+          ownerEmail: existingOwner.ownerEmail || '',
+          ownerCompany: existingOwner.ownerCompany || '',
+          ownerTaxId: existingOwner.ownerTaxId || '',
+          ownerPhone: existingOwner.ownerPhone || '',
+          ownerAddress: existingOwner.ownerAddress || ''
+        }));
+      }
+    }
+  };
 
   if (!authService.canManageFleet()) {
     return (
@@ -1283,12 +1332,26 @@ function AddBoatModal({ onClose, onBoatAdded }) {
       return;
     }
 
+    // 🔥 FIX 37: Validate email if provided
+    if (newBoat.ownerEmail && !newBoat.ownerEmail.includes('@')) {
+      setError('Παρακαλώ εισάγετε έγκυρο email!');
+      return;
+    }
+
     try {
+      // 🔥 FIX 37: Add boat with owner details
       FleetService.addBoat({
         id: newBoat.id.trim(),
         name: newBoat.name.trim(),
         type: newBoat.type,
-        model: newBoat.model.trim()
+        model: newBoat.model.trim(),
+        ownerCode: newBoat.ownerCode.trim(),
+        ownerName: newBoat.ownerName.trim(),
+        ownerEmail: newBoat.ownerEmail.trim(),
+        ownerCompany: newBoat.ownerCompany.trim(),
+        ownerTaxId: newBoat.ownerTaxId.trim(),
+        ownerPhone: newBoat.ownerPhone.trim(),
+        ownerAddress: newBoat.ownerAddress.trim()
       });
 
       globalShowMessage(`Το σκάφος ${newBoat.id} προστέθηκε επιτυχώς!`, 'success');
@@ -1300,8 +1363,8 @@ function AddBoatModal({ onClose, onBoatAdded }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 my-8">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-teal-400">Προσθήκη Νέου Σκάφους</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white">{icons.x}</button>
@@ -1366,6 +1429,111 @@ function AddBoatModal({ onClose, onBoatAdded }) {
               placeholder="π.χ. Bavaria 50"
               className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
             />
+          </div>
+
+          {/* 🔥 FIX 37: Owner Details Section */}
+          <div className="border-t border-cyan-500 pt-4 mt-4">
+            <h3 className="text-lg font-bold text-cyan-400 mb-3">👤 Στοιχεία Ιδιοκτήτη</h3>
+
+            {/* Owner Code Selection with Auto-fill */}
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Κωδικός Ιδιοκτήτη (υπάρχων)
+              </label>
+              <select
+                value={newBoat.ownerCode}
+                onChange={(e) => handleOwnerCodeChange(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                <option value="">-- Επιλέξτε ή εισάγετε νέο --</option>
+                {existingOwners.map(owner => (
+                  <option key={owner.code} value={owner.code}>
+                    {owner.code} {owner.ownerName ? `(${owner.ownerName})` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Επιλέξτε για αυτόματη συμπλήρωση στοιχείων</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Όνομα Ιδιοκτήτη
+                </label>
+                <input
+                  type="text"
+                  value={newBoat.ownerName}
+                  onChange={(e) => setNewBoat({ ...newBoat, ownerName: e.target.value })}
+                  placeholder="Ονοματεπώνυμο"
+                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                  Email Ιδιοκτήτη ⭐
+                </label>
+                <input
+                  type="email"
+                  value={newBoat.ownerEmail}
+                  onChange={(e) => setNewBoat({ ...newBoat, ownerEmail: e.target.value })}
+                  placeholder="owner@email.com"
+                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border-2 border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Εταιρεία
+                </label>
+                <input
+                  type="text"
+                  value={newBoat.ownerCompany}
+                  onChange={(e) => setNewBoat({ ...newBoat, ownerCompany: e.target.value })}
+                  placeholder="Εταιρεία ΕΠΕ"
+                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  ΑΦΜ
+                </label>
+                <input
+                  type="text"
+                  value={newBoat.ownerTaxId}
+                  onChange={(e) => setNewBoat({ ...newBoat, ownerTaxId: e.target.value })}
+                  placeholder="123456789"
+                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Τηλέφωνο
+                </label>
+                <input
+                  type="tel"
+                  value={newBoat.ownerPhone}
+                  onChange={(e) => setNewBoat({ ...newBoat, ownerPhone: e.target.value })}
+                  placeholder="+30 697 1234567"
+                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Διεύθυνση
+                </label>
+                <input
+                  type="text"
+                  value={newBoat.ownerAddress}
+                  onChange={(e) => setNewBoat({ ...newBoat, ownerAddress: e.target.value })}
+                  placeholder="Οδός, Πόλη, ΤΚ"
+                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
@@ -2427,7 +2595,6 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
     { name: 'ΝΑΥΛΑ', icon: icons.charter, description: 'Διαχείριση ναύλων' },
     { name: 'BOOKING SHEET', icon: icons.bookingSheet, description: 'Πρόγραμμα κρατήσεων' },
     { name: 'ΟΙΚΟΝΟΜΙΚΑ', icon: icons.financials, description: 'Οικονομικά στοιχεία' },
-    { name: 'ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ', icon: icons.userProfile, description: 'Προφίλ ιδιοκτήτη σκάφους' },
     { name: 'ΑΠΟΣΤΟΛΗ E-MAIL', icon: icons.email, description: 'Επικοινωνία με εταιρία' },
   ];
   
@@ -2443,8 +2610,6 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
         if (cat.name === 'ΝΑΥΛΑ') return authService.canDoCheckInOut() && !isTechnicalUser;
         if (cat.name === 'BOOKING SHEET') return authService.canDoCheckInOut();
         if (cat.name === 'ΟΙΚΟΝΟΜΙΚΑ') return authService.canViewFinancials();
-        // 🔥 FIX 37: ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ - only Admin and Booking can see
-        if (cat.name === 'ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ') return authService.isAdmin() || authService.isBooking();
         return false;
       });
 
@@ -4021,8 +4186,8 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       console.error('❌ API sync error (charter saved locally):', error);
     }
 
-    // 🔥 FIX 13: Send email when new charter is created
-    await sendCharterEmail(charter, boat.name, 'new_charter');
+    // 🔥 FIX 13 + FIX 38: Send email when new charter is created (pass boat object for owner lookup)
+    await sendCharterEmail(charter, boat, 'new_charter');
 
     authService.logActivity('add_charter', `${boat.id}/${charter.code}`);
     // 🔥 FIX 9: Reset form with skipper fields
@@ -4424,7 +4589,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
     setIsProcessing(true);
     setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
     console.log('📝 Owner accepting option:', charter.code);
-    const success = await sendCharterEmail(charter, boat.name || boat.id, 'option_accepted');
+    const success = await sendCharterEmail(charter, boat, 'option_accepted');
     if (success) {
       onUpdateStatus(charter, 'Option Accepted');
       try {
@@ -4450,7 +4615,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
     setIsProcessing(true);
     setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
     console.log('📝 Owner rejecting option:', charter.code);
-    const success = await sendCharterEmail(charter, boat.name || boat.id, 'cancelled');
+    const success = await sendCharterEmail(charter, boat, 'cancelled');
     if (success) {
       onUpdateStatus(charter, 'Cancelled');
       try {
@@ -4474,7 +4639,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
     if (!canAcceptCharter) { showMessage('❌ Δεν έχετε δικαίωμα επιβεβαίωσης', 'error'); return; }
     setIsProcessing(true);
     setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
-    const success = await sendCharterEmail(charter, boat.name || boat.id, 'confirmed');
+    const success = await sendCharterEmail(charter, boat, 'confirmed');
     if (success) {
       onUpdateStatus(charter, 'Confirmed');
       try {
@@ -4498,7 +4663,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
     setIsProcessing(true);
     setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
     console.log('📝 Admin sending for final approval:', charter.code);
-    const success = await sendCharterEmail(charter, boat.name || boat.id, 'pending_final_confirmation');
+    const success = await sendCharterEmail(charter, boat, 'pending_final_confirmation');
     if (success) {
       onUpdateStatus(charter, 'Pending Final Confirmation');
       try {
@@ -4522,7 +4687,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
     if (!window.confirm('Είστε σίγουροι ότι θέλετε να ΑΚΥΡΩΣΕΤΕ αυτόν τον ναύλο;')) return;
     setIsProcessing(true);
     setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
-    const success = await sendCharterEmail(charter, boat.name || boat.id, 'cancelled');
+    const success = await sendCharterEmail(charter, boat, 'cancelled');
     if (success) {
       onDelete(charter.id);
       setStatusMessage({ text: '❌ Ναύλος ακυρώθηκε!', type: 'success' });

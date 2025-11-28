@@ -53,10 +53,16 @@ export default function AdminPanel() {
     role: 'TECHNICAL' as 'ADMIN' | 'TECHNICAL' | 'BOOKING' | 'ACCOUNTING'
   });
   
-  // New Owner Form
+  // New Owner Form - 🔥 FIX 38: Added owner details fields
   const [newOwner, setNewOwner] = useState({
     code: '',
-    boatIds: [] as string[]
+    boatIds: [] as string[],
+    ownerName: '',
+    ownerEmail: '',
+    ownerCompany: '',
+    ownerTaxId: '',
+    ownerPhone: '',
+    ownerAddress: ''
   });
 
   useEffect(() => {
@@ -215,21 +221,45 @@ export default function AdminPanel() {
 
   // ==================== OWNER MANAGEMENT ====================
   
+  // 🔥 FIX 38: Updated to include owner details
   const handleAddOwner = () => {
     if (!newOwner.code.trim() || newOwner.boatIds.length === 0) {
-      alert(language === 'en' 
-        ? 'Please fill in code and select at least one boat!' 
+      alert(language === 'en'
+        ? 'Please fill in code and select at least one boat!'
         : 'Παρακαλώ συμπληρώστε κωδικό και επιλέξτε τουλάχιστον ένα σκάφος!');
+      return;
+    }
+
+    // Validate email if provided
+    if (newOwner.ownerEmail && !newOwner.ownerEmail.includes('@')) {
+      alert(language === 'en'
+        ? 'Please enter a valid email address!'
+        : 'Παρακαλώ εισάγετε έγκυρο email!');
       return;
     }
 
     const success = addOwnerCode({
       code: newOwner.code.trim().toUpperCase(),
-      boatIds: newOwner.boatIds
+      boatIds: newOwner.boatIds,
+      ownerName: newOwner.ownerName.trim(),
+      ownerEmail: newOwner.ownerEmail.trim(),
+      ownerCompany: newOwner.ownerCompany.trim(),
+      ownerTaxId: newOwner.ownerTaxId.trim(),
+      ownerPhone: newOwner.ownerPhone.trim(),
+      ownerAddress: newOwner.ownerAddress.trim()
     });
 
     if (success) {
-      setNewOwner({ code: '', boatIds: [] });
+      setNewOwner({
+        code: '',
+        boatIds: [],
+        ownerName: '',
+        ownerEmail: '',
+        ownerCompany: '',
+        ownerTaxId: '',
+        ownerPhone: '',
+        ownerAddress: ''
+      });
       setShowAddOwner(false);
       loadData();
       alert(language === 'en' ? '✅ Owner added!' : '✅ Ιδιοκτήτης προστέθηκε!');
@@ -531,14 +561,17 @@ export default function AdminPanel() {
               </button>
             </div>
 
+            {/* 🔥 FIX 38: Add Owner form with owner details */}
             {showAddOwner && (
               <div className="mb-6 bg-slate-800 p-6 rounded-lg border-2 border-green-500">
                 <h3 className="text-xl font-bold text-white mb-4">
                   {language === 'en' ? 'New Owner' : 'Νέος Ιδιοκτήτης'}
                 </h3>
+
+                {/* Owner Code */}
                 <div className="mb-4">
                   <label className="block text-sm font-semibold text-gray-300 mb-2">
-                    {language === 'en' ? 'Owner Code' : 'Κωδικός Ιδιοκτήτη'}
+                    {language === 'en' ? 'Owner Code *' : 'Κωδικός Ιδιοκτήτη *'}
                   </label>
                   <input
                     type="text"
@@ -548,9 +581,11 @@ export default function AdminPanel() {
                     className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-green-500 focus:outline-none"
                   />
                 </div>
+
+                {/* Select Boats */}
                 <div className="mb-4">
                   <label className="block text-sm font-semibold text-gray-300 mb-2">
-                    {language === 'en' ? 'Select Boats' : 'Επιλογή Σκαφών'}
+                    {language === 'en' ? 'Select Boats *' : 'Επιλογή Σκαφών *'}
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {vessels.map((boat) => (
@@ -568,15 +603,113 @@ export default function AdminPanel() {
                     ))}
                   </div>
                 </div>
+
+                {/* Owner Details Section */}
+                <div className="mt-6 pt-4 border-t-2 border-cyan-500">
+                  <h4 className="text-lg font-bold text-cyan-400 mb-4">
+                    👤 {language === 'en' ? 'Owner Details (for Charter Emails)' : 'Στοιχεία Ιδιοκτήτη (για emails ναύλων)'}
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Owner Name */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        {language === 'en' ? 'Full Name' : 'Ονοματεπώνυμο'}
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwner.ownerName}
+                        onChange={(e) => setNewOwner({ ...newOwner, ownerName: e.target.value })}
+                        placeholder={language === 'en' ? 'John Doe' : 'Γιάννης Παπαδόπουλος'}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Owner Email */}
+                    <div>
+                      <label className="block text-sm font-semibold text-cyan-300 mb-2">
+                        {language === 'en' ? 'Email Address' : 'Email'} ⭐
+                      </label>
+                      <input
+                        type="email"
+                        value={newOwner.ownerEmail}
+                        onChange={(e) => setNewOwner({ ...newOwner, ownerEmail: e.target.value })}
+                        placeholder="owner@example.com"
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border-2 border-cyan-600 focus:border-cyan-400 focus:outline-none"
+                      />
+                      <p className="text-xs text-cyan-400 mt-1">
+                        {language === 'en' ? 'For charter notifications' : 'Για ειδοποιήσεις ναύλων'}
+                      </p>
+                    </div>
+
+                    {/* Owner Company */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        {language === 'en' ? 'Company Name' : 'Εταιρεία'}
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwner.ownerCompany}
+                        onChange={(e) => setNewOwner({ ...newOwner, ownerCompany: e.target.value })}
+                        placeholder={language === 'en' ? 'Company Ltd' : 'Εταιρεία ΕΠΕ'}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Owner Tax ID */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        {language === 'en' ? 'Tax ID (AFM)' : 'ΑΦΜ'}
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwner.ownerTaxId}
+                        onChange={(e) => setNewOwner({ ...newOwner, ownerTaxId: e.target.value })}
+                        placeholder="123456789"
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Owner Phone */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        {language === 'en' ? 'Phone Number' : 'Τηλέφωνο'}
+                      </label>
+                      <input
+                        type="tel"
+                        value={newOwner.ownerPhone}
+                        onChange={(e) => setNewOwner({ ...newOwner, ownerPhone: e.target.value })}
+                        placeholder="+30 697 1234567"
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Owner Address */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                        {language === 'en' ? 'Address' : 'Διεύθυνση'}
+                      </label>
+                      <input
+                        type="text"
+                        value={newOwner.ownerAddress}
+                        onChange={(e) => setNewOwner({ ...newOwner, ownerAddress: e.target.value })}
+                        placeholder={language === 'en' ? 'Street, City, ZIP' : 'Οδός, Πόλη, ΤΚ'}
+                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <button
                   onClick={handleAddOwner}
-                  className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-all"
+                  className="w-full mt-6 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-all"
                 >
                   ✅ {language === 'en' ? 'Add Owner' : 'Προσθήκη Ιδιοκτήτη'}
                 </button>
               </div>
             )}
 
+            {/* 🔥 FIX 38: Owner list with details */}
             <div className="space-y-3">
               {owners.map((owner) => (
                 <div
@@ -597,6 +730,51 @@ export default function AdminPanel() {
                       🗑️ Delete
                     </button>
                   </div>
+
+                  {/* Owner Details Display */}
+                  {(owner.ownerName || owner.ownerEmail || owner.ownerCompany) && (
+                    <div className="mb-3 p-3 bg-slate-700/50 rounded-lg border border-cyan-500/30">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                        {owner.ownerName && (
+                          <div>
+                            <span className="text-gray-400">👤 </span>
+                            <span className="text-white">{owner.ownerName}</span>
+                          </div>
+                        )}
+                        {owner.ownerEmail && (
+                          <div>
+                            <span className="text-gray-400">📧 </span>
+                            <span className="text-cyan-400">{owner.ownerEmail}</span>
+                          </div>
+                        )}
+                        {owner.ownerCompany && (
+                          <div>
+                            <span className="text-gray-400">🏢 </span>
+                            <span className="text-white">{owner.ownerCompany}</span>
+                          </div>
+                        )}
+                        {owner.ownerPhone && (
+                          <div>
+                            <span className="text-gray-400">📞 </span>
+                            <span className="text-white">{owner.ownerPhone}</span>
+                          </div>
+                        )}
+                        {owner.ownerTaxId && (
+                          <div>
+                            <span className="text-gray-400">🆔 </span>
+                            <span className="text-white">{owner.ownerTaxId}</span>
+                          </div>
+                        )}
+                        {owner.ownerAddress && (
+                          <div>
+                            <span className="text-gray-400">📍 </span>
+                            <span className="text-white">{owner.ownerAddress}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <div className="text-sm font-semibold text-gray-300 mb-2">
                       {language === 'en' ? 'Boats:' : 'Σκάφη:'}
