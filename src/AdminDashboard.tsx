@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './authService';
 import ChatManagementModal from './ChatManagementModal';
@@ -6,6 +6,8 @@ import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
 // 🔥 FIX 16: Import API functions for multi-device sync
 import { getBookingsByVesselHybrid } from './services/apiService';
+// 🔥 Auto-refresh hook for polling API data
+import { useAutoRefresh } from './hooks/useAutoRefresh';
 
 // Import icons from FleetManagement or create here
 const icons = {
@@ -87,6 +89,8 @@ export default function AdminDashboard({
   const [searchTerm, setSearchTerm] = useState('');
   const [showChatManagement, setShowChatManagement] = useState(false);
   const [showUserGuide, setShowUserGuide] = useState(false);
+  // 🔥 Auto-refresh: Track last update time
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const user = authService.getCurrentUser();
   const reactNavigate = useNavigate();
 
@@ -102,13 +106,8 @@ export default function AdminDashboard({
     return searchTerms.every(term => boatText.includes(term));
   });
 
-  // Load financials data
-  useEffect(() => {
-    loadFinancialsData();
-  }, [boats]);
-
-  // 🔥 FIX 16: Load financials from API first, merge with localStorage
-  const loadFinancialsData = async () => {
+  // 🔥 FIX 16 + Auto-refresh: Load financials from API (memoized)
+  const loadFinancialsData = useCallback(async () => {
     let totalIncome = 0;
     let totalExpenses = 0;
     const boatsData: any[] = [];
@@ -158,8 +157,17 @@ export default function AdminDashboard({
         net: totalIncome - totalExpenses
       }
     });
+    setLastUpdated(new Date());
     console.log('✅ AdminDashboard: Financials loaded from API');
-  };
+  }, [boats]);
+
+  // 🔥 Auto-refresh: Poll data every 5 minutes
+  const { isRefreshing } = useAutoRefresh(loadFinancialsData, 5);
+
+  // Load financials data on mount and when boats change
+  useEffect(() => {
+    loadFinancialsData();
+  }, [loadFinancialsData]);
 
   const handleBackNavigation = () => {
     const isEmployee = authService.isTechnical() || authService.isBooking() || authService.isAccounting();
@@ -226,6 +234,15 @@ export default function AdminDashboard({
               <div className="text-green-600 flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-xs font-semibold">Online</span>
+              </div>
+              {/* Auto-refresh indicator */}
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span>{lastUpdated.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' })}</span>
+                {isRefreshing && (
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full animate-pulse text-xs">
+                    Ανανέωση...
+                  </span>
+                )}
               </div>
             </div>
           </div>

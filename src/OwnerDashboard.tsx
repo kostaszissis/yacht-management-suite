@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getBoatsForOwner } from './ownerCodes';
 import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
 // 🔥 FIX 16: Import API functions for multi-device sync
 import { getBookingsByVesselHybrid } from './services/apiService';
+// 🔥 Auto-refresh hook for polling API data
+import { useAutoRefresh } from './hooks/useAutoRefresh';
 
 // 🔥 FIX 5: Fleet data with numeric IDs matching API format
 const INITIAL_FLEET = [
@@ -65,8 +67,31 @@ export default function OwnerDashboard() {
   const [showUserGuide, setShowUserGuide] = useState(false);
   // 🔥 FIX 5: Support numeric keys for boat data
   const [boatData, setBoatData] = useState<{[key: number | string]: {pendingCharters: any[], invoices: any[]}}>({});
+  // 🔥 Auto-refresh: Track last update time
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 🔥 Auto-refresh: Load boat data from API (memoized)
+  const loadBoatData = useCallback(async () => {
+    if (ownerBoats.length === 0) return;
+
+    const data: {[key: string]: {pendingCharters: any[], invoices: any[]}} = {};
+
+    // Load all boats in parallel for better performance
+    await Promise.all(ownerBoats.map(async (boat) => {
+      const pendingCharters = await getPendingChartersAsync(boat.id);
+      const invoices = getInvoices(boat.id);
+      data[boat.id] = { pendingCharters, invoices };
+    }));
+
+    setBoatData(data);
+    setLastUpdated(new Date());
+    console.log('✅ OwnerDashboard: All boat data loaded from API');
+  }, [ownerBoats]);
+
+  // 🔥 Auto-refresh: Poll data every 5 minutes
+  const { isRefreshing } = useAutoRefresh(loadBoatData, 5);
 
   useEffect(() => {
     // Get owner code from navigation state
@@ -84,25 +109,12 @@ export default function OwnerDashboard() {
     const boatIds = getBoatsForOwner(code);
     const boats = INITIAL_FLEET.filter(boat => boatIds.includes(boat.id));
     setOwnerBoats(boats);
-
-    // 🔥 FIX 16: Load pending charters from API (async) and invoices for each boat
-    const loadBoatData = async () => {
-      const data: {[key: string]: {pendingCharters: any[], invoices: any[]}} = {};
-
-      // Load all boats in parallel for better performance
-      await Promise.all(boats.map(async (boat) => {
-        const pendingCharters = await getPendingChartersAsync(boat.id);
-        const invoices = getInvoices(boat.id);
-        data[boat.id] = { pendingCharters, invoices };
-      }));
-
-      setBoatData(data);
-      console.log('✅ OwnerDashboard: All boat data loaded from API');
-    };
-
-    loadBoatData();
-
   }, [location, navigate]);
+
+  // Load boat data when ownerBoats changes
+  useEffect(() => {
+    loadBoatData();
+  }, [loadBoatData]);
 
   // 🔥 FIX 5: Support numeric boat IDs
   const handleBoatClick = (boatId: number | string) => {
@@ -185,6 +197,15 @@ export default function OwnerDashboard() {
               >
                 {language === 'en' ? '🇬🇷 GR' : '🇬🇧 EN'}
               </button>
+              {/* Auto-refresh indicator */}
+              <div className="flex items-center gap-2 text-xs text-teal-200">
+                <span>{lastUpdated.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' })}</span>
+                {isRefreshing && (
+                  <span className="px-2 py-0.5 bg-teal-700 text-teal-100 rounded-full animate-pulse">
+                    {language === 'en' ? 'Updating...' : 'Ανανέωση...'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
