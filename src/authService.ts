@@ -3,6 +3,8 @@
 // Centralized authentication and authorization system
 // =================================================================
 
+import { codeMatches } from './utils/searchUtils';
+
 // Employee Codes Structure
 export interface EmployeeCode {
   code: string;
@@ -227,15 +229,15 @@ export const getAllEmployeeCodes = (): EmployeeCode[] => {
 
 export const getEmployeeByCode = (code: string): EmployeeCode | null => {
   const codes = getAllEmployeeCodes();
-  return codes.find(emp => emp.code === code && emp.enabled) || null;
+  return codes.find(emp => codeMatches(emp.code, code) && emp.enabled) || null;
 };
 
 export const addEmployeeCode = (employee: Omit<EmployeeCode, 'enabled'>): boolean => {
   try {
     const codes = getAllEmployeeCodes();
-    
-    // Check if code already exists
-    if (codes.find(emp => emp.code === employee.code)) {
+
+    // Check if code already exists (case-insensitive)
+    if (codes.find(emp => codeMatches(emp.code, employee.code))) {
       throw new Error('Employee code already exists');
     }
     
@@ -252,8 +254,8 @@ export const addEmployeeCode = (employee: Omit<EmployeeCode, 'enabled'>): boolea
 export const updateEmployeeCode = (code: string, updates: Partial<EmployeeCode>): boolean => {
   try {
     const codes = getAllEmployeeCodes();
-    const index = codes.findIndex(emp => emp.code === code);
-    
+    const index = codes.findIndex(emp => codeMatches(emp.code, code));
+
     if (index === -1) {
       throw new Error('Employee code not found');
     }
@@ -271,7 +273,7 @@ export const updateEmployeeCode = (code: string, updates: Partial<EmployeeCode>)
 export const deleteEmployeeCode = (code: string): boolean => {
   try {
     const codes = getAllEmployeeCodes();
-    const filtered = codes.filter(emp => emp.code !== code);
+    const filtered = codes.filter(emp => !codeMatches(emp.code, code));
     localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(filtered));
     console.log('✅ Employee code deleted:', code);
     return true;
@@ -284,8 +286,8 @@ export const deleteEmployeeCode = (code: string): boolean => {
 export const toggleEmployeeCode = (code: string): boolean => {
   try {
     const codes = getAllEmployeeCodes();
-    const index = codes.findIndex(emp => emp.code === code);
-    
+    const index = codes.findIndex(emp => codeMatches(emp.code, code));
+
     if (index === -1) {
       throw new Error('Employee code not found');
     }
@@ -316,7 +318,7 @@ export const getAllOwnerCodes = (): OwnerCode[] => {
 
 export const getOwnerByCode = (code: string): OwnerCode | null => {
   const codes = getAllOwnerCodes();
-  return codes.find(owner => owner.code === code && owner.enabled) || null;
+  return codes.find(owner => codeMatches(owner.code, code) && owner.enabled) || null;
 };
 
 // 🔥 FIX 38: Get owner details by boat ID for charter emails
@@ -329,9 +331,9 @@ export const getOwnerByBoatId = (boatId: string | number): OwnerCode | null => {
 export const addOwnerCode = (owner: Omit<OwnerCode, 'enabled'>): boolean => {
   try {
     const codes = getAllOwnerCodes();
-    
-    // Check if code already exists
-    if (codes.find(o => o.code === owner.code)) {
+
+    // Check if code already exists (case-insensitive)
+    if (codes.find(o => codeMatches(o.code, owner.code))) {
       throw new Error('Owner code already exists');
     }
     
@@ -348,8 +350,8 @@ export const addOwnerCode = (owner: Omit<OwnerCode, 'enabled'>): boolean => {
 export const updateOwnerCode = (code: string, updates: Partial<OwnerCode>): boolean => {
   try {
     const codes = getAllOwnerCodes();
-    const index = codes.findIndex(owner => owner.code === code);
-    
+    const index = codes.findIndex(owner => codeMatches(owner.code, code));
+
     if (index === -1) {
       throw new Error('Owner code not found');
     }
@@ -367,7 +369,7 @@ export const updateOwnerCode = (code: string, updates: Partial<OwnerCode>): bool
 export const deleteOwnerCode = (code: string): boolean => {
   try {
     const codes = getAllOwnerCodes();
-    const filtered = codes.filter(owner => owner.code !== code);
+    const filtered = codes.filter(owner => !codeMatches(owner.code, code));
     localStorage.setItem(OWNER_CODES_KEY, JSON.stringify(filtered));
     console.log('✅ Owner code deleted:', code);
     return true;
@@ -584,12 +586,12 @@ export const getAllActivityLogs = (): ActivityLog[] => {
 
 export const getActivityLogsByEmployee = (employeeCode: string): ActivityLog[] => {
   const logs = getAllActivityLogs();
-  return logs.filter(log => log.employeeCode === employeeCode);
+  return logs.filter(log => codeMatches(log.employeeCode, employeeCode));
 };
 
 export const getActivityLogsByBooking = (bookingCode: string): ActivityLog[] => {
   const logs = getAllActivityLogs();
-  return logs.filter(log => log.bookingCode === bookingCode);
+  return logs.filter(log => log.bookingCode && codeMatches(log.bookingCode, bookingCode));
 };
 
 export const clearActivityLogs = (): boolean => {

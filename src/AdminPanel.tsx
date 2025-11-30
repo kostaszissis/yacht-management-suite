@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UserGuide from './UserGuide';
+import { codeMatches } from './utils/searchUtils';
 import {
   initializeAuth,
   getCurrentUser,
@@ -304,10 +305,10 @@ export default function AdminPanel() {
     }
   };
 
-  const filteredLogs = filterRole === 'all' 
-    ? logs 
+  const filteredLogs = filterRole === 'all'
+    ? logs
     : logs.filter(log => {
-        const employee = employees.find(e => e.code === log.employeeCode);
+        const employee = employees.find(e => codeMatches(e.code, log.employeeCode));
         return employee?.role === filterRole;
       });
 
@@ -848,7 +849,7 @@ export default function AdminPanel() {
                 </div>
               ) : (
                 filteredLogs.map((log) => {
-                  const employee = employees.find(e => e.code === log.employeeCode);
+                  const employee = employees.find(e => codeMatches(e.code, log.employeeCode));
                   return (
                     <div
                       key={log.id}

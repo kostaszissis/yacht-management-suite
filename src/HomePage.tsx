@@ -5,6 +5,7 @@ import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
 import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
+import { codeMatches } from './utils/searchUtils';
 
 // 🎵 MUSIC RADIO LINKS
 const MUSIC_RADIO_LINKS = {
@@ -34,12 +35,18 @@ export default function HomePage() {
   const isLoggedIn = !!currentUser;
   const isAdmin = currentUser?.role === 'ADMIN';
 
-  // Check booking status from localStorage
+  // Check booking status from localStorage (case-insensitive search)
   const checkBookingStatus = (bookingCode: string) => {
     try {
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      const booking = bookings[bookingCode];
-      
+
+      // Find matching booking key case-insensitively
+      const matchingKey = Object.keys(bookings).find(key => codeMatches(key, bookingCode));
+      if (!matchingKey) {
+        return null;
+      }
+
+      const booking = bookings[matchingKey];
       if (!booking || !booking.bookingData) {
         return null;
       }
@@ -48,7 +55,7 @@ export default function HomePage() {
       const checkInDate = new Date(bookingData.checkInDate);
       const checkOutDate = new Date(bookingData.checkOutDate);
       const today = new Date();
-      
+
       checkInDate.setHours(0, 0, 0, 0);
       checkOutDate.setHours(0, 0, 0, 0);
       today.setHours(0, 0, 0, 0);
@@ -57,7 +64,7 @@ export default function HomePage() {
       const checkOutCompleted = !!booking.page5DataCheckOut;
 
       return {
-        bookingCode,
+        bookingCode: matchingKey, // Use the actual key found
         bookingData,
         checkInDate,
         checkOutDate,

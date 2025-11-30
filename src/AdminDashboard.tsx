@@ -4,6 +4,7 @@ import authService from './authService';
 import ChatManagementModal from './ChatManagementModal';
 import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
+import { textMatches } from './utils/searchUtils';
 // 🔥 FIX 16: Import API functions for multi-device sync
 // 🔥 FIX 31: Added checkExpiredOptions for auto-expire
 import { getBookingsByVesselHybrid, checkExpiredOptions } from './services/apiService';
@@ -95,16 +96,11 @@ export default function AdminDashboard({
   const user = authService.getCurrentUser();
   const reactNavigate = useNavigate();
 
-  // Filter boats based on search
+  // Filter boats based on search (case-insensitive)
   const filteredBoats = boats.filter(boat => {
     if (!searchTerm.trim()) return true;
-
-    const search = searchTerm.toLowerCase().trim();
-    const searchTerms = search.split(' ').filter(t => t.length > 0);
-
-    const boatText = `${boat.id} ${boat.name} ${boat.type} ${boat.model || ''}`.toLowerCase();
-
-    return searchTerms.every(term => boatText.includes(term));
+    const boatText = `${boat.id} ${boat.name} ${boat.type} ${boat.model || ''}`;
+    return textMatches(boatText, searchTerm);
   });
 
   // 🔥 FIX 16 + Auto-refresh: Load financials from API (memoized)

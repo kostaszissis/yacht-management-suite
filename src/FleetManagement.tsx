@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import authService, { getOwnerByBoatId } from './authService';
 import AdminDashboard from './AdminDashboard';
+import { codeMatches, textMatches } from './utils/searchUtils';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
 import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid, deleteBooking, updateCharterPayments, updateCharterStatus } from './services/apiService';
@@ -154,6 +155,8 @@ const icons = {
   checkCircle: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>),
   xCircle: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>),
   helpCircle: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>),
+  // 🔥 FIX 37: User icon for owner details
+  user: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>),
   lock: (<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>),
   edit: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>),
   shield: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>),
@@ -1096,6 +1099,9 @@ export default function FleetManagement() {
       setPage('bookingSheet');
     } else if (categoryName === 'ΕΓΓΡΑΦΑ & ΣΤΟΙΧΕΙΑ') {
       setPage('documents');
+    } else if (categoryName === 'ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ') {
+      // 🔥 FIX 37: Navigate to owner details page
+      setPage('ownerDetails');
     } else {
       setPage('details');
     }
@@ -1139,6 +1145,9 @@ export default function FleetManagement() {
         return <EmailPage boat={boatData} navigate={navigatePage} />;
       case 'documents':
         return <DocumentsAndDetailsPage boat={boatData} navigate={navigatePage} showMessage={showMessage} />;
+      case 'ownerDetails':
+        // 🔥 FIX 37: Owner details page
+        return <OwnerDetailsPage boat={boatData} navigate={navigatePage} showMessage={showMessage} />;
       case 'fleetBookingPlan':
         return <FleetBookingPlanPage navigate={setPage} showMessage={showMessage} />;
       default:
@@ -1292,7 +1301,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
 
     if (code) {
       // Find existing owner with this code
-      const existingOwner = existingOwners.find(o => o.code === code);
+      const existingOwner = existingOwners.find(o => codeMatches(o.code, code));
       if (existingOwner) {
         setNewBoat(prev => ({
           ...prev,
@@ -2350,14 +2359,12 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
   const [detailedData, setDetailedData] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter boats based on search
+  // Filter boats based on search (case-insensitive)
   const filteredBoats = financialsData.boats.filter(boat => {
     if (!searchTerm.trim()) return true;
-    const search = searchTerm.toLowerCase().trim();
-    const searchTerms = search.split(' ').filter(t => t.length > 0);
     const fullBoat = boats.find(b => b.id === boat.id);
-    const boatText = `${boat.id} ${boat.name || ''} ${fullBoat?.type || ''} ${fullBoat?.model || ''}`.toLowerCase();
-    return searchTerms.every(term => boatText.includes(term));
+    const boatText = `${boat.id} ${boat.name || ''} ${fullBoat?.type || ''} ${fullBoat?.model || ''}`;
+    return textMatches(boatText, searchTerm);
   });
 
   // 🔥 FIX 16: Load boat details from API first, merge with localStorage
@@ -2590,6 +2597,7 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
 
   const allCategories = [
     { name: 'ΕΓΓΡΑΦΑ & ΣΤΟΙΧΕΙΑ', icon: icons.fileText, description: 'Στοιχεία σκάφους και έγγραφα' },
+    { name: 'ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ', icon: icons.user, description: 'Στοιχεία ιδιοκτήτη σκάφους' },  // 🔥 FIX 37
     { name: 'ΦΩΤΟ & ΒΙΝΤΕΟ', icon: icons.media, description: 'Πολυμέσα σκάφους' },
     { name: 'ΕΡΓΑΣΙΕΣ', icon: icons.tasks, description: 'Τεχνικές εργασίες και συντήρηση' },
     { name: 'ΝΑΥΛΑ', icon: icons.charter, description: 'Διαχείριση ναύλων' },
@@ -2604,6 +2612,8 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
     ? allCategories
     : allCategories.filter(cat => {
         if (cat.name === 'ΕΓΓΡΑΦΑ & ΣΤΟΙΧΕΙΑ' || cat.name === 'ΑΠΟΣΤΟΛΗ E-MAIL') return true;
+        // 🔥 FIX 37: ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ - μόνο για admin που μπορεί να διαχειριστεί στόλο
+        if (cat.name === 'ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ') return authService.canManageFleet();
         if (cat.name === 'ΦΩΤΟ & ΒΙΝΤΕΟ') return authService.canEdit();
         if (cat.name === 'ΕΡΓΑΣΙΕΣ') return authService.canManageTasks();
         // TECHNICAL δεν βλέπει ΝΑΥΛΑ - μόνο BOOKING SHEET
@@ -2869,14 +2879,12 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
   // Get full boat info for filtering
   const allBoats = FleetService.getAllBoats();
   
-  // Filter boatIds based on search
+  // Filter boatIds based on search (case-insensitive)
   const filteredBoatIds = boatIds.filter(boatId => {
     if (!searchTerm.trim()) return true;
-    const search = searchTerm.toLowerCase().trim();
-    const searchTerms = search.split(' ').filter(t => t.length > 0);
     const boat = allBoats.find(b => b.id === boatId);
-    const boatText = `${boatId} ${boat?.name || ''} ${boat?.type || ''} ${boat?.model || ''}`.toLowerCase();
-    return searchTerms.every(term => boatText.includes(term));
+    const boatText = `${boatId} ${boat?.name || ''} ${boat?.type || ''} ${boat?.model || ''}`;
+    return textMatches(boatText, searchTerm);
   });
   
   useEffect(() => {
@@ -3515,11 +3523,25 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
       if (stored) {
         setBoatDetails(JSON.parse(stored));
       } else {
+        // 🔥 FIX 37: Added all owner details fields
         const defaultDetails = {
-          'Owner Name': '', 'Owner Address': '', 'Flag': 'Greek', 'Port of Registry': 'Piraeus',
-          'Builder/Year': '', 'LOA (Length)': '', 'Beam (Width)': '', 'Draft': '',
-          'Engines': '', 'Fuel Capacity': '', 'Water Capacity': '',
-          'Insurance Company': '', 'Insurance Policy Number': ''
+          'Όνομα Ιδιοκτήτη': '',
+          'Email Ιδιοκτήτη': '',
+          'Εταιρεία': '',
+          'ΑΦΜ': '',
+          'Τηλέφωνο Ιδιοκτήτη': '',
+          'Διεύθυνση Ιδιοκτήτη': '',
+          'Flag': 'Greek',
+          'Port of Registry': 'Piraeus',
+          'Builder/Year': '',
+          'LOA (Length)': '',
+          'Beam (Width)': '',
+          'Draft': '',
+          'Engines': '',
+          'Fuel Capacity': '',
+          'Water Capacity': '',
+          'Insurance Company': '',
+          'Insurance Policy Number': ''
         };
         setBoatDetails(defaultDetails);
       }
@@ -3700,8 +3722,93 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
               </div>
             )}
 
+            {/* 🔥 FIX 37: Dedicated Owner Details Section */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-cyan-900/50 to-blue-900/50 rounded-lg border-2 border-cyan-500">
+              <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
+                👤 Στοιχεία Ιδιοκτήτη
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Owner Name */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-1">Όνομα Ιδιοκτήτη</label>
+                  <input
+                    type="text"
+                    value={boatDetails['Όνομα Ιδιοκτήτη'] || ''}
+                    onChange={(e) => handleDetailChange('Όνομα Ιδιοκτήτη', e.target.value)}
+                    disabled={!canEdit}
+                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                    placeholder="Ονοματεπώνυμο"
+                  />
+                </div>
+                {/* Owner Email */}
+                <div>
+                  <label className="block text-sm font-semibold text-cyan-300 mb-1">Email Ιδιοκτήτη ⭐</label>
+                  <input
+                    type="email"
+                    value={boatDetails['Email Ιδιοκτήτη'] || ''}
+                    onChange={(e) => handleDetailChange('Email Ιδιοκτήτη', e.target.value)}
+                    disabled={!canEdit}
+                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border-2 border-cyan-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-400 focus:outline-none'}`}
+                    placeholder="owner@email.com"
+                  />
+                </div>
+                {/* Company */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-1">Εταιρεία</label>
+                  <input
+                    type="text"
+                    value={boatDetails['Εταιρεία'] || ''}
+                    onChange={(e) => handleDetailChange('Εταιρεία', e.target.value)}
+                    disabled={!canEdit}
+                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                    placeholder="Εταιρεία ΕΠΕ"
+                  />
+                </div>
+                {/* Tax ID */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-1">ΑΦΜ</label>
+                  <input
+                    type="text"
+                    value={boatDetails['ΑΦΜ'] || ''}
+                    onChange={(e) => handleDetailChange('ΑΦΜ', e.target.value)}
+                    disabled={!canEdit}
+                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                    placeholder="123456789"
+                  />
+                </div>
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-1">Τηλέφωνο</label>
+                  <input
+                    type="tel"
+                    value={boatDetails['Τηλέφωνο Ιδιοκτήτη'] || ''}
+                    onChange={(e) => handleDetailChange('Τηλέφωνο Ιδιοκτήτη', e.target.value)}
+                    disabled={!canEdit}
+                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                    placeholder="+30 697 1234567"
+                  />
+                </div>
+                {/* Address */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-1">Διεύθυνση</label>
+                  <input
+                    type="text"
+                    value={boatDetails['Διεύθυνση Ιδιοκτήτη'] || ''}
+                    onChange={(e) => handleDetailChange('Διεύθυνση Ιδιοκτήτη', e.target.value)}
+                    disabled={!canEdit}
+                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                    placeholder="Οδός, Πόλη, ΤΚ"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Other Technical Details */}
+            <h4 className="text-md font-bold text-gray-400 mb-3 mt-4">📋 Τεχνικά Στοιχεία</h4>
             <div className="space-y-4">
-              {Object.entries(boatDetails).map(([field, value]) => (
+              {Object.entries(boatDetails)
+                .filter(([field]) => !['Όνομα Ιδιοκτήτη', 'Email Ιδιοκτήτη', 'Εταιρεία', 'ΑΦΜ', 'Τηλέφωνο Ιδιοκτήτη', 'Διεύθυνση Ιδιοκτήτη'].includes(field))
+                .map(([field, value]) => (
                 <div key={field} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
                   <div className="flex justify-between items-start mb-2">
                     <label className="text-sm font-semibold text-gray-300">{field}</label>
@@ -3770,6 +3877,220 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
             </div>
           </div>
         )}
+      </div>
+
+      <BottomNav activePage={null} onNavigate={navigate} />
+    </div>
+  );
+}
+
+// =====================================================
+// 🔥 FIX 37: OWNER DETAILS PAGE - Dedicated page for owner information
+// =====================================================
+function OwnerDetailsPage({ boat, navigate, showMessage }) {
+  const [ownerDetails, setOwnerDetails] = useState({
+    'Όνομα Ιδιοκτήτη': '',
+    'Email Ιδιοκτήτη': '',
+    'Εταιρεία': '',
+    'ΑΦΜ': '',
+    'Τηλέφωνο Ιδιοκτήτη': '',
+    'Διεύθυνση Ιδιοκτήτη': ''
+  });
+  const [ownerCode, setOwnerCode] = useState(''); // 🔥 FIX 37B: Track owner code for sync
+
+  const canEdit = authService.canManageFleet();
+
+  useEffect(() => {
+    if (boat) {
+      loadOwnerDetails();
+    }
+  }, [boat?.id]);
+
+  if (!boat) {
+    return (
+      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
+        <div className="text-teal-400 text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  // 🔥 FIX 37B: Load from authService FIRST (where Admin saves), then fallback to localStorage
+  const loadOwnerDetails = () => {
+    try {
+      // PRIORITY 1: Load from authService (Admin Panel source)
+      const ownerFromAuth = getOwnerByBoatId(boat.id);
+      if (ownerFromAuth) {
+        setOwnerCode(ownerFromAuth.code || '');
+        setOwnerDetails({
+          'Όνομα Ιδιοκτήτη': ownerFromAuth.ownerName || '',
+          'Email Ιδιοκτήτη': ownerFromAuth.ownerEmail || '',
+          'Εταιρεία': ownerFromAuth.ownerCompany || '',
+          'ΑΦΜ': ownerFromAuth.ownerTaxId || '',
+          'Τηλέφωνο Ιδιοκτήτη': ownerFromAuth.ownerPhone || '',
+          'Διεύθυνση Ιδιοκτήτη': ownerFromAuth.ownerAddress || ''
+        });
+        console.log('✅ Loaded owner details from authService for boat:', boat.id);
+        return;
+      }
+
+      // PRIORITY 2: Fallback to localStorage (boat-specific storage)
+      const key = `fleet_${boat.id}_ownerDetails`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        setOwnerDetails(JSON.parse(stored));
+        console.log('✅ Loaded owner details from localStorage for boat:', boat.id);
+      }
+    } catch (e) {
+      console.error('Error loading owner details:', e);
+    }
+  };
+
+  // 🔥 FIX 37B: Save to BOTH authService (for Admin sync) and localStorage
+  const saveOwnerDetails = () => {
+    if (!canEdit) {
+      showMessage('❌ Δεν έχετε δικαίωμα επεξεργασίας', 'error');
+      return;
+    }
+
+    try {
+      // Save to localStorage (boat-specific)
+      const key = `fleet_${boat.id}_ownerDetails`;
+      localStorage.setItem(key, JSON.stringify(ownerDetails));
+
+      // 🔥 FIX 37B: Also sync to authService if owner code exists
+      if (ownerCode) {
+        authService.updateOwnerCode(ownerCode, {
+          ownerName: ownerDetails['Όνομα Ιδιοκτήτη'],
+          ownerEmail: ownerDetails['Email Ιδιοκτήτη'],
+          ownerCompany: ownerDetails['Εταιρεία'],
+          ownerTaxId: ownerDetails['ΑΦΜ'],
+          ownerPhone: ownerDetails['Τηλέφωνο Ιδιοκτήτη'],
+          ownerAddress: ownerDetails['Διεύθυνση Ιδιοκτήτη']
+        });
+        console.log('✅ Synced owner details to authService for owner:', ownerCode);
+      }
+
+      authService.logActivity('update_owner_details', boat.id);
+      showMessage('✅ Τα στοιχεία ιδιοκτήτη αποθηκεύτηκαν!', 'success');
+    } catch (e) {
+      console.error('Error saving owner details:', e);
+      showMessage('❌ Σφάλμα αποθήκευσης!', 'error');
+    }
+  };
+
+  const handleChange = (field, value) => {
+    if (!canEdit) return;
+    setOwnerDetails(prev => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-gray-900">
+      <Header title="ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ" onBack={() => navigate('boatDashboard')} />
+
+      <div className="flex-grow p-4 overflow-y-auto pb-20">
+        {/* Header with boat info */}
+        <div className="mb-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
+          <div className="text-lg font-bold text-teal-400">{boat.name || boat.id}</div>
+          <div className="text-sm text-gray-400">{boat.type} {boat.model && `• ${boat.model}`}</div>
+        </div>
+
+        {/* Save Button */}
+        {canEdit && (
+          <button
+            onClick={saveOwnerDetails}
+            className="w-full mb-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg"
+          >
+            <span>💾</span><span>Αποθήκευση Στοιχείων</span>
+          </button>
+        )}
+
+        {/* Owner Details Form */}
+        <div className="p-4 bg-gradient-to-r from-cyan-900/50 to-blue-900/50 rounded-lg border-2 border-cyan-500">
+          <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
+            👤 Στοιχεία Ιδιοκτήτη Σκάφους
+          </h3>
+
+          <div className="space-y-4">
+            {/* Owner Name */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">Όνομα Ιδιοκτήτη</label>
+              <input
+                type="text"
+                value={ownerDetails['Όνομα Ιδιοκτήτη'] || ''}
+                onChange={(e) => handleChange('Όνομα Ιδιοκτήτη', e.target.value)}
+                disabled={!canEdit}
+                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                placeholder="Ονοματεπώνυμο ιδιοκτήτη"
+              />
+            </div>
+
+            {/* Owner Email */}
+            <div>
+              <label className="block text-sm font-semibold text-cyan-300 mb-2">Email Ιδιοκτήτη ⭐</label>
+              <input
+                type="email"
+                value={ownerDetails['Email Ιδιοκτήτη'] || ''}
+                onChange={(e) => handleChange('Email Ιδιοκτήτη', e.target.value)}
+                disabled={!canEdit}
+                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border-2 border-cyan-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-400 focus:outline-none'}`}
+                placeholder="owner@email.com"
+              />
+              <p className="text-xs text-cyan-400 mt-1">Για αποστολή ειδοποιήσεων ναύλων</p>
+            </div>
+
+            {/* Company */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">Εταιρεία</label>
+              <input
+                type="text"
+                value={ownerDetails['Εταιρεία'] || ''}
+                onChange={(e) => handleChange('Εταιρεία', e.target.value)}
+                disabled={!canEdit}
+                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                placeholder="Εταιρεία ΕΠΕ"
+              />
+            </div>
+
+            {/* Tax ID */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">ΑΦΜ</label>
+              <input
+                type="text"
+                value={ownerDetails['ΑΦΜ'] || ''}
+                onChange={(e) => handleChange('ΑΦΜ', e.target.value)}
+                disabled={!canEdit}
+                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                placeholder="123456789"
+              />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">Τηλέφωνο</label>
+              <input
+                type="tel"
+                value={ownerDetails['Τηλέφωνο Ιδιοκτήτη'] || ''}
+                onChange={(e) => handleChange('Τηλέφωνο Ιδιοκτήτη', e.target.value)}
+                disabled={!canEdit}
+                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                placeholder="+30 697 1234567"
+              />
+            </div>
+
+            {/* Address */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">Διεύθυνση</label>
+              <textarea
+                value={ownerDetails['Διεύθυνση Ιδιοκτήτη'] || ''}
+                onChange={(e) => handleChange('Διεύθυνση Ιδιοκτήτη', e.target.value)}
+                disabled={!canEdit}
+                rows={3}
+                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                placeholder="Οδός, Αριθμός, Πόλη, ΤΚ"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       <BottomNav activePage={null} onNavigate={navigate} />
@@ -5367,13 +5688,11 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
   const isTechnicalUser = authService.isTechnical();
   const canViewFinancials = !isTechnicalUser; // TECHNICAL δεν βλέπει οικονομικά
 
-  // Filter boats based on search
+  // Filter boats based on search (case-insensitive)
   const filteredBoats = allBoats.filter(boat => {
     if (!searchTerm.trim()) return true;
-    const search = searchTerm.toLowerCase().trim();
-    const searchTerms = search.split(' ').filter(t => t.length > 0);
-    const boatText = `${boat.id} ${boat.name} ${boat.type} ${boat.model || ''}`.toLowerCase();
-    return searchTerms.every(term => boatText.includes(term));
+    const boatText = `${boat.id} ${boat.name} ${boat.type} ${boat.model || ''}`;
+    return textMatches(boatText, searchTerm);
   });
   
   useEffect(() => {

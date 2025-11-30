@@ -6,6 +6,7 @@ import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
+import { codeMatches } from './utils/searchUtils';
 
 // Declare jsPDF as global
 declare global {
@@ -55,13 +56,16 @@ export default function CharterAgreementPage() {
 
     if (bookingCode) {
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      const booking = bookings[bookingCode];
+
+      // Find matching booking key case-insensitively
+      const matchingKey = Object.keys(bookings).find(key => codeMatches(key, bookingCode));
+      const booking = matchingKey ? bookings[matchingKey] : null;
 
       console.log('📦 Found booking:', booking);
 
       if (booking?.bookingData) {
         const data = {
-          bookingCode,
+          bookingCode: matchingKey || bookingCode,
           ...booking.bookingData
         };
         console.log('✅ Setting bookingData:', data);
@@ -656,8 +660,10 @@ export default function CharterAgreementPage() {
 
       // Also save to localStorage for backwards compatibility
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      if (bookings[bookingCode]) {
-        bookings[bookingCode].charterAgreementData = {
+      // Find matching booking key case-insensitively
+      const matchingKey = Object.keys(bookings).find(key => codeMatches(key, bookingCode));
+      if (matchingKey && bookings[matchingKey]) {
+        bookings[matchingKey].charterAgreementData = {
           skipperLicense,
           crewMembers: crewToSave,
           submittedAt: new Date().toISOString()
