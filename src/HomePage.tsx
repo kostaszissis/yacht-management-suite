@@ -820,23 +820,25 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Staff Login */}
-        <div
-          style={{ ...styles.staffCard, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
-          className="shadow-md hover:shadow-2xl hover:-translate-y-2 hover:scale-105 transform-gpu cursor-pointer"
-          onClick={() => isLoggedIn ? navigate('/admin') : setShowAdminModal(true)}
-        >
-          <div style={{ ...styles.serviceIcon, ...iconColors.gray, width: '50px', height: '50px', flexShrink: 0 }}>
-            🔐
-          </div>
-          <div>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0c4a6e', margin: 0 }}>
-              {language === 'en' ? 'Staff Login' : 'Είσοδος Προσωπικού'}
-            </h3>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0' }}>
-              {language === 'en' ? 'Employee access only' : 'Μόνο για υπαλλήλους'}
-            </p>
-          </div>
+        {/* Login Button - Centered */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+          <button
+            onClick={isLoggedIn ? handleAdminLogout : () => setShowAdminModal(true)}
+            style={{ ...styles.quickBtn, width: '200px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
+            className="shadow-md hover:shadow-2xl hover:-translate-y-2 hover:scale-105 transform-gpu"
+          >
+            <div style={styles.quickIcon}>{isLoggedIn ? '🔓' : '🔐'}</div>
+            <span style={styles.quickLabel}>
+              {isLoggedIn
+                ? (language === 'en' ? 'Logout' : 'Αποσύνδεση')
+                : (language === 'en' ? 'Login' : 'Είσοδος')}
+            </span>
+            {!isLoggedIn && (
+              <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
+                {language === 'en' ? 'Only Staff' : 'Μόνο Προσωπικό'}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Quick Actions */}
@@ -855,22 +857,6 @@ export default function HomePage() {
               <span style={styles.quickLabel}>{action.label}</span>
             </button>
           ))}
-        </div>
-
-        {/* Secure Login / Logout */}
-        <div style={styles.loginRow}>
-          <button
-            onClick={isLoggedIn ? handleAdminLogout : () => setShowAdminModal(true)}
-            style={styles.loginBtn}
-          >
-            <span style={{ fontSize: '24px' }}>{isLoggedIn ? '🔓' : '🔒'}</span>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: '#334155' }}>
-              {isLoggedIn 
-                ? (language === 'en' ? 'Logout' : 'Αποσύνδεση')
-                : (language === 'en' ? 'Secure Login' : 'Ασφαλής Σύνδεση')
-              }
-            </span>
-          </button>
         </div>
 
         {/* Footer */}
