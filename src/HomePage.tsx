@@ -64,8 +64,8 @@ export default function HomePage() {
       }
 
       const bookingData = booking.bookingData;
-      const checkInDate = new Date(bookingData.checkInDate);
-      const checkOutDate = new Date(bookingData.checkOutDate);
+      const checkInDate = new Date(bookingData.startDate || bookingData.checkInDate);
+      const checkOutDate = new Date(bookingData.endDate || bookingData.checkOutDate);
       const today = new Date();
 
       checkInDate.setHours(0, 0, 0, 0);

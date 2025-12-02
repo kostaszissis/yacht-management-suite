@@ -24,5 +24,5 @@ export const codeMatches = (source: string, search: string): boolean => {
   if (!search || !source) return !search;
   const s = normalizeCode(source);
   const q = normalizeCode(search);
-  return s === q || s.includes(q) || q.includes(s);
+  return s === q;
 };
