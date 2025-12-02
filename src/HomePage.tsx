@@ -41,16 +41,34 @@ export default function HomePage() {
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [fleetCode, setFleetCode] = useState('');
   const [bookingStatus, setBookingStatus] = useState<any>(null);
+  const [isSearching, setIsSearching] = useState(false);
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
   const navigate = useNavigate();
 
   const isLoggedIn = !!currentUser;
   const isAdmin = currentUser?.role === 'ADMIN';
 
-  // Check booking status from localStorage (case-insensitive search or by date)
-  const checkBookingStatus = (bookingCode: string) => {
+  // Check booking status from API (case-insensitive search or by date)
+  const checkBookingStatus = async (bookingCode: string) => {
     try {
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      // Fetch bookings from API
+      const response = await fetch('/api/bookings.php');
+      if (!response.ok) {
+        console.error('Failed to fetch bookings from API');
+        return null;
+      }
+      const bookingsArray = await response.json();
+
+      // Convert array to object keyed by booking code for easier lookup
+      const bookings: Record<string, any> = {};
+      if (Array.isArray(bookingsArray)) {
+        bookingsArray.forEach((booking: any) => {
+          const code = booking.bookingCode || booking.charterCode || booking.id;
+          if (code) {
+            bookings[code] = { bookingData: booking };
+          }
+        });
+      }
 
       // Check if search is a date
       const searchDate = parseSearchDate(bookingCode);
@@ -89,8 +107,8 @@ export default function HomePage() {
       checkOutDate.setHours(0, 0, 0, 0);
       today.setHours(0, 0, 0, 0);
 
-      const checkInCompleted = !!booking.page5DataCheckIn;
-      const checkOutCompleted = !!booking.page5DataCheckOut;
+      const checkInCompleted = !!booking.page5DataCheckIn || !!bookingData.checkInCompleted;
+      const checkOutCompleted = !!booking.page5DataCheckOut || !!bookingData.checkOutCompleted;
 
       return {
         bookingCode: matchingKey, // Use the actual key found
@@ -112,20 +130,25 @@ export default function HomePage() {
     }
   };
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      const status = checkBookingStatus(searchQuery.trim());
+      setIsSearching(true);
+      try {
+        const status = await checkBookingStatus(searchQuery.trim());
 
-      if (status) {
-        localStorage.setItem('currentBooking', status.bookingCode);
-        setBookingStatus(status);
-        setSearchQuery('');
-        console.log('✅ Booking found:', status.bookingCode);
-      } else {
-        alert(language === 'en'
-          ? 'Booking not found! Please check your booking code.'
-          : 'Δεν βρέθηκε κράτηση! Παρακαλώ ελέγξτε τον κωδικό ναύλου.');
+        if (status) {
+          localStorage.setItem('currentBooking', status.bookingCode);
+          setBookingStatus(status);
+          setSearchQuery('');
+          console.log('✅ Booking found:', status.bookingCode);
+        } else {
+          alert(language === 'en'
+            ? 'Booking not found! Please check your booking code.'
+            : 'Δεν βρέθηκε κράτηση! Παρακαλώ ελέγξτε τον κωδικό ναύλου.');
+        }
+      } finally {
+        setIsSearching(false);
       }
     }
   };
@@ -735,8 +758,10 @@ export default function HomePage() {
                 placeholder={language === 'en' ? 'e.g. Charter Party No 1, NAY-001, 15/12/2024' : 'π.χ. Charter Party No 1, NAY-001, 15/12/2024'}
                 style={styles.searchInput}
               />
-              <button type="submit" style={styles.searchBtn}>
-                {language === 'en' ? 'Search' : 'Αναζήτηση'}
+              <button type="submit" style={styles.searchBtn} disabled={isSearching}>
+                {isSearching
+                  ? (language === 'en' ? 'Searching...' : 'Αναζήτηση...')
+                  : (language === 'en' ? 'Search' : 'Αναζήτηση')}
               </button>
             </div>
           </form>
