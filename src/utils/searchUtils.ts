@@ -36,13 +36,61 @@ export const textMatches = (source: string, search: string): boolean => {
   return normalizeText(source).includes(normalizeText(search));
 };
 
-// Flexible code match - extracts code from charter party formats and compares exactly
-// Preserves leading zeros: "05" ≠ "5", "001" ≠ "1"
+// Flexible code match - supports partial matching and case-insensitive comparison
+// Searches for charter party codes with flexible matching:
+// - "party 2" matches "CHARTER PARTY NO 2"
+// - "charter party no 4" matches "CHARTER PARTY NO 4"
+// - "35" matches "charter party no 35"
+// - Handles leading zeros: "05" matches "05" and "5" matches "05"
 export const codeMatches = (source: string, search: string): boolean => {
   if (!search || !source) return !search;
-  const s = extractCode(source);
-  const q = extractCode(search);
-  return s === q;
+
+  const sourceUpper = source.toUpperCase().trim();
+  const searchUpper = search.toUpperCase().trim();
+
+  // 1. Direct case-insensitive match (includes)
+  if (sourceUpper.includes(searchUpper)) {
+    return true;
+  }
+
+  // 2. Source contains the search query
+  if (searchUpper.includes(sourceUpper)) {
+    return true;
+  }
+
+  // 3. Extract codes and compare
+  const sourceCode = extractCode(source);
+  const searchCode = extractCode(search);
+
+  // Exact code match after extraction
+  if (sourceCode && searchCode && sourceCode === searchCode) {
+    return true;
+  }
+
+  // 4. Handle leading zeros: "5" should match "05", "005", etc.
+  if (sourceCode && searchCode) {
+    const sourceNum = sourceCode.replace(/^0+/, '') || '0';
+    const searchNum = searchCode.replace(/^0+/, '') || '0';
+    if (sourceNum === searchNum) {
+      return true;
+    }
+  }
+
+  // 5. Partial code match (search code is contained in source code)
+  if (sourceCode && searchCode && sourceCode.includes(searchCode)) {
+    return true;
+  }
+
+  // 6. Word-by-word partial match for multi-word searches
+  const searchWords = searchUpper.split(/\s+/).filter(w => w.length > 0);
+  if (searchWords.length > 1) {
+    const allWordsFound = searchWords.every(word => sourceUpper.includes(word));
+    if (allWordsFound) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 // Parse date from various formats (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)

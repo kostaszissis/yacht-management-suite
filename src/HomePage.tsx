@@ -57,18 +57,43 @@ export default function HomePage() {
         console.error('Failed to fetch bookings from API');
         return null;
       }
-      const bookingsArray = await response.json();
+      const apiResponse = await response.json();
 
-      // Convert array to object keyed by booking code for easier lookup
+      // Handle both array format and { bookings: {...} } object format from API
       const bookings: Record<string, any> = {};
-      if (Array.isArray(bookingsArray)) {
-        bookingsArray.forEach((booking: any) => {
-          const code = booking.bookingCode || booking.charterCode || booking.id;
+
+      if (Array.isArray(apiResponse)) {
+        // Direct array format
+        apiResponse.forEach((booking: any) => {
+          const code = booking.bookingCode || booking.charterCode || booking.code || booking.id;
           if (code) {
             bookings[code] = { bookingData: booking };
           }
         });
+      } else if (apiResponse && typeof apiResponse === 'object') {
+        // Object format: { bookings: {...} } or { bookings: [...] }
+        const bookingsData = apiResponse.bookings || apiResponse;
+
+        if (Array.isArray(bookingsData)) {
+          bookingsData.forEach((booking: any) => {
+            const code = booking.bookingCode || booking.charterCode || booking.code || booking.id;
+            if (code) {
+              bookings[code] = { bookingData: booking };
+            }
+          });
+        } else if (typeof bookingsData === 'object') {
+          // Object keyed by booking code
+          Object.entries(bookingsData).forEach(([key, value]: [string, any]) => {
+            const booking = value?.bookingData || value;
+            const code = key || booking?.bookingCode || booking?.charterCode || booking?.code || booking?.id;
+            if (code) {
+              bookings[code] = { bookingData: booking };
+            }
+          });
+        }
       }
+
+      console.log('📋 Loaded bookings:', Object.keys(bookings).length, 'bookings');
 
       // Check if search is a date
       const searchDate = parseSearchDate(bookingCode);
@@ -85,7 +110,7 @@ export default function HomePage() {
                  dateMatches(endDate || checkOutDate, searchDate);
         });
       } else {
-        // Search by booking code (case-insensitive)
+        // Search by booking code (case-insensitive, partial match)
         matchingKey = Object.keys(bookings).find(key => codeMatches(key, bookingCode));
       }
 
