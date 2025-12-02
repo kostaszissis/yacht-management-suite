@@ -5,7 +5,7 @@ import AdminDashboard from './AdminDashboard';
 import { codeMatches, textMatches } from './utils/searchUtils';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
-import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid, deleteBooking, updateCharterPayments, updateCharterStatus } from './services/apiService';
+import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking } from './services/apiService';
 // 🔥 FIX 23: Charter Party DOCX generation
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -2514,9 +2514,9 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
                           {charter.clientName || charter.charterer || 'N/A'}
                           {charter.status && (
                             <span className={`ml-2 px-2 py-0.5 rounded ${
-                              charter.status === 'CONFIRMED' ? 'bg-green-900 text-green-300' :
-                              charter.status === 'OPTION' ? 'bg-yellow-900 text-yellow-300' :
-                              'bg-gray-700 text-gray-300'
+                              charter.status === 'CONFIRMED' || charter.status === 'confirmed' || charter.status === 'Confirmed' ? 'bg-green-500 text-white' :
+                              charter.status === 'CANCELLED' || charter.status === 'cancelled' || charter.status === 'Cancelled' || charter.status === 'Canceled' ? 'bg-red-500 text-white' :
+                              'bg-yellow-400 text-black'
                             }`}>
                               {charter.status}
                             </span>
@@ -2754,40 +2754,66 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
   
   const formatDate = (date) => date.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' });
 
-  // 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00)
+  // 🔥 FIX: Charter card colors - YELLOW (#FBBF24), GREEN (#10B981), RED
   const getStatusStyle = (status) => {
     switch(status) {
       case 'Option':
+      case 'option':
+      case 'OPTION':
       case 'Pending':
-        return { bg: '', text: 'text-black', status: 'text-black', customBg: '#FFFF00' }; // BRIGHT YELLOW
+      case 'pending':
+      case 'PENDING':
+      case 'Reservation':
+      case 'reservation':
+      case 'RESERVATION':
+      case 'Option Accepted':
+      case 'option_accepted':
+      case 'OPTION_ACCEPTED':
+      case 'Pending Final Confirmation':
+      case 'pending_final_confirmation':
+      case 'PENDING_FINAL_CONFIRMATION':
       case 'Accepted':
-        return { bg: 'bg-yellow-800', text: 'text-white', status: 'text-yellow-200' };
+      case 'accepted':
+      case 'ACCEPTED':
+        return { bg: 'bg-yellow-400', text: 'text-black', status: 'text-black' }; // YELLOW #FBBF24
       case 'Confirmed':
-        return { bg: 'bg-green-900', text: 'text-white', status: 'text-green-300' };
+      case 'confirmed':
+      case 'CONFIRMED':
+        return { bg: 'bg-green-500', text: 'text-white', status: 'text-white' }; // GREEN #10B981
       case 'Canceled':
+      case 'Cancelled':
       case 'Rejected':
-        return { bg: 'bg-red-900', text: 'text-white', status: 'text-red-300' };
+      case 'cancelled':
+      case 'CANCELLED':
+      case 'CANCELED':
+      case 'REJECTED':
+        return { bg: 'bg-red-500', text: 'text-white', status: 'text-white' }; // RED
+      case 'Expired':
+      case 'expired':
+      case 'EXPIRED':
+        return { bg: 'bg-gray-700', text: 'text-white', status: 'text-gray-300' };
       default:
-        return { bg: 'bg-gray-900', text: 'text-gray-600', status: 'text-gray-400' };
+        // 🔥 FALLBACK: Any unknown status defaults to YELLOW (pending)
+        return { bg: 'bg-yellow-400', text: 'text-black', status: 'text-black' };
     }
   };
 
   return (
     <div className="h-full flex flex-col">
       <div className="p-2 bg-gray-800 border-b border-gray-700">
-        {/* 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00) */}
+        {/* 🔥 FIX: Legend colors - YELLOW (#FBBF24), GREEN (#10B981), RED */}
         <div className="flex flex-wrap justify-center gap-4 text-xs">
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#FFFF00' }}></div>
-            <span style={{ color: '#FFFF00' }}>Option</span>
+            <div className="w-4 h-4 rounded bg-yellow-400"></div>
+            <span className="text-yellow-400">Option</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded bg-green-700"></div>
-            <span className="text-green-300">Confirmed</span>
+            <div className="w-4 h-4 rounded bg-green-500"></div>
+            <span className="text-green-400">Confirmed</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded bg-red-700"></div>
-            <span className="text-red-300">Canceled</span>
+            <div className="w-4 h-4 rounded bg-red-500"></div>
+            <span className="text-red-400">Canceled</span>
           </div>
         </div>
       </div>
@@ -3312,50 +3338,95 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
 
   const formatDate = (date) => date.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' });
 
-  // 🔥 FIX 10 + FIX 29 + FIX 31: Status colors including Expired
+  // 🔥 FIX: Charter card colors - YELLOW (#FBBF24), GREEN (#10B981), RED
   const getStatusColor = (status) => {
     switch(status) {
       case 'Option':
+      case 'option':
+      case 'OPTION':
       case 'Pending':
-        return 'border-yellow-400'; // Will use inline style for #FFFF00 bg
+      case 'pending':
+      case 'PENDING':
+      case 'Reservation':
+      case 'reservation':
+      case 'RESERVATION':
       case 'Accepted':
+      case 'accepted':
+      case 'ACCEPTED':
       case 'Option Accepted':
-        return 'bg-yellow-400 border-yellow-300'; // 🔥 FIX 28: Bright yellow
+      case 'option_accepted':
+      case 'OPTION_ACCEPTED':
       case 'Pending Final Confirmation':
-        return 'bg-yellow-400 border-yellow-300'; // 🔥 FIX 29: Yellow (same as other pending statuses)
+      case 'pending_final_confirmation':
+      case 'PENDING_FINAL_CONFIRMATION':
+        return 'bg-yellow-400 border-yellow-300'; // YELLOW #FBBF24
       case 'Confirmed':
-        return 'bg-green-700 border-green-500';
+      case 'confirmed':
+      case 'CONFIRMED':
+        return 'bg-green-500 border-green-400'; // GREEN #10B981
       case 'Canceled':
+      case 'Cancelled':
       case 'Rejected':
-        return 'bg-red-700 border-red-500';
+      case 'cancelled':
+      case 'CANCELLED':
+      case 'CANCELED':
+      case 'REJECTED':
+        return 'bg-red-500 border-red-400'; // RED
       case 'Expired':
-        return 'bg-gray-500 border-gray-400'; // 🔥 FIX 31: Gray for expired
+      case 'expired':
+      case 'EXPIRED':
+        return 'bg-gray-500 border-gray-400';
       default:
-        return 'bg-gray-800 border-gray-700';
+        // 🔥 FALLBACK: Any unknown status defaults to YELLOW (pending)
+        return 'bg-yellow-400 border-yellow-300';
     }
   };
 
-  // 🔥 FIX 10 + FIX 28 + FIX 29 + FIX 31: Status text including Expired
+  // 🔥 FIX: Charter card colors - YELLOW (#FBBF24), GREEN (#10B981), RED
   const getStatusText = (status) => {
     switch(status) {
       case 'Option':
+      case 'option':
+      case 'OPTION':
       case 'Pending':
-        return { text: 'OPTION', color: 'text-black', bg: '#FFFF00' }; // BRIGHT YELLOW
+      case 'pending':
+      case 'PENDING':
+        return { text: 'OPTION', color: 'text-black', bg: 'bg-yellow-400' }; // YELLOW #FBBF24
+      case 'Reservation':
+      case 'reservation':
+      case 'RESERVATION':
+        return { text: 'RESERVATION', color: 'text-black', bg: 'bg-yellow-400' }; // YELLOW #FBBF24
       case 'Option Accepted':
-        return { text: 'OPTION ACCEPTED', color: 'text-black', bg: 'bg-yellow-400' }; // 🔥 FIX 28: Bright yellow
+      case 'option_accepted':
+      case 'OPTION_ACCEPTED':
+      case 'Accepted':
+      case 'accepted':
+      case 'ACCEPTED':
+        return { text: 'OPTION ACCEPTED', color: 'text-black', bg: 'bg-yellow-400' }; // YELLOW #FBBF24
       case 'Pending Final Confirmation':
-        return { text: 'ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ', color: 'text-black', bg: 'bg-yellow-400' }; // 🔥 FIX 29: Yellow
+      case 'pending_final_confirmation':
+      case 'PENDING_FINAL_CONFIRMATION':
+        return { text: 'ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ', color: 'text-black', bg: 'bg-yellow-400' }; // YELLOW #FBBF24
       case 'Confirmed':
-        return { text: 'CONFIRMED', color: 'text-green-300', bg: 'bg-green-500' };
+      case 'confirmed':
+      case 'CONFIRMED':
+        return { text: 'CONFIRMED', color: 'text-white', bg: 'bg-green-500' }; // GREEN #10B981
       case 'Cancelled':
       case 'Canceled':
-        return { text: 'CANCELLED', color: 'text-red-300', bg: 'bg-red-500' };
+      case 'cancelled':
+      case 'CANCELLED':
+      case 'CANCELED':
+        return { text: 'CANCELLED', color: 'text-white', bg: 'bg-red-500' }; // RED
       case 'Rejected':
-        return { text: 'REJECTED', color: 'text-red-300', bg: 'bg-red-500' };
+      case 'REJECTED':
+        return { text: 'REJECTED', color: 'text-white', bg: 'bg-red-500' }; // RED
       case 'Expired':
-        return { text: 'EXPIRED (6 DAYS)', color: 'text-gray-300', bg: 'bg-gray-500' }; // 🔥 FIX 31: Gray
+      case 'expired':
+      case 'EXPIRED':
+        return { text: 'EXPIRED', color: 'text-white', bg: 'bg-gray-500' };
       default:
-        return { text: status, color: 'text-gray-300', bg: 'bg-gray-500' };
+        // 🔥 FALLBACK: Any unknown status defaults to YELLOW (pending)
+        return { text: status?.toUpperCase() || 'PENDING', color: 'text-black', bg: 'bg-yellow-400' };
     }
   };
 
@@ -3406,19 +3477,19 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
       )}
 
       <div className="p-2 bg-gray-800 border-b border-gray-700">
-        {/* 🔥 FIX 10: Changed Option to BRIGHT YELLOW (#FFFF00) */}
+        {/* 🔥 FIX: Legend colors - YELLOW (#FBBF24), GREEN (#10B981), RED */}
         <div className="flex flex-wrap justify-center gap-4 text-xs">
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: '#FFFF00' }}></div>
-            <span style={{ color: '#FFFF00' }}>Option</span>
+            <div className="w-4 h-4 rounded bg-yellow-400"></div>
+            <span className="text-yellow-400">Option</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded bg-green-700"></div>
-            <span className="text-green-300">Confirmed</span>
+            <div className="w-4 h-4 rounded bg-green-500"></div>
+            <span className="text-green-400">Confirmed</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-4 h-4 rounded bg-red-700"></div>
-            <span className="text-red-300">Canceled</span>
+            <div className="w-4 h-4 rounded bg-red-500"></div>
+            <span className="text-red-400">Canceled</span>
           </div>
         </div>
       </div>
@@ -4508,7 +4579,17 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     }
 
     // 🔥 FIX 13 + FIX 38: Send email when new charter is created (pass boat object for owner lookup)
-    await sendCharterEmail(charter, boat, 'new_charter');
+    // 🔥 FIX: Map status to correct email action
+    let emailAction = 'new_charter'; // Default for Option status
+    if (newCharter.status === 'Reservation' || newCharter.status === 'reservation') {
+      emailAction = 'pending_final_confirmation';
+      console.log('📧 Reservation status detected - sending pending_final_confirmation email');
+    } else if (newCharter.status === 'Confirmed' || newCharter.status === 'confirmed') {
+      emailAction = 'confirmed';
+      console.log('📧 Confirmed status detected - sending confirmed email');
+    }
+    console.log('📧 Sending email with action:', emailAction, 'for status:', newCharter.status);
+    await sendCharterEmail(charter, boat, emailAction);
 
     authService.logActivity('add_charter', `${boat.id}/${charter.code}`);
     // 🔥 FIX 9: Reset form with skipper fields
@@ -4613,9 +4694,44 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     authService.logActivity('BOOKING_UPDATED', `${boat.id}/${bookingCode}`);
   };
 
-  const handleSelectCharter = (charter) => {
+  // 🔥 FIX: Fetch latest status from API when opening charter modal
+  const handleSelectCharter = async (charter) => {
     authService.logActivity('view_charter_details', `${boat.id}/${charter.code}`);
-    setSelectedCharter(charter);
+
+    // Try to fetch the latest status from API
+    try {
+      const bookingCode = charter.code || charter.id;
+      const latestBooking = await getBooking(bookingCode);
+
+      if (latestBooking && latestBooking.bookingData) {
+        // Merge API status with local charter data
+        const updatedCharter = {
+          ...charter,
+          status: latestBooking.bookingData.status || charter.status,
+          // Also update local items state with the latest status
+        };
+
+        console.log('📋 Charter status from API:', latestBooking.bookingData.status, 'Local:', charter.status);
+
+        // Update local state if status changed
+        if (latestBooking.bookingData.status && latestBooking.bookingData.status !== charter.status) {
+          const updated = items.map((item) =>
+            item.id === charter.id ? { ...item, status: latestBooking.bookingData.status } : item
+          );
+          saveItems(updated);
+          showMessage(`📋 Status updated from server: ${latestBooking.bookingData.status}`, 'info');
+        }
+
+        setSelectedCharter(updatedCharter);
+      } else {
+        // API returned no data, use local charter
+        setSelectedCharter(charter);
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not fetch latest status from API:', error);
+      // Fallback to local charter data
+      setSelectedCharter(charter);
+    }
   };
 
   return (
@@ -4679,8 +4795,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">STATUS</label>
                     <select name="status" value={newCharter.status} onChange={handleFormChange} className="w-full px-3 py-3 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none font-bold">
-                      <option value="Option" className="bg-yellow-700">🟡 OPTION (Αναμονή Owner)</option>
-                      <option value="Confirmed" className="bg-green-700">🟢 CONFIRMED (Κλεισμένο)</option>
+                      <option value="Option" className="bg-yellow-400 text-black">🟡 OPTION (Αναμονή Owner)</option>
+                      <option value="Reservation" className="bg-yellow-400 text-black">🟡 RESERVATION (Κράτηση)</option>
+                      <option value="Confirmed" className="bg-green-500 text-white">🟢 CONFIRMED (Κλεισμένο)</option>
                     </select>
                   </div>
                 </div>
@@ -4957,10 +5074,24 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
   // 🔥 FIX 29: OWNER: Pending Final Confirmation → Confirmed (ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ)
   const handleOwnerFinalConfirmation = async () => {
-    if (!canAcceptCharter) { showMessage('❌ Δεν έχετε δικαίωμα επιβεβαίωσης', 'error'); return; }
+    console.log('🔥 handleOwnerFinalConfirmation CALLED');
+    console.log('🔥 canAcceptCharter:', canAcceptCharter);
+    console.log('🔥 charter:', charter?.code, 'status:', charter?.status);
+    console.log('🔥 boat:', boat?.id, boat?.name);
+
+    if (!canAcceptCharter) {
+      console.log('❌ canAcceptCharter is FALSE - blocking');
+      showMessage('❌ Δεν έχετε δικαίωμα επιβεβαίωσης', 'error');
+      return;
+    }
+
     setIsProcessing(true);
     setStatusMessage({ text: 'Αποστολή emails...', type: 'loading' });
+
+    console.log('📧 CALLING sendCharterEmail with action: confirmed');
     const success = await sendCharterEmail(charter, boat, 'confirmed');
+    console.log('📧 sendCharterEmail RESULT:', success);
+
     if (success) {
       onUpdateStatus(charter, 'Confirmed');
       try {
@@ -4973,7 +5104,8 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
       setStatusMessage({ text: '✅ Ναύλος επιβεβαιώθηκε τελικά!', type: 'success' });
       clearStatusAfterDelay();
     } else {
-      setStatusMessage({ text: '❌ Σφάλμα', type: 'error' });
+      console.log('❌ sendCharterEmail returned FALSE');
+      setStatusMessage({ text: '❌ Σφάλμα αποστολής email', type: 'error' });
       clearStatusAfterDelay();
     }
     setIsProcessing(false);
@@ -5103,10 +5235,18 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
         <p className="text-center text-gray-400 text-sm mb-4">Please advise regarding the acceptance of the charter.<br/>Thank you,</p>
 
+        {/* ADMIN: Option → Show waiting message */}
+        {!isOwnerUser && (charter.status === 'Option' || charter.status === 'option' || charter.status === 'OPTION' || charter.status === 'Pending' || charter.status === 'pending') && (
+          <div className="w-full bg-yellow-400 text-black font-bold py-3 px-4 rounded-lg mb-3 flex flex-col items-center justify-center">
+            <div className="flex items-center">🟡 <span className="ml-2">OPTION - Αναμονή αποδοχής Owner</span></div>
+            <span className="text-xs font-normal mt-1">Ο Owner πρέπει να αποδεχτεί πρώτα</span>
+          </div>
+        )}
+
         {/* OWNER: Option → ΑΠΟΔΟΧΗ / ΜΗ ΑΠΟΔΟΧΗ */}
-        {canAcceptCharter && (charter.status === 'Option' || charter.status === 'Pending') && (
+        {isOwnerUser && (charter.status === 'Option' || charter.status === 'option' || charter.status === 'OPTION' || charter.status === 'Pending' || charter.status === 'pending') && (
           <div className="space-y-2 mb-4">
-            <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-900 text-yellow-400">
+            <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-400 text-black">
               ⏳ Αυτός ο ναύλος περιμένει την απόφασή σας
             </div>
             <button onClick={handleOwnerAcceptOption} disabled={isProcessing} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed shadow-lg">
@@ -5119,9 +5259,9 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
         )}
 
         {/* 🔥 FIX 29: ADMIN: Option Accepted → ΑΠΟΣΤΟΛΗ ΓΙΑ ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ / ΑΚΥΡΟ */}
-        {!isOwnerUser && charter.status === 'Option Accepted' && (
+        {!isOwnerUser && (charter.status === 'Option Accepted' || charter.status === 'option_accepted' || charter.status === 'OPTION_ACCEPTED') && (
           <div className="space-y-2 mb-4">
-            <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-900 text-yellow-400">
+            <div className="text-center text-sm mb-2 p-2 rounded-lg bg-yellow-400 text-black">
               ⏳ Owner αποδέχτηκε - Στείλτε για τελική επιβεβαίωση
             </div>
             {/* 🔥 FIX 29: Admin button sends to owner for final approval */}
@@ -5134,10 +5274,10 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           </div>
         )}
 
-        {/* 🔥 FIX 30 + FIX 31: OWNER: Pending Final Confirmation → BIG CLICKABLE YELLOW BANNER (NO REJECT - only admin can cancel) */}
-        {canAcceptCharter && charter.status === 'Pending Final Confirmation' && (
+        {/* 🔥 FIX: OWNER ONLY: Pending Final Confirmation → BIG CLICKABLE YELLOW BUTTON */}
+        {isOwnerUser && (charter.status === 'Pending Final Confirmation' || charter.status === 'pending_final_confirmation' || charter.status === 'PENDING_FINAL_CONFIRMATION') && (
           <div className="space-y-3 mb-4">
-            {/* 🔥 BIG CLICKABLE YELLOW BANNER - Primary action for owner */}
+            {/* 🔥 BIG CLICKABLE YELLOW BUTTON - Primary action for owner */}
             <button
               onClick={handleOwnerFinalConfirmation}
               disabled={isProcessing}
@@ -5152,7 +5292,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
                 </>
               )}
             </button>
-            {/* 🔥 FIX 31: NO reject button here - only admin can cancel after option is accepted */}
+            {/* 🔥 NO reject button here - only admin can cancel after option is accepted */}
             <div className="text-center text-xs text-gray-500">
               Για ακύρωση επικοινωνήστε με τον Admin
             </div>
@@ -5160,7 +5300,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
         )}
 
         {/* Status displays - NOT CLICKABLE, just informational */}
-        {charter.status === 'Option Accepted' && isOwnerUser && (
+        {(charter.status === 'Option Accepted' || charter.status === 'option_accepted' || charter.status === 'OPTION_ACCEPTED') && isOwnerUser && (
           <div className="w-full bg-yellow-400/70 text-black font-bold py-3 px-4 rounded-lg mb-3 flex flex-col items-center justify-center cursor-not-allowed border-2 border-dashed border-yellow-600">
             <div className="flex items-center">{icons.checkCircle} <span className="ml-2">⏳ OPTION ACCEPTED</span></div>
             <span className="text-xs font-normal mt-1">Αναμονή ενέργειας από Admin...</span>
@@ -5168,18 +5308,18 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
         )}
 
         {/* 🔥 FIX 29: Show pending status to Admin - NOT CLICKABLE */}
-        {charter.status === 'Pending Final Confirmation' && !isOwnerUser && (
+        {(charter.status === 'Pending Final Confirmation' || charter.status === 'pending_final_confirmation' || charter.status === 'PENDING_FINAL_CONFIRMATION') && !isOwnerUser && (
           <div className="w-full bg-yellow-400/70 text-black font-bold py-3 px-4 rounded-lg mb-3 flex flex-col items-center justify-center cursor-not-allowed border-2 border-dashed border-yellow-600">
             <div className="flex items-center">{icons.checkCircle} <span className="ml-2">⏳ ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ</span></div>
             <span className="text-xs font-normal mt-1">Αναμονή επιβεβαίωσης από Owner...</span>
           </div>
         )}
 
-        {charter.status === 'Confirmed' && (
+        {(charter.status === 'Confirmed' || charter.status === 'confirmed' || charter.status === 'CONFIRMED') && (
           <div className="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.checkCircle} <span className="ml-2">✅ ΕΠΙΒΕΒΑΙΩΜΕΝΟΣ</span></div>
         )}
 
-        {(charter.status === 'Cancelled' || charter.status === 'Canceled' || charter.status === 'Rejected') && (
+        {(charter.status === 'Cancelled' || charter.status === 'Canceled' || charter.status === 'Rejected' || charter.status === 'cancelled' || charter.status === 'canceled' || charter.status === 'rejected' || charter.status === 'CANCELLED' || charter.status === 'CANCELED' || charter.status === 'REJECTED') && (
           <div className="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center">{icons.xCircle} <span className="ml-2">❌ ΑΚΥΡΩΜΕΝΟΣ</span></div>
         )}
 
@@ -5795,9 +5935,9 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
 
       <div className="p-2 bg-gray-800 border-b border-gray-700">
         <div className="flex flex-wrap justify-center gap-4 text-xs">
-          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-yellow-700"></div><span className="text-yellow-300">Option</span></div>
-          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-green-700"></div><span className="text-green-300">Confirmed</span></div>
-          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-red-700"></div><span className="text-red-300">Canceled</span></div>
+          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-yellow-400"></div><span className="text-yellow-400">Option</span></div>
+          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-green-500"></div><span className="text-green-400">Confirmed</span></div>
+          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-red-500"></div><span className="text-red-400">Canceled</span></div>
         </div>
       </div>
 
@@ -5865,12 +6005,24 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
                     
                     if (isBooked) {
                       switch(status) {
-                        // 🔥 FIX 28: Bright yellow for Option/Accepted
-                        case 'Option': case 'Pending': bgColor = 'bg-yellow-400'; textColor = 'text-black'; statusColor = 'text-black'; break;
-                        case 'Accepted': case 'Option Accepted': bgColor = 'bg-yellow-400'; textColor = 'text-black'; statusColor = 'text-black'; break;
-                        case 'Confirmed': bgColor = 'bg-green-500'; textColor = 'text-white'; statusColor = 'text-green-100'; break;
-                        case 'Canceled': case 'Rejected': bgColor = 'bg-red-500'; textColor = 'text-white'; statusColor = 'text-red-100'; break;
-                        default: bgColor = 'bg-gray-800';
+                        // 🔥 FIX: YELLOW for all pending statuses (all case variations)
+                        case 'Option': case 'option': case 'OPTION':
+                        case 'Pending': case 'pending': case 'PENDING':
+                        case 'Reservation': case 'reservation': case 'RESERVATION':
+                          bgColor = 'bg-yellow-400'; textColor = 'text-black'; statusColor = 'text-black'; break;
+                        case 'Accepted': case 'accepted': case 'ACCEPTED':
+                        case 'Option Accepted': case 'option_accepted': case 'OPTION_ACCEPTED':
+                        case 'Pending Final Confirmation': case 'pending_final_confirmation': case 'PENDING_FINAL_CONFIRMATION':
+                          bgColor = 'bg-yellow-400'; textColor = 'text-black'; statusColor = 'text-black'; break;
+                        // 🔥 FIX: GREEN for confirmed (all case variations)
+                        case 'Confirmed': case 'confirmed': case 'CONFIRMED':
+                          bgColor = 'bg-green-500'; textColor = 'text-white'; statusColor = 'text-green-100'; break;
+                        // 🔥 FIX: RED for cancelled (all case variations)
+                        case 'Canceled': case 'Cancelled': case 'cancelled': case 'CANCELLED': case 'CANCELED':
+                        case 'Rejected': case 'rejected': case 'REJECTED':
+                          bgColor = 'bg-red-500'; textColor = 'text-white'; statusColor = 'text-red-100'; break;
+                        // 🔥 FALLBACK: Default to YELLOW (pending)
+                        default: bgColor = 'bg-yellow-400'; textColor = 'text-black'; statusColor = 'text-black';
                       }
                     }
                     

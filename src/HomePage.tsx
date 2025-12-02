@@ -18,6 +18,18 @@ const MUSIC_RADIO_LINKS = {
   "Electronic": "https://www.accuradio.com/electronic"
 };
 
+// Format date helper (YYYY-MM-DD or Date → DD/MM/YYYY)
+const formatDate = (date: string | Date | undefined): string => {
+  if (!date) return '-';
+  try {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    if (isNaN(d.getTime())) return String(date); // Return original if invalid
+    return d.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch {
+    return String(date);
+  }
+};
+
 export default function HomePage() {
   const [language, setLanguage] = useState('en');
   const [searchQuery, setSearchQuery] = useState('');
@@ -680,7 +692,7 @@ export default function HomePage() {
               {bookingStatus.bookingCode}
             </div>
             <div style={{ fontSize: '13px', color: '#64748b' }}>
-              📅 Check-in: {bookingStatus.bookingData.checkInDate} | Check-out: {bookingStatus.bookingData.checkOutDate}
+              📅 Check-in: {formatDate(bookingStatus.checkInDate)} | Check-out: {formatDate(bookingStatus.checkOutDate)}
             </div>
             {bookingStatus.isCheckInDay && !bookingStatus.checkInCompleted && (
               <div style={{ marginTop: '12px', padding: '8px 16px', background: '#fef3c7', color: '#d97706', borderRadius: '10px', fontSize: '13px', fontWeight: 600, display: 'inline-block' }}>
@@ -698,15 +710,12 @@ export default function HomePage() {
         {/* Search Box */}
         {!isAdmin && (
           <form onSubmit={handleSearch} style={styles.searchBox}>
-            <label style={styles.searchLabel}>
-              {language === 'en' ? 'Enter Booking Code or Check-in Date' : 'Κωδικός Ναύλου ή Ημερομηνία Επιβίβασης'}
-            </label>
             <div style={styles.searchRow}>
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={language === 'en' ? 'e.g., NAY-001 or 15/12/2024' : 'π.χ., NAY-001 ή 15/12/2024'}
+                placeholder={language === 'en' ? 'e.g. Charter Party No 1, NAY-001, 15/12/2024' : 'π.χ. Charter Party No 1, NAY-001, 15/12/2024'}
                 style={styles.searchInput}
               />
               <button type="submit" style={styles.searchBtn}>

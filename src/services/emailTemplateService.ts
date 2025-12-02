@@ -17,7 +17,7 @@ const COMPANY_INFO = {
 };
 
 // Email API endpoint
-const EMAIL_API_URL = 'https://yachtmanagementsuite.com/email/send-charter-email';
+const EMAIL_API_URL = 'https://yachtmanagementsuite.com/email/send-email';
 
 // Format date for display
 const formatDate = (dateStr: string): string => {
@@ -36,21 +36,31 @@ const getStatusText = (status: string): { text: string; bgColor: string; textCol
   switch (status) {
     case 'Option':
     case 'Pending':
-      return { text: 'OPTION - ΑΝΑΜΟΝΗ ΑΠΟΦΑΣΗΣ', bgColor: '#fbbf24', textColor: '#000000' };
+    case 'option':
+    case 'new_charter':
+      return { text: 'OPTION', bgColor: '#F59E0B', textColor: '#000000' };
     case 'Option Accepted':
-      return { text: 'OPTION ACCEPTED - ΕΠΙΒΕΒΑΙΩΘΗΚΕ', bgColor: '#fbbf24', textColor: '#000000' };
+    case 'option_accepted':
+      return { text: 'ΕΠΙΒΕΒΑΙΩΘΗΚΕ (OPTION)', bgColor: '#F59E0B', textColor: '#000000' };
     case 'Pending Final Confirmation':
-      return { text: 'ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ', bgColor: '#fbbf24', textColor: '#000000' };
+    case 'pending_final_confirmation':
+      return { text: 'ΑΝΑΜΟΝΗ ΤΕΛΙΚΗΣ ΕΠΙΒΕΒΑΙΩΣΗΣ', bgColor: '#F59E0B', textColor: '#000000' };
     case 'Confirmed':
-      return { text: 'ΟΡΙΣΤΙΚΟΠΟΙΗΜΕΝΟΣ', bgColor: '#16a34a', textColor: '#ffffff' };
+    case 'confirmed':
+    case 'finalized':
+    case 'reservation':
+      return { text: 'ΤΟ ΝΑΥΛΟ ΚΛΕΙΣΤΗΚΕ', bgColor: '#10B981', textColor: '#ffffff' };
     case 'Cancelled':
     case 'Canceled':
     case 'Rejected':
-      return { text: 'ΑΚΥΡΩΜΕΝΟΣ', bgColor: '#dc2626', textColor: '#ffffff' };
+    case 'cancelled':
+    case 'rejected':
+      return { text: 'ΤΟ ΝΑΥΛΟ ΑΚΥΡΩΘΗΚΕ', bgColor: '#EF4444', textColor: '#ffffff' };
     case 'Expired':
-      return { text: 'ΕΛΗΞΕ', bgColor: '#6b7280', textColor: '#ffffff' };
+    case 'expired':
+      return { text: 'ΕΛΗΞΕ', bgColor: '#6B7280', textColor: '#ffffff' };
     default:
-      return { text: status, bgColor: '#6b7280', textColor: '#ffffff' };
+      return { text: status.toUpperCase(), bgColor: '#6B7280', textColor: '#ffffff' };
   }
 };
 
@@ -59,26 +69,31 @@ const getFooterText = (status: string): string => {
   switch (status) {
     case 'Option':
     case 'Pending':
-      return 'Ενημερώνουμε ότι ο ναύλος είναι option και αναμένει την απόφασή σας.';
+    case 'option':
+    case 'new_charter':
+      return 'Ενημερώνουμε ότι το ναύλο είναι option. Παρακαλώ επιβεβαιώστε την λήψη του email.';
     case 'Option Accepted':
     case 'option_accepted':
-      return 'Ο ναύλος έχει γίνει αποδεκτός (option) και αναμένει οριστικοποίηση.';
+      return 'Ενημερώνουμε ότι το ναύλο είναι option και επιβεβαιώθηκε. Παρακαλώ επιβεβαιώστε την λήψη του email.';
     case 'Pending Final Confirmation':
     case 'pending_final_confirmation':
-      return 'Ο ναύλος αναμένει την τελική σας επιβεβαίωση για οριστικοποίηση.';
+      return 'Ενημερώνουμε ότι το ναύλο αναμένει τελική επιβεβαίωση. Παρακαλώ επιβεβαιώστε την λήψη του email.';
     case 'Confirmed':
     case 'confirmed':
-      return 'Ο ναύλος έχει οριστικοποιηθεί. Ευχαριστούμε για την συνεργασία!';
+    case 'finalized':
+    case 'reservation':
+      return 'Ενημερώνουμε ότι το ναύλο κλείστηκε. Παρακαλώ επιβεβαιώστε την λήψη του email.';
     case 'Cancelled':
     case 'Canceled':
     case 'Rejected':
     case 'cancelled':
-      return 'Ο ναύλος έχει ακυρωθεί.';
+    case 'rejected':
+      return 'Ενημερώνουμε ότι το ναύλο ακυρώθηκε.';
     case 'Expired':
     case 'expired':
-      return 'Η επιλογή έληξε αυτόματα μετά από 6 ημέρες χωρίς απόφαση.';
+      return 'Ενημερώνουμε ότι το option έληξε αυτόματα μετά από 6 ημέρες.';
     default:
-      return 'Παρακαλούμε επικοινωνήστε μαζί μας για περισσότερες πληροφορίες.';
+      return 'Παρακαλώ επιβεβαιώστε την λήψη του email.';
   }
 };
 
@@ -128,6 +143,10 @@ export const generateOwnerCharterEmailHTML = (
   const vatOnCommission = charter.vat_on_commission || 0;
   const netIncome = charterAmount - commission - vatOnCommission;
   const ownerCompany = owner?.company || owner?.name || owner?.ownerCompany || boat.ownerCompany || 'OWNER';
+  const ownerName = owner?.name || '-';
+  const ownerTaxId = owner?.taxId || '-';
+  const ownerPhone = owner?.phone || '-';
+  const ownerAddress = owner?.address || '-';
   const currentStatus = status || charter.status || 'Option';
   const vesselName = boat.name || boat.id || 'N/A';
   const vesselModel = boat.model || '';
@@ -339,34 +358,67 @@ export const generateOwnerCharterEmailHTML = (
 
     <!-- Body Section -->
     <div class="body-section">
-      <!-- Owner Company Yellow Box -->
-      <div class="yellow-box">
-        COMPANY: ${ownerCompany}
+      <!-- Status Banner -->
+      <div style="background-color: ${statusInfo.bgColor}; color: ${statusInfo.textColor}; padding: 15px 20px; border-radius: 8px; text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 20px;">
+        ${statusInfo.text}
+      </div>
+
+      <!-- Owner/Company Section -->
+      <div style="background-color: #ffffff; border: 2px solid #1e3a5f; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+        <div style="font-size: 14px; font-weight: bold; color: #1e3a5f; margin-bottom: 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ</div>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="120" style="font-weight: bold; color: #374151; padding: 4px 0;">ΕΤΑΙΡΕΙΑ:</td>
+            <td style="color: #111827; padding: 4px 0;">${ownerCompany}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #374151; padding: 4px 0;">ΟΝΟΜΑ:</td>
+            <td style="color: #111827; padding: 4px 0;">${ownerName}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #374151; padding: 4px 0;">ΑΦΜ:</td>
+            <td style="color: #111827; padding: 4px 0;">${ownerTaxId}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #374151; padding: 4px 0;">ΤΗΛΕΦΩΝΟ:</td>
+            <td style="color: #111827; padding: 4px 0;">${ownerPhone}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #374151; padding: 4px 0;">ΔΙΕΥΘΥΝΣΗ:</td>
+            <td style="color: #111827; padding: 4px 0;">${ownerAddress}</td>
+          </tr>
+        </table>
       </div>
 
       <!-- Charter Info -->
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 15px;">
-        <tr>
-          <td width="100" style="font-weight: bold; color: #374151; padding: 6px 0;">BOAT:</td>
-          <td style="color: #111827; padding: 6px 0;">${vesselName}${vesselModel ? ' ' + vesselModel : ''}</td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; color: #374151; padding: 6px 0;">FROM:</td>
-          <td style="color: #111827; padding: 6px 0;">${formatDate(charter.startDate || '')}</td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; color: #374151; padding: 6px 0;">DEPARTURE:</td>
-          <td style="color: #111827; padding: 6px 0;">${charter.departure || charter.checkinLocation || 'ALIMOS MARINA'}</td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; color: #374151; padding: 6px 0;">TILL:</td>
-          <td style="color: #111827; padding: 6px 0;">${formatDate(charter.endDate || '')}</td>
-        </tr>
-        <tr>
-          <td style="font-weight: bold; color: #374151; padding: 6px 0;">ARRIVAL:</td>
-          <td style="color: #111827; padding: 6px 0;">${charter.arrival || charter.checkoutLocation || 'ALIMOS MARINA'}</td>
-        </tr>
-      </table>
+      <div style="background-color: #ffffff; border: 2px solid #1e3a5f; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+        <div style="font-size: 14px; font-weight: bold; color: #1e3a5f; margin-bottom: 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">ΣΤΟΙΧΕΙΑ ΝΑΥΛΟΥ</div>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="120" style="font-weight: bold; color: #374151; padding: 6px 0;">ΚΩΔΙΚΟΣ:</td>
+            <td style="color: #111827; padding: 6px 0;">${charterCode}/${year}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #374151; padding: 6px 0;">ΣΚΑΦΟΣ:</td>
+            <td style="color: #111827; padding: 6px 0;">${vesselName}${vesselModel ? ' ' + vesselModel : ''}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Period Info -->
+      <div style="background-color: #ffffff; border: 2px solid #1e3a5f; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+        <div style="font-size: 14px; font-weight: bold; color: #1e3a5f; margin-bottom: 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">ΠΕΡΙΟΔΟΣ ΝΑΥΛΟΥ</div>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="120" style="font-weight: bold; color: #374151; padding: 6px 0;">CHECK-IN:</td>
+            <td style="color: #111827; padding: 6px 0;">${formatDate(charter.startDate || '')} - ${charter.departure || charter.checkinLocation || 'ALIMOS MARINA'}</td>
+          </tr>
+          <tr>
+            <td style="font-weight: bold; color: #374151; padding: 6px 0;">CHECK-OUT:</td>
+            <td style="color: #111827; padding: 6px 0;">${formatDate(charter.endDate || '')} - ${charter.arrival || charter.checkoutLocation || 'ALIMOS MARINA'}</td>
+          </tr>
+        </table>
+      </div>
 
       <!-- Financial Section -->
       <div class="financial-section">
@@ -393,24 +445,45 @@ export const generateOwnerCharterEmailHTML = (
         <div class="owner-box">${ownerCompany}</div>
 
         <!-- Total Row -->
-        <div class="total-row">
-          <span>WILL RECEIVE IN CASH</span>
-          <span>€${netIncome.toFixed(2)}</span>
-        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 15px;">
+          <tr style="background-color: #10B981; color: white; border-radius: 6px;">
+            <td style="padding: 15px; font-size: 18px; text-align: left; border-radius: 6px 0 0 6px;">WILL RECEIVE IN CASH</td>
+            <td style="padding: 15px; font-size: 18px; text-align: right; font-weight: bold; border-radius: 0 6px 6px 0;">€${netIncome.toLocaleString('el-GR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          </tr>
+        </table>
       </div>
 
-      <!-- Status Bar -->
-      <div class="status-bar" style="background-color: ${statusInfo.bgColor}; color: ${statusInfo.textColor};">
-        Status: ${statusInfo.text}
+      <!-- EMAIL 1: Option - GREEN button "ΑΠΟΔΟΧΗ ΝΑΥΛΟΥ" -->
+      ${(currentStatus === 'Option' || currentStatus === 'option' || currentStatus === 'new_charter' || currentStatus === 'Pending' || currentStatus === 'pending') ? `
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://yachtmanagementsuite.com/email/accept-charter?code=${encodeURIComponent(charter.code || charter.charterCode || '')}&action=accept"
+           style="display: inline-block; background-color: #10B981; color: white; padding: 15px 40px;
+                  font-size: 18px; font-weight: bold; text-decoration: none; border-radius: 8px;
+                  box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          ✅ ΑΠΟΔΟΧΗ ΝΑΥΛΟΥ
+        </a>
       </div>
+      ` : ''}
+
+      <!-- EMAIL 3: Pending Final Confirmation - GREEN button "ΚΛΙΚ ΓΙΑ ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ" -->
+      ${(currentStatus === 'Pending Final Confirmation' || currentStatus === 'pending_final_confirmation') ? `
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="https://yachtmanagementsuite.com/email/accept-charter?code=${encodeURIComponent(charter.code || charter.charterCode || '')}&action=accept"
+           style="display: inline-block; background-color: #10B981; color: white; padding: 15px 40px;
+                  font-size: 18px; font-weight: bold; text-decoration: none; border-radius: 8px;
+                  box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          👆 ΚΛΙΚ ΓΙΑ ΤΕΛΙΚΗ ΕΠΙΒΕΒΑΙΩΣΗ
+        </a>
+      </div>
+      ` : ''}
+
     </div>
 
     <!-- Footer Section -->
     <div class="footer-section">
-      <p class="footer-text">${footerText}</p>
-      <p class="footer-text">Παρακαλώ πολύ επιβεβαιώστε για την λήψη του email.</p>
-      <p class="thank-you">Ευχαριστούμε Πολύ</p>
-      <p class="thank-you">${COMPANY_INFO.name}</p>
+      <p class="footer-text" style="font-size: 15px; color: #374151; margin-bottom: 20px;">${footerText}</p>
+      <p class="thank-you" style="font-size: 18px; color: #1e3a5f; margin-bottom: 5px;">Ευχαριστούμε πολύ!</p>
+      <p style="font-size: 14px; color: #6b7280;">${COMPANY_INFO.name}</p>
     </div>
 
     <!-- Page Footer -->
@@ -435,24 +508,36 @@ export const sendOwnerCharterEmail = async (
   owner?: OwnerData,
   status?: string
 ): Promise<boolean> => {
+  console.log('🔥 sendOwnerCharterEmail CALLED');
+  console.log('🔥 Input status:', status);
+  console.log('🔥 Charter code:', charter?.code);
+  console.log('🔥 Charter status:', charter?.status);
+  console.log('🔥 Boat:', boat?.name, boat?.id);
+  console.log('🔥 Owner email:', owner?.email);
+
   try {
     const charterCode = charter.code || charter.charterCode || 'N/A';
     const year = new Date().getFullYear();
     const currentStatus = status || charter.status || 'Option';
     const ownerCompany = owner?.company || owner?.name || owner?.ownerCompany || boat.ownerCompany || 'OWNER';
 
+    console.log('🔥 Final currentStatus:', currentStatus);
+    console.log('🔥 charterCode:', charterCode);
+
     // Generate HTML email
     const htmlContent = generateOwnerCharterEmailHTML(charter, boat, owner, currentStatus);
 
-    // Recipients
-    const recipients = [
+    // Recipients - always include company emails
+    const recipients: string[] = [
       COMPANY_INFO.emails.info,
       COMPANY_INFO.emails.charter
     ];
 
-    // Add owner email if provided
-    if (owner?.email) {
-      recipients.push(owner.email);
+    // Add owner email from multiple possible sources (avoid duplicates)
+    const ownerEmail = owner?.email || charter.ownerEmail || boat.ownerEmail;
+    if (ownerEmail && !recipients.includes(ownerEmail)) {
+      recipients.push(ownerEmail);
+      console.log('📧 Added owner email to recipients:', ownerEmail);
     }
 
     // Email subject based on status
@@ -491,32 +576,55 @@ export const sendOwnerCharterEmail = async (
       netIncome: netIncome
     };
 
+    console.log('📧 ========== EMAIL SEND START ==========');
     console.log('📧 Sending HTML email to:', recipients);
     console.log('📧 Subject:', subject);
+    console.log('📧 EMAIL_API_URL:', EMAIL_API_URL);
+    console.log('📧 Payload action/status:', emailPayload.action);
+    console.log('📧 Payload keys:', Object.keys(emailPayload));
 
-    const response = await fetch(EMAIL_API_URL, {
-      method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(emailPayload)
-    });
+    try {
+      console.log('📧 Starting fetch request...');
+      const response = await fetch(EMAIL_API_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(emailPayload)
+      });
 
-    console.log('📧 API Response status:', response.status);
+      console.log('📧 Fetch completed. Response status:', response.status);
+      console.log('📧 Response ok:', response.ok);
+      console.log('📧 Response statusText:', response.statusText);
 
-    if (!response.ok) {
-      const responseText = await response.text();
-      console.error('📧 API Error:', response.status, responseText);
+      if (!response.ok) {
+        const responseText = await response.text();
+        console.error('📧 ❌ API Error:', response.status, responseText);
+        console.log('📧 ========== EMAIL SEND FAILED ==========');
+        return false;
+      }
+
+      const responseData = await response.text();
+      console.log('📧 Response data:', responseData);
+      console.log('📧 ✅ HTML email sent successfully!');
+      console.log('📧 ========== EMAIL SEND SUCCESS ==========');
+      return true;
+
+    } catch (fetchError) {
+      console.error('📧 ❌ Fetch error:', fetchError);
+      console.error('📧 Fetch error name:', fetchError.name);
+      console.error('📧 Fetch error message:', fetchError.message);
+      console.log('📧 ========== EMAIL SEND FETCH ERROR ==========');
       return false;
     }
 
-    console.log('📧 ✅ HTML email sent successfully!');
-    return true;
-
   } catch (error) {
-    console.error('📧 Email send error:', error);
+    console.error('📧 ❌ Email send error:', error);
+    console.error('📧 Error name:', error.name);
+    console.error('📧 Error message:', error.message);
+    console.log('📧 ========== EMAIL SEND ERROR ==========');
     return false;
   }
 };
