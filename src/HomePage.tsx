@@ -5,7 +5,7 @@ import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
 import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
-import { codeMatches } from './utils/searchUtils';
+import { codeMatches, parseSearchDate, dateMatches } from './utils/searchUtils';
 
 // 🎵 MUSIC RADIO LINKS
 const MUSIC_RADIO_LINKS = {
@@ -47,13 +47,30 @@ export default function HomePage() {
   const isLoggedIn = !!currentUser;
   const isAdmin = currentUser?.role === 'ADMIN';
 
-  // Check booking status from localStorage (case-insensitive search)
+  // Check booking status from localStorage (case-insensitive search or by date)
   const checkBookingStatus = (bookingCode: string) => {
     try {
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
 
-      // Find matching booking key case-insensitively
-      const matchingKey = Object.keys(bookings).find(key => codeMatches(key, bookingCode));
+      // Check if search is a date
+      const searchDate = parseSearchDate(bookingCode);
+
+      let matchingKey: string | undefined;
+
+      if (searchDate) {
+        // Search by date - find booking where startDate or endDate matches
+        matchingKey = Object.keys(bookings).find(key => {
+          const booking = bookings[key];
+          if (!booking?.bookingData) return false;
+          const { startDate, endDate, checkInDate, checkOutDate } = booking.bookingData;
+          return dateMatches(startDate || checkInDate, searchDate) ||
+                 dateMatches(endDate || checkOutDate, searchDate);
+        });
+      } else {
+        // Search by booking code (case-insensitive)
+        matchingKey = Object.keys(bookings).find(key => codeMatches(key, bookingCode));
+      }
+
       if (!matchingKey) {
         return null;
       }
