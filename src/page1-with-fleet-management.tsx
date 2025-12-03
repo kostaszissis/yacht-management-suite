@@ -9,6 +9,7 @@ import { DataContext } from './App';
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import authService from './authService';
 import { getVessels, getBookingsHybrid, getBookingHybrid, saveBookingHybrid } from './services/apiService';
+import { saveBookingSync, getBookingSync, syncToPage1Format, page1ToSyncFormat } from './utils/bookingSyncUtils';
 
 // 🔥 SIGNATURE COMPRESSION FUNCTION
 const compressSignature = (base64Image) => {
@@ -431,6 +432,52 @@ export default function Page1() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // 🔥 TWO-WAY SYNC: Load sync data from Fleet Management on mount
+  useEffect(() => {
+    const syncData = getBookingSync();
+    if (syncData && syncData.lastUpdatedBy === 'fleetManagement') {
+      const page1Data = syncToPage1Format(syncData);
+      if (page1Data) {
+        console.log('📥 PAGE 1: Loading sync data from Fleet Management:', page1Data);
+        // Only populate fields that are empty in current form
+        setForm(prev => ({
+          ...prev,
+          bookingNumber: prev.bookingNumber || page1Data.bookingNumber,
+          vesselName: prev.vesselName || page1Data.vesselName,
+          checkInDate: prev.checkInDate || page1Data.checkInDate,
+          checkOutDate: prev.checkOutDate || page1Data.checkOutDate,
+          skipperFirstName: prev.skipperFirstName || page1Data.skipperFirstName,
+          skipperLastName: prev.skipperLastName || page1Data.skipperLastName,
+          skipperAddress: prev.skipperAddress || page1Data.skipperAddress,
+          skipperEmail: prev.skipperEmail || page1Data.skipperEmail,
+          skipperPhone: prev.skipperPhone || page1Data.skipperPhone,
+        }));
+      }
+    }
+  }, []);
+
+  // 🔥 TWO-WAY SYNC: Save form data to sync storage whenever it changes
+  useEffect(() => {
+    // Debug: Log exactly what we're trying to save
+    console.log('🔄 PAGE1 SYNC - Form values:', {
+      bookingNumber: form.bookingNumber,
+      vesselName: form.vesselName,
+      checkInDate: form.checkInDate,
+      checkOutDate: form.checkOutDate,
+      skipperFirstName: form.skipperFirstName,
+      skipperLastName: form.skipperLastName
+    });
+
+    // Only save if we have meaningful data
+    if (form.bookingNumber || form.vesselName || form.checkInDate) {
+      const syncData = page1ToSyncFormat(form);
+      console.log('🔄 PAGE1 SYNC - Converted syncData:', syncData);
+      saveBookingSync(syncData, 'page1');
+    }
+  }, [form.bookingNumber, form.vesselName, form.checkInDate, form.checkOutDate,
+      form.skipperFirstName, form.skipperLastName, form.skipperAddress,
+      form.skipperEmail, form.skipperPhone]);
 
   useEffect(() => {
     const newHistory = { ...history };

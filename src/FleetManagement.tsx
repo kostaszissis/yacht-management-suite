@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import authService, { getOwnerByBoatId } from './authService';
 import AdminDashboard from './AdminDashboard';
 import { codeMatches, textMatches } from './utils/searchUtils';
+import { saveBookingSync, getBookingSync, syncToFleetFormat, fleetToSyncFormat } from './utils/bookingSyncUtils';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
 import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking } from './services/apiService';
@@ -4508,6 +4509,53 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   const canEditCharters = (authService.isAdmin() || authService.isBooking()) && !isOwnerUser;
   const canViewFinancials = authService.canViewFinancials() || isOwnerUser;
   const canAcceptCharter = isOwnerUser || authService.isAdmin();
+
+  // 🔥 TWO-WAY SYNC: Load sync data from Page 1 when add form opens
+  useEffect(() => {
+    if (showAddForm) {
+      const syncData = getBookingSync();
+      if (syncData && syncData.lastUpdatedBy === 'page1') {
+        const fleetData = syncToFleetFormat(syncData);
+        if (fleetData) {
+          console.log('📥 FLEET: Loading sync data from Page 1:', fleetData);
+          // Only populate fields that are empty in current form
+          setNewCharter(prev => ({
+            ...prev,
+            code: prev.code || fleetData.code,
+            startDate: prev.startDate || fleetData.startDate,
+            endDate: prev.endDate || fleetData.endDate,
+            skipperFirstName: prev.skipperFirstName || fleetData.skipperFirstName,
+            skipperLastName: prev.skipperLastName || fleetData.skipperLastName,
+            skipperAddress: prev.skipperAddress || fleetData.skipperAddress,
+            skipperEmail: prev.skipperEmail || fleetData.skipperEmail,
+            skipperPhone: prev.skipperPhone || fleetData.skipperPhone,
+          }));
+        }
+      }
+    }
+  }, [showAddForm]);
+
+  // 🔥 TWO-WAY SYNC: Save newCharter data to sync storage whenever it changes
+  useEffect(() => {
+    // Debug: Log exactly what we're trying to save
+    console.log('🔄 FLEET SYNC - Values:', {
+      showAddForm,
+      boatName: boat?.name,
+      code: newCharter.code,
+      startDate: newCharter.startDate,
+      endDate: newCharter.endDate,
+      skipperFirstName: newCharter.skipperFirstName
+    });
+
+    // Only save if we have meaningful data and form is open
+    if (showAddForm && (newCharter.code || newCharter.startDate)) {
+      const syncData = fleetToSyncFormat(newCharter, boat?.name);
+      console.log('🔄 FLEET SYNC - Converted syncData:', syncData);
+      saveBookingSync(syncData, 'fleetManagement');
+    }
+  }, [showAddForm, newCharter.code, newCharter.startDate, newCharter.endDate,
+      newCharter.skipperFirstName, newCharter.skipperLastName, newCharter.skipperAddress,
+      newCharter.skipperEmail, newCharter.skipperPhone, boat?.name]);
 
   const handleFormChange = (e) => {
     const { name, value, type } = e.target;
