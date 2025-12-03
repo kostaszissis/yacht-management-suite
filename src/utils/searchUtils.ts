@@ -42,32 +42,28 @@ export const textMatches = (source: string, search: string): boolean => {
 // - "charter party no 4" matches "CHARTER PARTY NO 4"
 // - "35" matches "charter party no 35"
 // - Handles leading zeros: "05" matches "05" and "5" matches "05"
+// - IMPORTANT: "21" should NOT match "2" or "1"
 export const codeMatches = (source: string, search: string): boolean => {
   if (!search || !source) return !search;
 
   const sourceUpper = source.toUpperCase().trim();
   const searchUpper = search.toUpperCase().trim();
 
-  // 1. Direct case-insensitive match (includes)
-  if (sourceUpper.includes(searchUpper)) {
+  // 1. Exact match (case-insensitive)
+  if (sourceUpper === searchUpper) {
     return true;
   }
 
-  // 2. Source contains the search query
-  if (searchUpper.includes(sourceUpper)) {
-    return true;
-  }
-
-  // 3. Extract codes and compare
+  // 2. Extract numeric codes and compare EXACTLY
   const sourceCode = extractCode(source);
   const searchCode = extractCode(search);
 
-  // Exact code match after extraction
+  // Exact code match after extraction (e.g., "21" === "21")
   if (sourceCode && searchCode && sourceCode === searchCode) {
     return true;
   }
 
-  // 4. Handle leading zeros: "5" should match "05", "005", etc.
+  // 3. Handle leading zeros: "5" should match "05", "005", etc.
   if (sourceCode && searchCode) {
     const sourceNum = sourceCode.replace(/^0+/, '') || '0';
     const searchNum = searchCode.replace(/^0+/, '') || '0';
@@ -76,16 +72,21 @@ export const codeMatches = (source: string, search: string): boolean => {
     }
   }
 
-  // 5. Partial code match (search code is contained in source code)
-  if (sourceCode && searchCode && sourceCode.includes(searchCode)) {
-    return true;
+  // 4. Check if search is contained in source WITH word boundaries
+  // "21" should match "CHARTER PARTY NO 21" but NOT "CHARTER PARTY NO 210"
+  // "2" should match "CHARTER PARTY NO 2" but NOT "CHARTER PARTY NO 21"
+  if (searchCode && sourceUpper.includes(searchCode)) {
+    // Check word boundary - the number should be at end or followed by non-digit
+    const regex = new RegExp(`\\b${searchCode}\\b`, 'i');
+    if (regex.test(sourceUpper)) {
+      return true;
+    }
   }
 
-  // 6. Word-by-word partial match for multi-word searches
-  const searchWords = searchUpper.split(/\s+/).filter(w => w.length > 0);
-  if (searchWords.length > 1) {
-    const allWordsFound = searchWords.every(word => sourceUpper.includes(word));
-    if (allWordsFound) {
+  // 5. Check if source code is contained in search WITH word boundaries
+  if (sourceCode && searchUpper.includes(sourceCode)) {
+    const regex = new RegExp(`\\b${sourceCode}\\b`, 'i');
+    if (regex.test(searchUpper)) {
       return true;
     }
   }

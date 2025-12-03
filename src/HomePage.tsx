@@ -51,13 +51,98 @@ export default function HomePage() {
   // Check booking status from API (case-insensitive search or by date)
   const checkBookingStatus = async (bookingCode: string) => {
     try {
-      // Fetch bookings from API
-      const response = await fetch('/api/bookings.php');
-      if (!response.ok) {
-        console.error('Failed to fetch bookings from API');
-        return null;
+      // Try to fetch bookings from API first
+      let apiResponse = null;
+      try {
+        const response = await fetch('/api/bookings.php');
+        if (response.ok) {
+          const text = await response.text();
+          // Check if response is JSON (not HTML)
+          if (text.startsWith('{') || text.startsWith('[')) {
+            apiResponse = JSON.parse(text);
+          }
+        }
+      } catch (apiError) {
+        console.log('API not available, using localStorage');
       }
-      const apiResponse = await response.json();
+
+      // Fallback to localStorage if API failed
+      if (!apiResponse) {
+        console.log('📦 Using localStorage fallback');
+        const localBookings: Record<string, any> = {};
+
+        // First, get all boats from fleet storage to get vessel names
+        const fleetBoats: any[] = [];
+        try {
+          // FleetManagement uses 'app_fleet_vessels' key
+          const fleetData = localStorage.getItem('app_fleet_vessels');
+          console.log('📦 Fleet vessels data:', fleetData ? 'found' : 'not found');
+          if (fleetData) {
+            const boats = JSON.parse(fleetData);
+            console.log('🚤 Boats loaded:', boats?.length || 0, 'boats');
+            if (Array.isArray(boats)) {
+              fleetBoats.push(...boats);
+              boats.forEach((b: any) => console.log('  - Boat:', b.id, '=', b.name));
+            }
+          }
+        } catch (e) {
+          console.log('No app_fleet_vessels');
+        }
+
+        // Get all localStorage keys for charters (fleet_BOATID_ΝΑΥΛΑ pattern)
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+
+          // Match FleetManagement charter storage pattern: fleet_BOATID_ΝΑΥΛΑ
+          if (key && key.includes('_ΝΑΥΛΑ')) {
+            try {
+              const data = JSON.parse(localStorage.getItem(key) || '[]');
+              // Extract boat ID from key (fleet_BOATID_ΝΑΥΛΑ)
+              const boatIdMatch = key.match(/fleet_(.+)_ΝΑΥΛΑ/);
+              const boatId = boatIdMatch ? boatIdMatch[1] : '';
+
+              // Find boat name from fleet
+              const boat = fleetBoats.find((b: any) => b.id === boatId);
+              const boatName = boat?.name || boatId;
+
+              if (Array.isArray(data)) {
+                data.forEach((charter: any) => {
+                  const code = charter.code || charter.bookingCode || charter.charterCode;
+                  if (code) {
+                    console.log('📋 Found charter:', code, 'on vessel:', boatName);
+                    localBookings[code] = {
+                      bookingData: {
+                        ...charter,
+                        vesselName: charter.vesselName || charter.boatName || boatName,
+                        boatName: boatName
+                      }
+                    };
+                  }
+                });
+              }
+            } catch (e) {
+              console.log('Error parsing', key);
+            }
+          }
+
+          // Also check booking_ pattern from Page1
+          if (key && key.startsWith('booking_')) {
+            try {
+              const data = JSON.parse(localStorage.getItem(key) || '{}');
+              const code = data.bookingCode || data.bookingNumber || key.replace('booking_', '');
+              if (code && !localBookings[code]) {
+                localBookings[code] = { bookingData: data };
+              }
+            } catch (e) {
+              // Skip
+            }
+          }
+        }
+
+        console.log('📋 LocalStorage bookings found:', Object.keys(localBookings).length);
+        console.log('📋 Booking codes:', Object.keys(localBookings));
+        apiResponse = { bookings: Object.values(localBookings).map(b => b.bookingData) };
+      }
 
       // Handle both array format and { bookings: {...} } object format from API
       const bookings: Record<string, any> = {};
@@ -119,13 +204,37 @@ export default function HomePage() {
       }
 
       const booking = bookings[matchingKey];
+      console.log('🔍 Found booking for key:', matchingKey);
+      console.log('🔍 Booking object:', booking);
+      console.log('🔍 BookingData:', booking?.bookingData);
+
       if (!booking || !booking.bookingData) {
+        console.log('❌ No booking data found');
         return null;
       }
 
       const bookingData = booking.bookingData;
-      const checkInDate = new Date(bookingData.startDate || bookingData.checkInDate);
-      const checkOutDate = new Date(bookingData.endDate || bookingData.checkOutDate);
+      console.log('📋 bookingData.code:', bookingData.code);
+      console.log('📋 bookingData.vesselName:', bookingData.vesselName);
+      console.log('📋 bookingData.boatName:', bookingData.boatName);
+      console.log('📋 bookingData.startDate:', bookingData.startDate);
+      console.log('📋 bookingData.endDate:', bookingData.endDate);
+
+      // Normalize field names (FleetManagement uses startDate/endDate, Page1 uses checkInDate/checkOutDate)
+      const startDateStr = bookingData.startDate || bookingData.checkInDate;
+      const endDateStr = bookingData.endDate || bookingData.checkOutDate;
+
+      // Handle invalid or missing dates
+      const checkInDate = startDateStr ? new Date(startDateStr) : new Date();
+      const checkOutDate = endDateStr ? new Date(endDateStr) : new Date();
+
+      // Normalize vessel name (FleetManagement uses boatName, vesselName, or vessel)
+      if (!bookingData.vesselName && bookingData.boatName) {
+        bookingData.vesselName = bookingData.boatName;
+      }
+      if (!bookingData.vesselName && bookingData.vessel) {
+        bookingData.vesselName = bookingData.vessel;
+      }
       const today = new Date();
 
       checkInDate.setHours(0, 0, 0, 0);
@@ -188,6 +297,9 @@ export default function HomePage() {
       setShowAdminModal(false);
       setAdminPassword('');
       authService.logActivity('login_from_homepage', adminPassword);
+
+      // 🔥 FIX: Navigate to /admin page after successful login
+      navigate('/admin');
     } else {
       alert(language === 'en' ? 'Wrong code!' : 'Λάθος κωδικός!');
       setAdminPassword('');
@@ -754,7 +866,10 @@ export default function HomePage() {
         {bookingStatus && !isAdmin && (
           <div style={styles.bookingBanner}>
             <div style={{ fontSize: '24px', fontWeight: 800, color: '#0369a1', marginBottom: '8px' }}>
-              {bookingStatus.bookingCode}
+              {bookingStatus.bookingData?.code || bookingStatus.bookingData?.bookingCode || bookingStatus.bookingCode}
+            </div>
+            <div style={{ fontSize: '15px', color: '#0c4a6e', fontWeight: 600, marginBottom: '8px' }}>
+              🚤 {bookingStatus.bookingData?.vesselName || bookingStatus.bookingData?.boatName || 'Vessel'}
             </div>
             <div style={{ fontSize: '13px', color: '#64748b' }}>
               📅 Check-in: {formatDate(bookingStatus.checkInDate)} | Check-out: {formatDate(bookingStatus.checkOutDate)}

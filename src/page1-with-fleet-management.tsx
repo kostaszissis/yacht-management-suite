@@ -378,6 +378,10 @@ export default function Page1() {
   const [catName, setCatName] = useState("");
   const [vesselCat, setVesselCat] = useState("");
   const [vesselName, setVesselName] = useState("");
+
+  // 🔥 NEW: Validation error states
+  const [bookingCodeError, setBookingCodeError] = useState('');
+  const [doubleBookingError, setDoubleBookingError] = useState('');
 // 🔥 AUTO-LOAD booking from HomePage
   useEffect(() => {
     if (location.state?.bookingCode) {
@@ -678,59 +682,77 @@ export default function Page1() {
       .trim(); // Final trim
   };
 
-  const handleChange = (e) => {
+  const handleChange = async (e) => {
     const { name, value } = e.target;
-    
+
     if (mode === 'out' && name !== 'mode') {
       return;
     }
-    
+
     if (name === 'checkOutDate' && value) {
       if (form.checkInDate && value < form.checkInDate) {
-        alert(lang === 'el' ? 
-          'Η ημερομηνία Check-out δεν μπορεί να είναι πριν από το Check-in!' : 
+        alert(lang === 'el' ?
+          'Η ημερομηνία Check-out δεν μπορεί να είναι πριν από το Check-in!' :
           'Check-out date cannot be before Check-in date!');
         return;
       }
+      // Check double booking when checkout date changes
+      if (form.vesselName && form.checkInDate && value) {
+        await checkDoubleBooking(form.vesselName, form.checkInDate, value);
+      }
     }
-    
+
     if (name === 'checkInDate' && value) {
       if (form.checkOutDate && value > form.checkOutDate) {
-        setForm(prev => ({ 
-          ...prev, 
+        setForm(prev => ({
+          ...prev,
           [name]: value,
           checkOutDate: '',
           checkOutTime: ''
         }));
-        alert(lang === 'el' ? 
-          'Το Check-out επαναφέρθηκε γιατί ήταν πριν το νέο Check-in!' : 
+        alert(lang === 'el' ?
+          'Το Check-out επαναφέρθηκε γιατί ήταν πριν το νέο Check-in!' :
           'Check-out was reset because it was before the new Check-in!');
         return;
       }
+      // Check double booking when checkin date changes
+      if (form.vesselName && value && form.checkOutDate) {
+        await checkDoubleBooking(form.vesselName, value, form.checkOutDate);
+      }
     }
-    
+
     if (name === 'vesselName' && value) {
       const vesselId = value.toLowerCase()
         .replace(/\s+/g, '-')
         .replace('sun-odyssey', 'so')
         .replace(/\./g, '');
-      
+
       console.log('🔥 PAGE 1: Setting vessel ID:', vesselId);
       localStorage.setItem('selectedVessel', vesselId);
+
+      // Check double booking when vessel changes
+      if (value && form.checkInDate && form.checkOutDate) {
+        await checkDoubleBooking(value, form.checkInDate, form.checkOutDate);
+      }
     }
-    
+
     if (name === 'bookingNumber' && value) {
       setCurrentBookingNumber(value);
-      
+
+      // 🔥 NEW: Check if booking number exists in API (not just localStorage)
+      if (value.trim()) {
+        await checkDuplicateBookingCode(value.trim());
+      }
+
       // 🔥 CHECK: Is this booking number already used?
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
       const normalizedValue = normalizeBookingNumber(value);
-      
+
       // Check against all existing bookings (normalized)
       let foundDuplicate = null;
       for (const [existingBookingNumber, bookingData] of Object.entries(bookings)) {
         const normalizedExisting = normalizeBookingNumber(existingBookingNumber);
-        
+
         // If normalized versions match AND it's not the current booking
         if (normalizedExisting === normalizedValue && existingBookingNumber !== currentBookingNumber) {
           foundDuplicate = {
@@ -740,7 +762,7 @@ export default function Page1() {
           break;
         }
       }
-      
+
       if (foundDuplicate) {
         setDuplicateBooking(foundDuplicate);
       } else {
@@ -748,9 +770,94 @@ export default function Page1() {
       }
     } else if (name === 'bookingNumber' && !value) {
       setDuplicateBooking(null);
+      setBookingCodeError('');
     }
-    
+
     setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  // 🔥 NEW: Check if booking code already exists in API
+  const checkDuplicateBookingCode = async (code) => {
+    try {
+      const response = await fetch('/api/bookings.php');
+      if (!response.ok) {
+        console.error('Failed to fetch bookings');
+        return;
+      }
+      const apiResponse = await response.json();
+      const bookings = apiResponse.bookings || [];
+
+      // Check if code exists (case-insensitive), excluding current booking
+      const exists = bookings.some(booking => {
+        const existingCode = booking.bookingCode || booking.charterCode || booking.code;
+        // Skip if this is the current booking being edited
+        if (existingCode === currentBookingNumber) return false;
+        return existingCode && existingCode.toLowerCase() === code.toLowerCase();
+      });
+
+      if (exists) {
+        setBookingCodeError(lang === 'el' ?
+          'Υπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party!' :
+          'A charter with the same charter party number already exists!');
+      } else {
+        setBookingCodeError('');
+      }
+    } catch (error) {
+      console.error('Error checking duplicate booking code:', error);
+    }
+  };
+
+  // 🔥 NEW: Check if vessel is already booked for overlapping dates
+  const checkDoubleBooking = async (vessel, startDate, endDate) => {
+    if (!vessel || !startDate || !endDate) {
+      setDoubleBookingError('');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/bookings.php');
+      if (!response.ok) {
+        console.error('Failed to fetch bookings');
+        return;
+      }
+      const apiResponse = await response.json();
+      const bookings = apiResponse.bookings || [];
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      // Check for overlapping bookings with same vessel
+      const hasOverlap = bookings.some(booking => {
+        const bookingVessel = booking.vesselName || booking.boatName;
+        const bookingStart = booking.startDate || booking.checkInDate;
+        const bookingEnd = booking.endDate || booking.checkOutDate;
+
+        if (!bookingVessel || !bookingStart || !bookingEnd) return false;
+
+        // Skip if this is the current booking being edited
+        const bookingCode = booking.bookingCode || booking.charterCode || booking.code;
+        if (bookingCode === currentBookingNumber || bookingCode === form.bookingNumber) return false;
+
+        // Check if vessel matches (case-insensitive)
+        if (bookingVessel.toLowerCase() !== vessel.toLowerCase()) return false;
+
+        const bStart = new Date(bookingStart);
+        const bEnd = new Date(bookingEnd);
+
+        // Check for overlap: (start1 <= end2) AND (end1 >= start2)
+        return start <= bEnd && end >= bStart;
+      });
+
+      if (hasOverlap) {
+        setDoubleBookingError(lang === 'el' ?
+          'Αυτό το σκάφος είναι ήδη κρατημένο για αυτές τις ημερομηνίες!' :
+          'This vessel is already booked for these dates!');
+      } else {
+        setDoubleBookingError('');
+      }
+    } catch (error) {
+      console.error('Error checking double booking:', error);
+    }
   };
 
   const getFilteredSuggestions = (fieldName, value) => {
@@ -866,6 +973,29 @@ export default function Page1() {
     }
   };
 
+  // Handle Enter key to move to next input field
+  const handleFormKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+
+      // Get all form inputs and selects
+      const form = e.target.form;
+      if (!form) return;
+
+      const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), select, textarea'));
+      const currentIndex = inputs.indexOf(e.target);
+
+      if (currentIndex < inputs.length - 1) {
+        // Focus next input
+        inputs[currentIndex + 1].focus();
+      } else {
+        // Last input - trigger save button
+        const saveButton = form.querySelector('button[type="button"]');
+        if (saveButton) saveButton.click();
+      }
+    }
+  };
+
   const validateAndScroll = () => {
     if (!form.bookingNumber) {
       bookingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -873,7 +1003,15 @@ export default function Page1() {
       alert(lang === 'el' ? 'Παρακαλώ συμπληρώστε τον αριθμό κράτησης!' : 'Please fill in the booking number!');
       return false;
     }
-    
+
+    // 🔥 NEW: Check for duplicate booking code
+    if (bookingCodeError) {
+      bookingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      highlightElement(bookingRef);
+      alert(bookingCodeError);
+      return false;
+    }
+
     if (!form.vesselCategory || !form.vesselName) {
       vesselRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       highlightElement(vesselRef);
@@ -899,17 +1037,25 @@ export default function Page1() {
     if (form.checkInDate && form.checkOutDate) {
       const checkInDate = new Date(form.checkInDate);
       const checkOutDate = new Date(form.checkOutDate);
-      
+
       if (checkOutDate < checkInDate) {
         checkOutRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         highlightElement(checkOutRef);
-        alert(lang === 'el' 
-          ? '❌ Η ημερομηνία αποβίβασης δεν μπορεί να είναι πριν από την ημερομηνία επιβίβασης!' 
+        alert(lang === 'el'
+          ? '❌ Η ημερομηνία αποβίβασης δεν μπορεί να είναι πριν από την ημερομηνία επιβίβασης!'
           : '❌ Check-out date cannot be before check-in date!');
         return false;
       }
     }
-    
+
+    // 🔥 NEW: Check for double booking
+    if (doubleBookingError) {
+      checkInRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      highlightElement(checkInRef);
+      alert(doubleBookingError);
+      return false;
+    }
+
     if (!form.skipperFirstName || !form.skipperLastName) {
       nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       highlightElement(nameRef);
@@ -1260,12 +1406,13 @@ export default function Page1() {
                 {mode === 'out' && <span className="ml-2 text-sm bg-gray-500 text-white px-2 py-1 rounded">🔒 Read-only in check-out</span>}
               </label>
               <div className="relative">
-                <input 
+                <input
                   ref={bookingInputRef}
-                  aria-label={stripNumber(t.bookingNumber)} 
-                  name="bookingNumber" 
-                  value={form.bookingNumber} 
+                  aria-label={stripNumber(t.bookingNumber)}
+                  name="bookingNumber"
+                  value={form.bookingNumber}
                   onChange={handleChange}
+                  onKeyDown={handleFormKeyDown}
                   disabled={!isEmployee || mode === 'out'}
                   onFocus={() => {
                     if (isEmployee && mode === 'in') {
@@ -1274,16 +1421,29 @@ export default function Page1() {
                     }
                   }}
                   onBlur={() => {
+                    if (form.bookingNumber && form.bookingNumber.trim()) {
+                      checkDuplicateBookingCode(form.bookingNumber.trim());
+                    }
                     setTimeout(() => setShowSuggestions(prev => ({ ...prev, bookingNumber: false })), 200);
                   }}
                   className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${
-                    duplicateBooking 
-                      ? 'border-orange-500 bg-orange-50' 
+                    bookingCodeError || duplicateBooking
+                      ? 'border-red-500 bg-red-50'
                       : filledClass(!!form.bookingNumber)
-                  } ${!isEmployee || mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
-                  placeholder={!isEmployee ? 'Employee login required' : mode === 'out' ? 'Read-only' : (lang==='el' ? 'Πληκτρολογήστε αριθμό κράτησης' : 'Enter booking number')} 
+                  } ${!isEmployee || mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  placeholder={!isEmployee ? 'Employee login required' : mode === 'out' ? 'Read-only' : (lang==='el' ? 'Πληκτρολογήστε αριθμό κράτησης' : 'Enter booking number')}
                 />
-                
+
+                {/* 🔥 NEW: BOOKING CODE ERROR */}
+                {bookingCodeError && (
+                  <div className="mt-3 p-3 bg-red-100 border-2 border-red-500 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">❌</span>
+                      <p className="font-bold text-red-800">{bookingCodeError}</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* 🔥 DUPLICATE WARNING */}
                 {duplicateBooking && (
                   <div className="mt-3 p-4 bg-orange-100 border-2 border-orange-500 rounded-lg">
@@ -1352,17 +1512,18 @@ export default function Page1() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <span className="text-sm block mb-1">{t.category}</span>
-                  <select 
-                    aria-label={t.category} 
-                    name="vesselCategory" 
-                    value={form.vesselCategory} 
-                    onChange={(e) => { 
-                      const val = e.target.value; 
-                      setForm({ ...form, vesselCategory: val, vesselName: "" }); 
-                      if (val === 'Catamaran') speak(I18N[lang].cat); 
-                      if (val === 'Monohull') speak(I18N[lang].mono); 
-                    }} 
-                    onFocus={()=>speakLabel(t.category)} 
+                  <select
+                    aria-label={t.category}
+                    name="vesselCategory"
+                    value={form.vesselCategory}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm({ ...form, vesselCategory: val, vesselName: "" });
+                      if (val === 'Catamaran') speak(I18N[lang].cat);
+                      if (val === 'Monohull') speak(I18N[lang].mono);
+                    }}
+                    onKeyDown={handleFormKeyDown}
+                    onFocus={()=>speakLabel(t.category)}
                     disabled={!isEmployee || mode === 'out'}
                     className={`w-full border rounded p-2 transition-all duration-300 ${filledClass(!!form.vesselCategory)} ${!isEmployee || mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
                     <option value="">{t.selectCategory}</option>
@@ -1371,13 +1532,14 @@ export default function Page1() {
                 </div>
                 <div>
                   <span className="text-sm block mb-1">{t.vessel}</span>
-                  <select 
-                    aria-label={t.vessel} 
-                    name="vesselName" 
-                    value={form.vesselName} 
+                  <select
+                    aria-label={t.vessel}
+                    name="vesselName"
+                    value={form.vesselName}
                     onChange={handleChange}
-                    onFocus={()=>speakLabel(t.vessel)} 
-                    className={`w-full border rounded p-2 transition-all duration-300 ${filledClass(!!form.vesselName)} ${!isEmployee || mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
+                    onKeyDown={handleFormKeyDown}
+                    onFocus={()=>speakLabel(t.vessel)}
+                    className={`w-full border rounded p-2 transition-all duration-300 ${filledClass(!!form.vesselName)} ${!isEmployee || mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     disabled={!form.vesselCategory || !isEmployee || mode === 'out'}>
                     <option value="">{form.vesselCategory ? t.selectVessel : t.selectCatFirst}</option>
                     {(fleet?.[form.vesselCategory]||[]).map(v => (<option key={v} value={v}>{v}</option>))}
@@ -1402,14 +1564,16 @@ export default function Page1() {
                     {t.dateIn} <span className="text-red-500">*</span>
                     {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
                   </label>
-                  <input 
-                    type="date" 
-                    name="checkInDate" 
-                    value={form.checkInDate} 
-                    onChange={handleChange} 
+                  <input
+                    type="date"
+                    name="checkInDate"
+                    value={form.checkInDate}
+                    onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
+                    min={new Date().toISOString().split('T')[0]}
                     onFocus={()=>speakLabel(t.dateIn)}
                     disabled={mode === 'out'}
-                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.checkInDate)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
+                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.checkInDate)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
                 <div>
@@ -1417,14 +1581,15 @@ export default function Page1() {
                     {t.timeIn} <span className="text-red-500">*</span>
                     {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
                   </label>
-                  <input 
-                    type="time" 
-                    name="checkInTime" 
-                    value={form.checkInTime} 
-                    onChange={handleChange} 
+                  <input
+                    type="time"
+                    name="checkInTime"
+                    value={form.checkInTime}
+                    onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
                     onFocus={()=>speakLabel(t.timeIn)}
                     disabled={mode === 'out'}
-                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.checkInTime)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
+                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.checkInTime)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
               </div>
@@ -1441,15 +1606,16 @@ export default function Page1() {
                     {t.dateOut} <span className="text-red-500">*</span>
                     {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
                   </label>
-                  <input 
-                    type="date" 
-                    name="checkOutDate" 
-                    value={form.checkOutDate} 
-                    onChange={handleChange} 
-                    onFocus={()=>speakLabel(t.dateOut)} 
-                    min={form.checkInDate || undefined}
+                  <input
+                    type="date"
+                    name="checkOutDate"
+                    value={form.checkOutDate}
+                    onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
+                    min={form.checkInDate || new Date().toISOString().split('T')[0]}
+                    onFocus={()=>speakLabel(t.dateOut)}
                     disabled={mode === 'out'}
-                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.checkOutDate)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
+                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.checkOutDate)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
                 <div>
@@ -1457,17 +1623,28 @@ export default function Page1() {
                     {t.timeOut} <span className="text-red-500">*</span>
                     {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
                   </label>
-                  <input 
-                    type="time" 
-                    name="checkOutTime" 
-                    value={form.checkOutTime} 
-                    onChange={handleChange} 
+                  <input
+                    type="time"
+                    name="checkOutTime"
+                    value={form.checkOutTime}
+                    onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
                     onFocus={()=>speakLabel(t.timeOut)}
                     disabled={mode === 'out'}
-                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.checkOutTime)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
+                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.checkOutTime)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
               </div>
+
+              {/* 🔥 NEW: DOUBLE BOOKING ERROR */}
+              {doubleBookingError && (
+                <div className="mt-3 p-3 bg-red-100 border-2 border-red-500 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">❌</span>
+                    <p className="font-bold text-red-800">{doubleBookingError}</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div ref={nameRef} className="border-2 rounded-xl p-4 transition-all duration-300" 
@@ -1481,10 +1658,11 @@ export default function Page1() {
                     {t.firstName} <span className="text-red-500">*</span>
                     {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
                   </label>
-                  <input 
-                    name="skipperFirstName" 
-                    value={form.skipperFirstName} 
+                  <input
+                    name="skipperFirstName"
+                    value={form.skipperFirstName}
                     onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
                     disabled={mode === 'out'}
                     onFocus={() => {
                       speakLabel(t.firstName);
@@ -1493,8 +1671,8 @@ export default function Page1() {
                     onBlur={() => {
                       setTimeout(() => setShowSuggestions({ ...showSuggestions, firstName: false }), 200);
                     }}
-                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.skipperFirstName)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
-                    placeholder={lang==='el' ? 'Όνομα' : 'First Name'} 
+                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.skipperFirstName)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder={lang==='el' ? 'Όνομα' : 'First Name'}
                   />
                   {showSuggestions.firstName && mode === 'in' && (
                     <div className="absolute z-10 w-full bg-white border border-blue-400 rounded mt-1 max-h-40 overflow-y-auto shadow-lg">
@@ -1510,10 +1688,11 @@ export default function Page1() {
                     {t.lastName} <span className="text-red-500">*</span>
                     {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
                   </label>
-                  <input 
-                    name="skipperLastName" 
-                    value={form.skipperLastName} 
+                  <input
+                    name="skipperLastName"
+                    value={form.skipperLastName}
                     onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
                     disabled={mode === 'out'}
                     onFocus={() => {
                       speakLabel(t.lastName);
@@ -1522,8 +1701,8 @@ export default function Page1() {
                     onBlur={() => {
                       setTimeout(() => setShowSuggestions({ ...showSuggestions, lastName: false }), 200);
                     }}
-                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.skipperLastName)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
-                    placeholder={lang==='el' ? 'Επώνυμο' : 'Last Name'} 
+                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.skipperLastName)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder={lang==='el' ? 'Επώνυμο' : 'Last Name'}
                   />
                   {showSuggestions.lastName && mode === 'in' && (
                     <div className="absolute z-10 w-full bg-white border border-blue-400 rounded mt-1 max-h-40 overflow-y-auto shadow-lg">
@@ -1546,10 +1725,11 @@ export default function Page1() {
                 {t.address} <span className="text-red-500">*</span>
                 {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
               </label>
-              <input 
-                name="skipperAddress" 
-                value={form.skipperAddress} 
+              <input
+                name="skipperAddress"
+                value={form.skipperAddress}
                 onChange={handleChange}
+                onKeyDown={handleFormKeyDown}
                 disabled={mode === 'out'}
                 onFocus={() => {
                   speakLabel(t.address);
@@ -1558,8 +1738,8 @@ export default function Page1() {
                 onBlur={() => {
                   setTimeout(() => setShowSuggestions({ ...showSuggestions, address: false }), 200);
                 }}
-                className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.skipperAddress)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
-                placeholder={lang==='el' ? 'Διεύθυνση' : 'Address'} 
+                className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.skipperAddress)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                placeholder={lang==='el' ? 'Διεύθυνση' : 'Address'}
               />
               {showSuggestions.address && mode === 'in' && (
                 <div className="absolute z-10 w-full bg-white border border-blue-400 rounded mt-1 max-h-40 overflow-y-auto shadow-lg">
@@ -1582,11 +1762,12 @@ export default function Page1() {
                     {t.email} <span className="text-red-500">*</span>
                     {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
                   </label>
-                  <input 
-                    type="email" 
-                    name="skipperEmail" 
-                    value={form.skipperEmail} 
+                  <input
+                    type="email"
+                    name="skipperEmail"
+                    value={form.skipperEmail}
                     onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
                     disabled={mode === 'out'}
                     onFocus={() => {
                       speakLabel(t.email);
@@ -1595,8 +1776,8 @@ export default function Page1() {
                     onBlur={() => {
                       setTimeout(() => setShowSuggestions({ ...showSuggestions, email: false }), 200);
                     }}
-                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.skipperEmail)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
-                    placeholder="email@example.com" 
+                    className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.skipperEmail)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder="email@example.com"
                   />
                   {showSuggestions.email && mode === 'in' && (
                     <div className="absolute z-10 w-full bg-white border border-blue-400 rounded mt-1 max-h-40 overflow-y-auto shadow-lg">
@@ -1613,9 +1794,10 @@ export default function Page1() {
                     {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
                   </label>
                   <div className="flex gap-2">
-                    <select 
+                    <select
                       value={form.phoneCountryCode}
                       onChange={(e) => handleCountryCodeChange(e.target.value)}
+                      onKeyDown={handleFormKeyDown}
                       disabled={mode === 'out'}
                       className={`border border-blue-400 rounded p-2 bg-white ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                       style={{ width: "120px" }}
@@ -1627,11 +1809,12 @@ export default function Page1() {
                       ))}
                     </select>
                     <div className="flex-1 relative">
-                      <input 
+                      <input
                         type="tel"
-                        name="skipperPhone" 
-                        value={form.skipperPhone} 
+                        name="skipperPhone"
+                        value={form.skipperPhone}
                         onChange={handleChange}
+                        onKeyDown={handleFormKeyDown}
                         disabled={mode === 'out'}
                         onFocus={() => {
                           speakLabel(t.phone);
@@ -1640,8 +1823,8 @@ export default function Page1() {
                         onBlur={() => {
                           setTimeout(() => setShowSuggestions({ ...showSuggestions, phone: false }), 200);
                         }}
-                        className={`w-full border rounded p-2 transition-all duration-300 ${filledClass(!!form.skipperPhone)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`} 
-                        placeholder={lang==='el' ? '69XXXXXXXX' : 'Phone number'} 
+                        className={`w-full border rounded p-2 transition-all duration-300 ${filledClass(!!form.skipperPhone)} ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                        placeholder={lang==='el' ? '69XXXXXXXX' : 'Phone number'}
                       />
                       {showSuggestions.phone && mode === 'in' && (
                         <div className="absolute z-10 w-full bg-white border border-blue-400 rounded mt-1 max-h-40 overflow-y-auto shadow-lg">

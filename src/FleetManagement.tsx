@@ -4492,7 +4492,17 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
     skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
   });
-  
+
+  // 🔥 NEW: Validation error states
+  const [charterCodeError, setCharterCodeError] = useState('');
+  const [doubleBookingError, setDoubleBookingError] = useState('');
+  const [dateRangeError, setDateRangeError] = useState('');
+
+  // 🔥 NEW: Refs for validation scroll and highlight
+  const charterCodeRef = useRef<HTMLDivElement>(null);
+  const datesRef = useRef<HTMLDivElement>(null);
+  const skipperInfoRef = useRef<HTMLDivElement>(null);
+
   const isOwnerUser = authService.isOwner();
   const canViewCharters = true;
   const canEditCharters = (authService.isAdmin() || authService.isBooking()) && !isOwnerUser;
@@ -4501,13 +4511,361 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
   const handleFormChange = (e) => {
     const { name, value, type } = e.target;
-    
+    console.log('📝 handleFormChange:', { name, value, type });
+
     if (type === 'number') {
       setNewCharter(prev => ({ ...prev, [name]: value === '' ? '' : value }));
     } else if (name === 'startDate' && value) {
       setNewCharter(prev => ({ ...prev, startDate: value, endDate: value }));
+      setDateRangeError('');
+      setDoubleBookingError('');
+    } else if (name === 'endDate' && value) {
+      // Simple date range validation
+      if (newCharter.startDate && value < newCharter.startDate) {
+        setDateRangeError('Η ημερομηνία λήξης δεν μπορεί να είναι πριν από την ημερομηνία έναρξης! / End date cannot be before start date!');
+      } else {
+        setDateRangeError('');
+      }
+      setNewCharter(prev => ({ ...prev, [name]: value }));
+      setDoubleBookingError(''); // Clear double booking error when dates change
+    } else if (name === 'code') {
+      // 🔥 SIMPLIFIED: Just update state, validate only on blur and before save
+      setNewCharter(prev => ({ ...prev, [name]: value }));
+      setCharterCodeError(''); // Clear error when typing
     } else {
       setNewCharter(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  // 🔥 NEW: Highlight element in red for 3 seconds
+  const highlightElement = (ref) => {
+    if (ref && ref.current) {
+      ref.current.style.border = '2px solid red';
+      ref.current.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+      setTimeout(() => {
+        if (ref.current) {
+          ref.current.style.border = '';
+          ref.current.style.backgroundColor = '';
+        }
+      }, 3000);
+    }
+  };
+
+  // 🔥 NEW: Validate required fields and scroll to missing field
+  const validateAndScrollCharter = () => {
+    // Check charter code
+    if (!newCharter.code || !newCharter.code.trim()) {
+      charterCodeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      highlightElement(charterCodeRef);
+      alert('Παρακαλώ συμπληρώστε τον κωδικό ναύλου! / Please fill in the charter code!');
+      return false;
+    }
+
+    // Check if charter code has error (duplicate)
+    if (charterCodeError) {
+      charterCodeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      highlightElement(charterCodeRef);
+      alert(charterCodeError);
+      return false;
+    }
+
+    // Check dates
+    if (!newCharter.startDate || !newCharter.endDate) {
+      datesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      highlightElement(datesRef);
+      alert('Παρακαλώ συμπληρώστε τις ημερομηνίες! / Please fill in the dates!');
+      return false;
+    }
+
+    // Check date range error
+    if (dateRangeError) {
+      datesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      highlightElement(datesRef);
+      alert(dateRangeError);
+      return false;
+    }
+
+    // Check double booking error
+    if (doubleBookingError) {
+      datesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      highlightElement(datesRef);
+      alert(doubleBookingError);
+      return false;
+    }
+
+    return true; // All validations passed
+  };
+
+  // 🔥 NEW: Check for duplicate charter code (returns true if duplicate found)
+  const checkDuplicateOnEnter = (code: string): boolean => {
+    if (!code || !code.trim()) return false;
+
+    const codeToCheck = code.trim();
+    console.log('🔍 Checking duplicate for code:', codeToCheck);
+
+    // Check locally first (items array contains current boat's charters)
+    // 🔥 FIX: Use codeMatches for flexible matching (handles "charter party no 21" vs "21")
+    const localDuplicate = items.some((charter: any) => {
+      const existingCode = charter.code || charter.bookingCode || charter.charterCode;
+      if (!existingCode) return false;
+      const match = codeMatches(existingCode, codeToCheck);
+      if (match) console.log('🔴 Found local duplicate:', existingCode, '≈', codeToCheck);
+      return match;
+    });
+
+    if (localDuplicate) {
+      console.log('❌ Local duplicate found!');
+      return true;
+    }
+
+    // Also check all boats' charters in localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes('_ΝΑΥΛΑ')) {
+        try {
+          const charters = JSON.parse(localStorage.getItem(key) || '[]');
+          const found = charters.some((charter: any) => {
+            const existingCode = charter.code || charter.bookingCode || charter.charterCode;
+            if (!existingCode) return false;
+            // 🔥 FIX: Use codeMatches for flexible matching
+            const match = codeMatches(existingCode, codeToCheck);
+            if (match) console.log('🔴 Found localStorage duplicate:', existingCode, '≈', codeToCheck, 'in', key);
+            return match;
+          });
+          if (found) {
+            console.log('❌ localStorage duplicate found!');
+            return true;
+          }
+        } catch (e) {
+          // Skip
+        }
+      }
+    }
+
+    console.log('✅ No duplicate found');
+    return false;
+  };
+
+  // 🔥 NEW: Check for overlapping dates on same vessel (returns true if overlap found)
+  const checkDoubleBookingOnEnter = (startDate: string, endDate: string): boolean => {
+    if (!startDate || !endDate || !boat) return false;
+
+    const newStart = new Date(startDate);
+    const newEnd = new Date(endDate);
+
+    // Check current boat's charters for overlap
+    const hasOverlap = items.some((charter: any) => {
+      const existingStart = new Date(charter.startDate);
+      const existingEnd = new Date(charter.endDate);
+
+      // Check for overlap: (start1 <= end2) AND (end1 >= start2)
+      return newStart <= existingEnd && newEnd >= existingStart;
+    });
+
+    return hasOverlap;
+  };
+
+  // 🔥 NEW: Handle Enter key to move to next input field
+  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      console.log('⌨️ Enter pressed on field:', e.currentTarget.name);
+      console.log('📋 Current newCharter:', newCharter);
+
+      // 🔥 SPECIAL: If this is the charter code field, check for duplicates FIRST
+      if (e.currentTarget.name === 'code' && newCharter.code) {
+        console.log('🔍 Checking charter code duplicate...');
+        const isDuplicate = checkDuplicateOnEnter(newCharter.code);
+        console.log('🔍 isDuplicate:', isDuplicate);
+        if (isDuplicate) {
+          // Show error immediately
+          console.log('❌ DUPLICATE! Showing alert...');
+          setCharterCodeError('Υπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party!');
+          // 🔥 Apply INTENSE red highlight with glow
+          if (charterCodeRef.current) {
+            charterCodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            charterCodeRef.current.style.border = '4px solid #ff0000';
+            charterCodeRef.current.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+            charterCodeRef.current.style.borderRadius = '12px';
+            charterCodeRef.current.style.padding = '10px';
+            charterCodeRef.current.style.boxShadow = '0 0 20px 5px rgba(255, 0, 0, 0.7)';
+            const inputInside = charterCodeRef.current.querySelector('input');
+            if (inputInside) {
+              inputInside.style.border = '4px solid #ff0000';
+              inputInside.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
+              inputInside.style.boxShadow = '0 0 15px 3px rgba(255, 0, 0, 0.6)';
+            }
+            setTimeout(() => {
+              if (charterCodeRef.current) {
+                charterCodeRef.current.style.border = '';
+                charterCodeRef.current.style.backgroundColor = '';
+                charterCodeRef.current.style.borderRadius = '';
+                charterCodeRef.current.style.padding = '';
+                charterCodeRef.current.style.boxShadow = '';
+                const inputInside = charterCodeRef.current.querySelector('input');
+                if (inputInside) {
+                  inputInside.style.border = '';
+                  inputInside.style.backgroundColor = '';
+                  inputInside.style.boxShadow = '';
+                }
+              }
+            }, 3000);
+          }
+          alert(`❌ ΣΤΑΜΑΤΑ!\n\nΥπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party "${newCharter.code}"!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
+          return; // DON'T move to next field
+        } else {
+          setCharterCodeError(''); // Clear error if no duplicate
+        }
+      }
+
+      // 🔥 SPECIAL: If this is the endDate field, check for double booking
+      if (e.currentTarget.name === 'endDate' && newCharter.startDate && newCharter.endDate) {
+        console.log('🔍 Checking date overlap...');
+        const hasOverlap = checkDoubleBookingOnEnter(newCharter.startDate, newCharter.endDate);
+        console.log('🔍 hasOverlap:', hasOverlap);
+        if (hasOverlap) {
+          // Show error immediately
+          console.log('❌ OVERLAP! Showing alert...');
+          setDoubleBookingError('Υπάρχει ήδη ναύλο για αυτές τις ημερομηνίες!');
+          // 🔥 Apply INTENSE red highlight with glow
+          if (datesRef.current) {
+            datesRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            datesRef.current.style.border = '4px solid #ff0000';
+            datesRef.current.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+            datesRef.current.style.borderRadius = '12px';
+            datesRef.current.style.padding = '10px';
+            datesRef.current.style.boxShadow = '0 0 20px 5px rgba(255, 0, 0, 0.7)';
+            const inputs = datesRef.current.querySelectorAll('input');
+            inputs.forEach((input: HTMLInputElement) => {
+              input.style.border = '4px solid #ff0000';
+              input.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
+              input.style.boxShadow = '0 0 15px 3px rgba(255, 0, 0, 0.6)';
+            });
+            setTimeout(() => {
+              if (datesRef.current) {
+                datesRef.current.style.border = '';
+                datesRef.current.style.backgroundColor = '';
+                datesRef.current.style.borderRadius = '';
+                datesRef.current.style.padding = '';
+                datesRef.current.style.boxShadow = '';
+                const inputs = datesRef.current.querySelectorAll('input');
+                inputs.forEach((input: HTMLInputElement) => {
+                  input.style.border = '';
+                  input.style.backgroundColor = '';
+                  input.style.boxShadow = '';
+                });
+              }
+            }, 3000);
+          }
+          alert(`❌ ΣΤΑΜΑΤΑ!\n\nΥπάρχει ήδη ναύλο στο σκάφος "${boat?.name}" για αυτές τις ημερομηνίες!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
+          return; // DON'T move to next field
+        } else {
+          setDoubleBookingError(''); // Clear error if no overlap
+        }
+      }
+
+      // Get all form inputs and selects
+      const form = e.currentTarget.form;
+      if (!form) return;
+
+      const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), select, textarea')) as HTMLElement[];
+      const currentIndex = inputs.indexOf(e.currentTarget);
+
+      if (currentIndex < inputs.length - 1) {
+        // Focus next input
+        inputs[currentIndex + 1].focus();
+      } else {
+        // Last input - trigger save button
+        const saveButton = form.querySelector('button[type="button"]') as HTMLElement;
+        if (saveButton) saveButton.click();
+      }
+    }
+  };
+
+  // 🔥 NEW: Check if charter code already exists
+  const checkDuplicateCharterCode = async (code) => {
+    console.log('🔍 checkDuplicateCharterCode called with code:', code);
+    try {
+      const response = await fetch('/api/bookings.php');
+      if (!response.ok) {
+        console.error('❌ Failed to fetch bookings, status:', response.status);
+        return;
+      }
+      const apiResponse = await response.json();
+      console.log('📦 API Response:', apiResponse);
+
+      const bookings = apiResponse.bookings || [];
+      console.log('📋 Bookings array:', bookings);
+      console.log('📊 Number of bookings:', bookings.length);
+
+      // Check if code exists (case-insensitive)
+      const exists = bookings.some(booking => {
+        const existingCode = booking.bookingCode || booking.charterCode || booking.code || booking.id;
+        const codeMatch = existingCode && existingCode.toLowerCase() === code.toLowerCase();
+        if (existingCode) {
+          console.log(`  Comparing "${code.toLowerCase()}" with "${existingCode.toLowerCase()}" => ${codeMatch}`);
+        }
+        return codeMatch;
+      });
+
+      console.log('✅ Duplicate found:', exists);
+
+      if (exists) {
+        console.log('🚫 Setting error: Charter code already exists!');
+        setCharterCodeError('This charter party code already exists! / Αυτός ο κωδικός ναύλου υπάρχει ήδη!');
+      } else {
+        console.log('✅ Code is available');
+        setCharterCodeError('');
+      }
+    } catch (error) {
+      console.error('❌ Error checking duplicate charter code:', error);
+    }
+  };
+
+  // 🔥 NEW: Check if vessel is already booked for overlapping dates
+  const checkDoubleBooking = async (startDate, endDate) => {
+    if (!boat || !startDate || !endDate) {
+      setDoubleBookingError('');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/bookings.php');
+      if (!response.ok) {
+        console.error('Failed to fetch bookings');
+        return;
+      }
+      const apiResponse = await response.json();
+      const bookings = apiResponse.bookings || [];
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      // Check for overlapping bookings with same vessel
+      const hasOverlap = bookings.some(booking => {
+        const bookingVessel = booking.vesselName || booking.boatName;
+        const bookingStart = booking.startDate || booking.checkInDate;
+        const bookingEnd = booking.endDate || booking.checkOutDate;
+
+        if (!bookingVessel || !bookingStart || !bookingEnd) return false;
+
+        // Check if vessel matches (case-insensitive)
+        if (bookingVessel.toLowerCase() !== boat.name.toLowerCase()) return false;
+
+        const bStart = new Date(bookingStart);
+        const bEnd = new Date(bookingEnd);
+
+        // Check for overlap: (start1 <= end2) AND (end1 >= start2)
+        return start <= bEnd && end >= bStart;
+      });
+
+      if (hasOverlap) {
+        setDoubleBookingError('This vessel is already booked for these dates! / Αυτό το σκάφος είναι ήδη κρατημένο για αυτές τις ημερομηνίες!');
+      } else {
+        setDoubleBookingError('');
+      }
+    } catch (error) {
+      console.error('Error checking double booking:', error);
     }
   };
 
@@ -4522,16 +4880,162 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
   const financials = calculateFinancials();
   const isFormValid = newCharter.code.trim() !== '' && newCharter.startDate !== '' && newCharter.endDate !== '' && parseFloat(newCharter.amount) > 0;
+  const hasValidationErrors = !!(charterCodeError || dateRangeError || doubleBookingError);
+
+  // 🔥 DEBUG: Log form validity
+  console.log('📊 Form Status:', {
+    code: newCharter.code,
+    startDate: newCharter.startDate,
+    endDate: newCharter.endDate,
+    amount: newCharter.amount,
+    isFormValid,
+    hasValidationErrors,
+    charterCodeError,
+    dateRangeError,
+    doubleBookingError
+  });
 
   // 🔥 FIX 6: Add saveBookingHybrid API sync
   const handleAddCharter = async () => {
+    console.log('🔥 handleAddCharter called');
+    console.log('canEditCharters:', canEditCharters);
+    console.log('isFormValid:', isFormValid);
+    console.log('hasValidationErrors:', hasValidationErrors);
+    console.log('newCharter:', newCharter);
+
     if (!canEditCharters) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
     }
 
+    // 🔥 NEW: Validate and scroll to missing/error fields
+    if (!validateAndScrollCharter()) {
+      return;
+    }
+
     if (!isFormValid) {
       showMessage('❌ Παρακαλώ συμπληρώστε όλα τα πεδία.', 'error');
+      return;
+    }
+
+    // 🔥 NEW: Check for validation errors before saving
+    if (charterCodeError) {
+      showMessage('❌ ' + charterCodeError, 'error');
+      return;
+    }
+
+    if (dateRangeError) {
+      showMessage('❌ ' + dateRangeError, 'error');
+      return;
+    }
+
+    if (doubleBookingError) {
+      showMessage('❌ ' + doubleBookingError, 'error');
+      return;
+    }
+
+    // 🔥 CRITICAL: Final check for duplicate charter code before saving (using localStorage)
+    console.log('🛑🛑🛑 FINAL CHECK for duplicate code:', newCharter.code);
+    console.log('🛑 Current items count:', items.length);
+    console.log('🛑 Items codes:', items.map((c: any) => c.code));
+    const isDuplicateCode = checkDuplicateOnEnter(newCharter.code);
+    console.log('🛑 isDuplicateCode result:', isDuplicateCode);
+
+    // 🔥🔥🔥 ABSOLUTE BLOCK - IF DUPLICATE FOUND, DO NOT CONTINUE
+    if (isDuplicateCode === true) {
+      console.log('🛑🛑🛑 BLOCKING SAVE - DUPLICATE DETECTED! STOPPING HERE!');
+      setCharterCodeError('Υπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party!');
+      // 🔥 Apply INTENSE red highlight
+      if (charterCodeRef.current) {
+        charterCodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        charterCodeRef.current.style.border = '4px solid #ff0000';
+        charterCodeRef.current.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+        charterCodeRef.current.style.borderRadius = '12px';
+        charterCodeRef.current.style.padding = '10px';
+        charterCodeRef.current.style.boxShadow = '0 0 20px 5px rgba(255, 0, 0, 0.7)';
+        const inputInside = charterCodeRef.current.querySelector('input');
+        if (inputInside) {
+          inputInside.style.border = '4px solid #ff0000';
+          inputInside.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
+          inputInside.style.boxShadow = '0 0 15px 3px rgba(255, 0, 0, 0.6)';
+        }
+        setTimeout(() => {
+          if (charterCodeRef.current) {
+            charterCodeRef.current.style.border = '';
+            charterCodeRef.current.style.backgroundColor = '';
+            charterCodeRef.current.style.borderRadius = '';
+            charterCodeRef.current.style.padding = '';
+            charterCodeRef.current.style.boxShadow = '';
+            const inputInside = charterCodeRef.current.querySelector('input');
+            if (inputInside) {
+              inputInside.style.border = '';
+              inputInside.style.backgroundColor = '';
+              inputInside.style.boxShadow = '';
+            }
+          }
+        }, 3000);
+      }
+      alert(`❌ ΣΤΑΜΑΤΑ!\n\nΥπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party "${newCharter.code}"!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
+      console.log('🛑🛑🛑 RETURNING NOW - SAVE BLOCKED');
+      return; // 🛑 ABSOLUTE BLOCK
+    }
+
+    // 🔥 Double-check: If we somehow got here with a duplicate, block again
+    if (isDuplicateCode) {
+      console.log('🛑 SECOND CHECK CAUGHT DUPLICATE - BLOCKING');
+      alert('❌ Duplicate detected - save blocked!');
+      return;
+    }
+
+    // 🔥 CRITICAL: Check for date overlap on same vessel
+    console.log('🔍 FINAL CHECK for date overlap');
+    console.log('🔍 Dates:', newCharter.startDate, '-', newCharter.endDate);
+    const hasDateOverlap = checkDoubleBookingOnEnter(newCharter.startDate, newCharter.endDate);
+    console.log('🔍 hasDateOverlap result:', hasDateOverlap);
+    if (hasDateOverlap) {
+      console.log('❌❌❌ BLOCKING SAVE - DATE OVERLAP DETECTED!');
+      setDoubleBookingError('Υπάρχει ήδη ναύλο για αυτές τις ημερομηνίες!');
+      // 🔥 Apply INTENSE red highlight
+      if (datesRef.current) {
+        datesRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        datesRef.current.style.border = '4px solid #ff0000';
+        datesRef.current.style.backgroundColor = 'rgba(255, 0, 0, 0.5)';
+        datesRef.current.style.borderRadius = '12px';
+        datesRef.current.style.padding = '10px';
+        datesRef.current.style.boxShadow = '0 0 20px 5px rgba(255, 0, 0, 0.7)';
+        const inputs = datesRef.current.querySelectorAll('input');
+        inputs.forEach((input: HTMLInputElement) => {
+          input.style.border = '4px solid #ff0000';
+          input.style.backgroundColor = 'rgba(255, 0, 0, 0.4)';
+          input.style.boxShadow = '0 0 15px 3px rgba(255, 0, 0, 0.6)';
+        });
+        setTimeout(() => {
+          if (datesRef.current) {
+            datesRef.current.style.border = '';
+            datesRef.current.style.backgroundColor = '';
+            datesRef.current.style.borderRadius = '';
+            datesRef.current.style.padding = '';
+            datesRef.current.style.boxShadow = '';
+            const inputs = datesRef.current.querySelectorAll('input');
+            inputs.forEach((input: HTMLInputElement) => {
+              input.style.border = '';
+              input.style.backgroundColor = '';
+              input.style.boxShadow = '';
+            });
+          }
+        }, 3000);
+      }
+      alert(`❌ ΣΤΑΜΑΤΑ!\n\nΥπάρχει ήδη ναύλο στο σκάφος "${boat?.name}" για αυτές τις ημερομηνίες!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
+      return; // BLOCK SAVE
+    }
+
+    console.log('✅✅✅ All checks passed - OK to save');
+
+    // 🔥🔥🔥 FINAL SAFETY CHECK - One last verification before saving
+    const finalDuplicateCheck = checkDuplicateOnEnter(newCharter.code);
+    if (finalDuplicateCheck) {
+      console.log('🛑🛑🛑 FINAL SAFETY CHECK CAUGHT DUPLICATE - ABSOLUTELY BLOCKING SAVE!');
+      alert('❌ ΣΤΑΜΑΤΑ! Βρέθηκε διπλότυπο charter party code στον τελικό έλεγχο!\n\nΔεν αποθηκεύτηκε!');
       return;
     }
 
@@ -4752,11 +5256,11 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
           </button>
           
           {showAddForm && (
-            <div className="mt-4 p-5 bg-gray-800 rounded-lg border-2 border-gray-700 space-y-4">
+            <form onSubmit={(e) => e.preventDefault()} className="mt-4 p-5 bg-gray-800 rounded-lg border-2 border-gray-700 space-y-4">
               <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
                 <h3 className="text-lg font-bold text-teal-400 mb-3">CHARTERING INFORMATION</h3>
                 <div className="grid grid-cols-1 gap-3">
-                  <div>
+                  <div ref={charterCodeRef}>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Κωδικός Ναύλου *</label>
                     {/* 🔥 FIX 30: Added autoComplete="off" to fix Chrome typing issue */}
                     <input
@@ -4764,37 +5268,66 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       name="code"
                       value={newCharter.code}
                       onChange={handleFormChange}
+                      onKeyDown={handleFormKeyDown}
+                      onBlur={() => newCharter.code && checkDuplicateCharterCode(newCharter.code)}
                       placeholder="π.χ. NAY-002"
                       autoComplete="off"
                       autoCorrect="off"
                       autoCapitalize="off"
                       spellCheck={false}
-                      className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
+                      className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${charterCodeError ? 'border-red-500' : 'border-gray-500'} focus:border-teal-500 focus:outline-none`}
                     />
+                    {charterCodeError && (
+                      <p className="mt-2 text-sm text-red-400 font-medium">{charterCodeError}</p>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">FROM *</label>
-                      <input type="date" name="startDate" value={newCharter.startDate} onChange={handleFormChange} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
+                  <div ref={datesRef}>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">FROM *</label>
+                        <input
+                          type="date"
+                          name="startDate"
+                          value={newCharter.startDate}
+                          onChange={handleFormChange}
+                          onKeyDown={handleFormKeyDown}
+                          min={new Date().toISOString().split('T')[0]}
+                          className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${doubleBookingError ? 'border-red-500' : 'border-gray-500'} focus:border-teal-500 focus:outline-none`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">TO *</label>
+                        <input
+                          type="date"
+                          name="endDate"
+                          value={newCharter.endDate}
+                          onChange={handleFormChange}
+                          onKeyDown={handleFormKeyDown}
+                          min={newCharter.startDate || new Date().toISOString().split('T')[0]}
+                          className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${dateRangeError || doubleBookingError ? 'border-red-500' : 'border-gray-500'} focus:border-teal-500 focus:outline-none`}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">TO *</label>
-                      <input type="date" name="endDate" value={newCharter.endDate} onChange={handleFormChange} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
-                    </div>
+                    {dateRangeError && (
+                      <p className="mt-2 text-sm text-red-400 font-medium">{dateRangeError}</p>
+                    )}
+                    {doubleBookingError && (
+                      <p className="mt-2 text-sm text-red-400 font-medium">{doubleBookingError}</p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">DEPARTURE</label>
-                      <input type="text" name="departure" value={newCharter.departure} onChange={handleFormChange} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
+                      <input type="text" name="departure" value={newCharter.departure} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">ARRIVAL</label>
-                      <input type="text" name="arrival" value={newCharter.arrival} onChange={handleFormChange} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
+                      <input type="text" name="arrival" value={newCharter.arrival} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">STATUS</label>
-                    <select name="status" value={newCharter.status} onChange={handleFormChange} className="w-full px-3 py-3 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none font-bold">
+                    <select name="status" value={newCharter.status} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-3 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none font-bold">
                       <option value="Option" className="bg-yellow-400 text-black">🟡 OPTION (Αναμονή Owner)</option>
                       <option value="Reservation" className="bg-yellow-400 text-black">🟡 RESERVATION (Κράτηση)</option>
                       <option value="Confirmed" className="bg-green-500 text-white">🟢 CONFIRMED (Κλεισμένο)</option>
@@ -4804,31 +5337,31 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
               </div>
 
               {/* 🔥 FIX 9: Skipper Information Section */}
-              <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
+              <div ref={skipperInfoRef} className="bg-gray-700 p-4 rounded-lg border border-gray-600">
                 <h3 className="text-lg font-bold text-blue-400 mb-3">SKIPPER INFORMATION</h3>
                 <div className="grid grid-cols-1 gap-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">First Name</label>
-                      <input type="text" name="skipperFirstName" value={newCharter.skipperFirstName} onChange={handleFormChange} placeholder="Όνομα" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                      <input type="text" name="skipperFirstName" value={newCharter.skipperFirstName} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Όνομα" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
-                      <input type="text" name="skipperLastName" value={newCharter.skipperLastName} onChange={handleFormChange} placeholder="Επώνυμο" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                      <input type="text" name="skipperLastName" value={newCharter.skipperLastName} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Επώνυμο" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Address</label>
-                    <input type="text" name="skipperAddress" value={newCharter.skipperAddress} onChange={handleFormChange} placeholder="Διεύθυνση" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                    <input type="text" name="skipperAddress" value={newCharter.skipperAddress} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Διεύθυνση" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
-                      <input type="email" name="skipperEmail" value={newCharter.skipperEmail} onChange={handleFormChange} placeholder="email@example.com" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                      <input type="email" name="skipperEmail" value={newCharter.skipperEmail} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="email@example.com" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
-                      <input type="tel" name="skipperPhone" value={newCharter.skipperPhone} onChange={handleFormChange} placeholder="+30 69..." className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
+                      <input type="tel" name="skipperPhone" value={newCharter.skipperPhone} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="+30 69..." className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                     </div>
                   </div>
                 </div>
@@ -4892,15 +5425,25 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                 </div>
               </div>
               
+              {!isFormValid && (
+                <div className="mb-3 p-3 bg-yellow-900 border border-yellow-600 rounded-lg text-yellow-200 text-sm">
+                  ⚠️ Συμπληρώστε όλα τα υποχρεωτικά πεδία (*):
+                  {!newCharter.code && <div>• Κωδικός Ναύλου</div>}
+                  {!newCharter.startDate && <div>• FROM (Ημερομηνία έναρξης)</div>}
+                  {!newCharter.endDate && <div>• TO (Ημερομηνία λήξης)</div>}
+                  {!(parseFloat(newCharter.amount) > 0) && <div>• Charter Fee (Ποσό {'>'} 0)</div>}
+                </div>
+              )}
+
               <button
+                type="button"
                 id="save-charter-btn"
                 onClick={handleAddCharter}
-                disabled={!isFormValid}
                 className={`w-full py-3 px-4 rounded-lg font-bold text-lg transition duration-200 ${isFormValid ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
               >
-                💾 Αποθήκευση Ναύλου
+                💾 Αποθήκευση Ναύλου {!isFormValid && '(Συμπληρώστε τα υποχρεωτικά πεδία)'}
               </button>
-            </div>
+            </form>
           )}
         </div>
       )}
