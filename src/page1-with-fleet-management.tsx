@@ -8,7 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { DataContext } from './App';
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import authService from './authService';
-import { getVessels, getBookingsHybrid, getBookingHybrid, saveBookingHybrid } from './services/apiService';
+import { getVessels, getBookingsHybrid, getBookingHybrid, getPage1DataHybrid, savePage1DataHybrid, Page1FormData } from './services/apiService';
 import { saveBookingSync, getBookingSync, syncToPage1Format, page1ToSyncFormat } from './utils/bookingSyncUtils';
 
 // 🔥 SIGNATURE COMPRESSION FUNCTION
@@ -204,38 +204,87 @@ const formatDate = (dateStr) => {
   return dateStr;
 };
 
-const saveBookingData = async (bookingNumber, data) => {
+const saveBookingData = async (bookingNumber: string, data: any) => {
   if (!bookingNumber) return;
 
   try {
-    // ✅ Use hybrid API - saves to API and localStorage
-    await saveBookingHybrid(bookingNumber, {
-      bookingData: data
-    });
+    // ✅ Use Page 1 specific API - saves to /api/page1.php AND localStorage
+    const result = await savePage1DataHybrid(bookingNumber, {
+      bookingNumber,
+      vesselName: data.vesselName,
+      vesselId: data.vesselId,
+      vesselCategory: data.vesselCategory,
+      checkInDate: data.checkInDate,
+      checkInTime: data.checkInTime,
+      checkOutDate: data.checkOutDate,
+      checkOutTime: data.checkOutTime,
+      skipperFirstName: data.skipperFirstName,
+      skipperLastName: data.skipperLastName,
+      skipperAddress: data.skipperAddress,
+      skipperEmail: data.skipperEmail,
+      skipperPhone: data.skipperPhone,
+      phoneCountryCode: data.phoneCountryCode,
+      mode: data.mode,
+      status: data.status
+    } as Page1FormData);
 
     localStorage.setItem('currentBooking', bookingNumber);
 
-    console.log('💾 Saved booking:', bookingNumber);
+    console.log('💾 Saved booking:', bookingNumber, result.synced ? '(synced to API)' : '(localStorage only)');
   } catch (error) {
     console.error('Error saving booking:', error);
+
+    // Fallback: Save to localStorage only
+    try {
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      bookings[bookingNumber] = {
+        bookingData: data,
+        lastModified: new Date().toISOString(),
+        synced: false
+      };
+      localStorage.setItem('bookings', JSON.stringify(bookings));
+      localStorage.setItem('currentBooking', bookingNumber);
+      console.log('💾 Saved booking to localStorage (API failed):', bookingNumber);
+    } catch (localError) {
+      console.error('Error saving to localStorage:', localError);
+    }
   }
 };
 
-const loadBookingData = async (bookingNumber) => {
+const loadBookingData = async (bookingNumber: string) => {
   if (!bookingNumber) return null;
 
   try {
-    // ✅ Use hybrid API - loads from API with localStorage fallback
-    const booking = await getBookingHybrid(bookingNumber);
+    // ✅ Use Page 1 specific API - loads from /api/page1.php with localStorage fallback
+    const data = await getPage1DataHybrid(bookingNumber);
 
-    if (booking?.bookingData) {
+    if (data) {
       console.log('📂 Loaded booking:', bookingNumber);
+      return data;
+    }
+
+    // Also try the general booking API as secondary fallback
+    const booking = await getBookingHybrid(bookingNumber);
+    if (booking?.bookingData) {
+      console.log('📂 Loaded booking from general API:', bookingNumber);
       return booking.bookingData;
     }
 
     return null;
   } catch (error) {
     console.error('Error loading booking:', error);
+
+    // Final fallback: Try localStorage directly
+    try {
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      if (bookings[bookingNumber]?.bookingData) {
+        console.log('📂 Loaded booking from localStorage fallback:', bookingNumber);
+        return bookings[bookingNumber].bookingData;
+      }
+    } catch (localError) {
+      console.error('Error loading from localStorage:', localError);
+    }
+
     return null;
   }
 };

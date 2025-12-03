@@ -1,4 +1,7 @@
-const API_URL = 'https://yachtmanagementsuite.com/api';
+// Production API base URL - always use this, even when running locally
+const API_BASE = 'https://yachtmanagementsuite.com/api';
+const API_URL = API_BASE;
+const PAGE1_API_URL = `${API_BASE}/page1.php`;
 
 // 🔥 FIX 17: Vessel ID to Name mapping for API calls
 const VESSEL_NAMES: { [key: number]: string } = {
@@ -96,7 +99,7 @@ export async function getBooking(bookingNumber: string) {
  */
 export async function createBooking(booking: {
   bookingNumber: string;
-  bookingData: any;
+  bookingData?: any;
   page2DataCheckIn?: any;
   page2DataCheckOut?: any;
   page3DataCheckIn?: any;
@@ -922,4 +925,223 @@ export async function checkExpiredOptions(): Promise<string[]> {
     console.error('❌ Error checking expired options:', error);
     return [];
   }
+}
+
+// =====================================================
+// PAGE 1 SPECIFIC API - Booking Details
+// =====================================================
+
+/**
+ * Page 1 form data interface
+ */
+export interface Page1FormData {
+  bookingNumber: string;
+  vesselName?: string;
+  vesselId?: string;
+  vesselCategory?: string;
+  checkInDate?: string;
+  checkInTime?: string;
+  checkOutDate?: string;
+  checkOutTime?: string;
+  departurePort?: string;
+  arrivalPort?: string;
+  skipperFirstName?: string;
+  skipperLastName?: string;
+  skipperAddress?: string;
+  skipperEmail?: string;
+  skipperPhone?: string;
+  skipperNationality?: string;
+  skipperPassport?: string;
+  phoneCountryCode?: string;
+  mode?: 'in' | 'out';
+  status?: string;
+}
+
+/**
+ * Get Page 1 booking details from API
+ * @param bookingNumber - The booking number to load
+ * @returns Page 1 form data or null
+ */
+export async function getPage1Data(bookingNumber: string): Promise<Page1FormData | null> {
+  try {
+    const encodedBN = encodeURIComponent(bookingNumber);
+    const response = await fetch(`${PAGE1_API_URL}?booking_number=${encodedBN}`);
+
+    if (!response.ok) {
+      console.warn('⚠️ Page 1 API GET failed:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.bookingDetails) {
+      console.log('✅ Page 1 data loaded from API:', bookingNumber);
+      return result.bookingDetails;
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Page 1 API error:', error);
+    return null;
+  }
+}
+
+/**
+ * Save Page 1 booking details to API (POST for new, PUT for update)
+ * @param bookingNumber - The booking number
+ * @param data - Page 1 form data
+ * @param isNew - Whether this is a new booking (POST) or update (PUT)
+ */
+export async function savePage1Data(
+  bookingNumber: string,
+  data: Page1FormData,
+  isNew: boolean = false
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const method = isNew ? 'POST' : 'PUT';
+
+    const response = await fetch(PAGE1_API_URL, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bookingNumber,
+        ...data
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log(`✅ Page 1 data ${isNew ? 'created' : 'updated'} via API:`, bookingNumber);
+      return { success: true, message: result.message };
+    }
+
+    // If POST fails with 409 (already exists), try PUT
+    if (!result.success && response.status === 409 && isNew) {
+      console.log('📝 Booking exists, updating instead...');
+      return savePage1Data(bookingNumber, data, false);
+    }
+
+    console.warn('⚠️ Page 1 API save failed:', result.error);
+    return { success: false, message: result.error };
+  } catch (error) {
+    console.warn('⚠️ Page 1 API save error:', error);
+    return { success: false, message: String(error) };
+  }
+}
+
+/**
+ * Delete Page 1 booking data from API
+ * @param bookingNumber - The booking number to delete
+ */
+export async function deletePage1Data(bookingNumber: string): Promise<boolean> {
+  try {
+    const encodedBN = encodeURIComponent(bookingNumber);
+    const response = await fetch(`${PAGE1_API_URL}?booking_number=${encodedBN}`, {
+      method: 'DELETE'
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('✅ Page 1 data deleted from API:', bookingNumber);
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.warn('⚠️ Page 1 API delete error:', error);
+    return false;
+  }
+}
+
+/**
+ * Hybrid: Load Page 1 data from API, fallback to localStorage
+ * @param bookingNumber - The booking number to load
+ */
+export async function getPage1DataHybrid(bookingNumber: string): Promise<Page1FormData | null> {
+  // Try API first
+  try {
+    const apiData = await getPage1Data(bookingNumber);
+    if (apiData) {
+      return apiData;
+    }
+  } catch (error) {
+    console.warn('⚠️ Page 1 API failed, trying localStorage...', error);
+  }
+
+  // Fallback to localStorage
+  try {
+    const bookings = localStorage.getItem('bookings');
+    if (bookings) {
+      const parsed = JSON.parse(bookings);
+      const booking = parsed[bookingNumber];
+      if (booking?.bookingData) {
+        console.log('📂 Page 1 data loaded from localStorage:', bookingNumber);
+        return booking.bookingData as Page1FormData;
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ localStorage fallback error:', e);
+  }
+
+  return null;
+}
+
+/**
+ * Hybrid: Save Page 1 data to API and localStorage
+ * @param bookingNumber - The booking number
+ * @param data - Page 1 form data
+ */
+export async function savePage1DataHybrid(
+  bookingNumber: string,
+  data: Page1FormData
+): Promise<{ success: boolean; synced: boolean }> {
+  let synced = false;
+
+  // Save to localStorage immediately (for offline support)
+  try {
+    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+
+    if (!bookings[bookingNumber]) {
+      bookings[bookingNumber] = {
+        bookingData: data,
+        lastModified: new Date().toISOString(),
+        synced: false
+      };
+    } else {
+      bookings[bookingNumber].bookingData = data;
+      bookings[bookingNumber].lastModified = new Date().toISOString();
+      bookings[bookingNumber].synced = false;
+    }
+
+    localStorage.setItem('bookings', JSON.stringify(bookings));
+    localStorage.setItem('currentBooking', bookingNumber);
+    console.log('💾 Page 1 saved to localStorage:', bookingNumber);
+  } catch (e) {
+    console.warn('⚠️ localStorage save error:', e);
+  }
+
+  // Try to save to API
+  try {
+    // Check if booking exists in API
+    const existing = await getPage1Data(bookingNumber);
+    const isNew = !existing;
+
+    const result = await savePage1Data(bookingNumber, data, isNew);
+
+    if (result.success) {
+      // Mark as synced in localStorage
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      if (bookings[bookingNumber]) {
+        bookings[bookingNumber].synced = true;
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+      }
+      synced = true;
+    }
+  } catch (error) {
+    console.warn('⚠️ API sync failed, will retry later:', error);
+  }
+
+  return { success: true, synced };
 }
