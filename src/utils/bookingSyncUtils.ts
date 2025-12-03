@@ -5,7 +5,9 @@
  * - booking number / charter code
  * - vessel name
  * - check-in date (startDate)
+ * - check-in time (startTime)
  * - check-out date (endDate)
+ * - check-out time (endTime)
  * - skipper first name
  * - skipper last name
  * - skipper address
@@ -20,7 +22,9 @@ export interface SyncedBookingData {
   code: string;           // booking number / charter code
   vesselName: string;     // vessel name
   startDate: string;      // check-in date
+  startTime: string;      // check-in time
   endDate: string;        // check-out date
+  endTime: string;        // check-out time
   skipperFirstName: string;
   skipperLastName: string;
   skipperAddress: string;
@@ -38,7 +42,9 @@ export const saveBookingSync = (data: Partial<SyncedBookingData>, source: 'page1
       code: data.code ?? existing?.code ?? '',
       vesselName: data.vesselName ?? existing?.vesselName ?? '',
       startDate: data.startDate ?? existing?.startDate ?? '',
+      startTime: data.startTime ?? existing?.startTime ?? '',
       endDate: data.endDate ?? existing?.endDate ?? '',
+      endTime: data.endTime ?? existing?.endTime ?? '',
       skipperFirstName: data.skipperFirstName ?? existing?.skipperFirstName ?? '',
       skipperLastName: data.skipperLastName ?? existing?.skipperLastName ?? '',
       skipperAddress: data.skipperAddress ?? existing?.skipperAddress ?? '',
@@ -86,7 +92,9 @@ export const page1ToSyncFormat = (form: {
   bookingNumber?: string;
   vesselName?: string;
   checkInDate?: string;
+  checkInTime?: string;
   checkOutDate?: string;
+  checkOutTime?: string;
   skipperFirstName?: string;
   skipperLastName?: string;
   skipperAddress?: string;
@@ -97,7 +105,9 @@ export const page1ToSyncFormat = (form: {
     code: form.bookingNumber || '',
     vesselName: form.vesselName || '',
     startDate: form.checkInDate || '',
+    startTime: form.checkInTime || '',
     endDate: form.checkOutDate || '',
+    endTime: form.checkOutTime || '',
     skipperFirstName: form.skipperFirstName || '',
     skipperLastName: form.skipperLastName || '',
     skipperAddress: form.skipperAddress || '',
@@ -111,7 +121,9 @@ export const syncToPage1Format = (sync: SyncedBookingData | null): {
   bookingNumber: string;
   vesselName: string;
   checkInDate: string;
+  checkInTime: string;
   checkOutDate: string;
+  checkOutTime: string;
   skipperFirstName: string;
   skipperLastName: string;
   skipperAddress: string;
@@ -123,7 +135,9 @@ export const syncToPage1Format = (sync: SyncedBookingData | null): {
     bookingNumber: sync.code || '',
     vesselName: sync.vesselName || '',
     checkInDate: sync.startDate || '',
+    checkInTime: sync.startTime || '',
     checkOutDate: sync.endDate || '',
+    checkOutTime: sync.endTime || '',
     skipperFirstName: sync.skipperFirstName || '',
     skipperLastName: sync.skipperLastName || '',
     skipperAddress: sync.skipperAddress || '',
@@ -137,7 +151,9 @@ export const fleetToSyncFormat = (
   newCharter: {
     code?: string;
     startDate?: string;
+    startTime?: string;
     endDate?: string;
+    endTime?: string;
     skipperFirstName?: string;
     skipperLastName?: string;
     skipperAddress?: string;
@@ -150,7 +166,9 @@ export const fleetToSyncFormat = (
     code: newCharter.code || '',
     vesselName: vesselName || '',
     startDate: newCharter.startDate || '',
+    startTime: newCharter.startTime || '',
     endDate: newCharter.endDate || '',
+    endTime: newCharter.endTime || '',
     skipperFirstName: newCharter.skipperFirstName || '',
     skipperLastName: newCharter.skipperLastName || '',
     skipperAddress: newCharter.skipperAddress || '',
@@ -163,7 +181,9 @@ export const fleetToSyncFormat = (
 export const syncToFleetFormat = (sync: SyncedBookingData | null): {
   code: string;
   startDate: string;
+  startTime: string;
   endDate: string;
+  endTime: string;
   skipperFirstName: string;
   skipperLastName: string;
   skipperAddress: string;
@@ -174,7 +194,9 @@ export const syncToFleetFormat = (sync: SyncedBookingData | null): {
   return {
     code: sync.code || '',
     startDate: sync.startDate || '',
+    startTime: sync.startTime || '',
     endDate: sync.endDate || '',
+    endTime: sync.endTime || '',
     skipperFirstName: sync.skipperFirstName || '',
     skipperLastName: sync.skipperLastName || '',
     skipperAddress: sync.skipperAddress || '',

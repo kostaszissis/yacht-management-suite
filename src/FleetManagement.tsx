@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import authService, { getOwnerByBoatId } from './authService';
 import AdminDashboard from './AdminDashboard';
@@ -843,6 +843,13 @@ export default function FleetManagement() {
   const [showFinancials, setShowFinancials] = useState(false);
   const [financialsData, setFinancialsData] = useState({ boats: [], totals: { income: 0, expenses: 0, net: 0 } });
 
+  // 🔥 NEW: State for Page 1 bookings notification
+  const [page1BookingsNeedingAmount, setPage1BookingsNeedingAmount] = useState<{
+    count: number;
+    firstBooking: any | null;
+    boatId: string | null;
+  }>({ count: 0, firstBooking: null, boatId: null });
+
   useEffect(() => {
     const user = authService.getCurrentUser();
     setAuthenticatedUser(user);
@@ -961,6 +968,77 @@ export default function FleetManagement() {
     }
   }, [showFinancials, allBoats]);
 
+  // 🔥 NEW: Scan for Page 1 bookings needing financial details
+  useEffect(() => {
+    const scanForPage1Bookings = () => {
+      let totalCount = 0;
+      let firstBookingFound: any = null;
+      let firstBoatId: string | null = null;
+
+      // Get all boats
+      const boats = FleetService.getAllBoats();
+
+      for (const boat of boats) {
+        const storageKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
+        try {
+          const charters = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+          // Find Page 1 bookings without amount
+          const page1BookingsNeedingDetails = charters.filter((c: any) =>
+            (c.source === 'page1' || c.status === 'Draft') &&
+            (!c.amount || c.amount === 0)
+          );
+
+          if (page1BookingsNeedingDetails.length > 0) {
+            totalCount += page1BookingsNeedingDetails.length;
+
+            // Save first booking found for quick navigation
+            if (!firstBookingFound) {
+              firstBookingFound = page1BookingsNeedingDetails[0];
+              firstBoatId = boat.id;
+            }
+
+            console.log(`📋 Boat ${boat.name}: ${page1BookingsNeedingDetails.length} Page 1 booking(s) need financial details`);
+          }
+        } catch (e) {
+          console.warn(`Error scanning ${storageKey}:`, e);
+        }
+      }
+
+      setPage1BookingsNeedingAmount({
+        count: totalCount,
+        firstBooking: firstBookingFound,
+        boatId: firstBoatId
+      });
+
+      if (totalCount > 0) {
+        console.log(`🔔 NOTIFICATION: ${totalCount} Page 1 booking(s) need financial details`);
+      }
+    };
+
+    // Scan on mount and when page changes
+    scanForPage1Bookings();
+
+    // Re-scan every 30 seconds for new bookings
+    const interval = setInterval(scanForPage1Bookings, 30000);
+    return () => clearInterval(interval);
+  }, [page, allBoats]);
+
+  // 🔥 Handler to navigate to first Page 1 booking needing details
+  const handleNotificationClick = () => {
+    if (page1BookingsNeedingAmount.boatId && page1BookingsNeedingAmount.firstBooking) {
+      const boats = FleetService.getAllBoats();
+      const boat = boats.find(b => b.id === page1BookingsNeedingAmount.boatId);
+
+      if (boat) {
+        setBoatData(boat);
+        setSelectedCategory({ name: 'ΝΑΥΛΑ', icon: '⚓' });
+        setPage('details');
+        showMessage(`📝 Μεταφορά στο ${boat.name} - Ναύλος: ${page1BookingsNeedingAmount.firstBooking.code}`, 'info');
+      }
+    }
+  };
+
   const loadBoats = () => {
     try {
       const boats = FleetService.getAllBoats();
@@ -980,16 +1058,22 @@ export default function FleetManagement() {
     let totalExpenses = 0;
     const boatsData: any[] = [];
 
+    console.log('🔍 FleetManagement: Scanning for Page 1 bookings...');
+    console.log('📦 Available boats:', allBoats.map(b => `${b.id}:${b.name}`));
+
     // Load all boats in parallel for better performance
     await Promise.all(allBoats.map(async (boat: any) => {
+      const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
+
       // Load charters from API (with localStorage merge and fallback)
       let charters: any[] = [];
       try {
         charters = await getBookingsByVesselHybrid(boat.id);
+        console.log(`📂 ${boat.name} (${chartersKey}): ${charters.length} charters from API`);
       } catch (e) {
-        const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
         const chartersStored = localStorage.getItem(chartersKey);
         charters = chartersStored ? JSON.parse(chartersStored) : [];
+        console.log(`📂 ${boat.name} (${chartersKey}): ${charters.length} charters from localStorage (API failed)`);
       }
 
       // Load invoices (localStorage only for now)
@@ -1003,6 +1087,16 @@ export default function FleetManagement() {
       const boatExpenses = charterExpenses + invoiceExpenses;
       const boatNet = boatIncome - boatExpenses;
 
+      // 🔥 Count Page 1 bookings (Draft status or source=page1)
+      const draftCount = charters.filter((c: any) => c.status === 'Draft' || c.source === 'page1').length;
+
+      // 🔥 DEBUG: Log Page 1 bookings per boat
+      if (draftCount > 0) {
+        console.log(`📋 BOAT ${boat.name}: ${draftCount} Page 1 booking(s)`,
+          charters.filter((c: any) => c.status === 'Draft' || c.source === 'page1').map((c: any) => c.code)
+        );
+      }
+
       totalIncome += boatIncome;
       totalExpenses += boatExpenses;
 
@@ -1013,7 +1107,8 @@ export default function FleetManagement() {
         expenses: boatExpenses,
         net: boatNet,
         chartersCount: charters.length,
-        invoicesCount: invoices.length
+        invoicesCount: invoices.length,
+        draftCount: draftCount  // 🔥 Page 1 booking count
       });
     }));
 
@@ -1159,7 +1254,36 @@ export default function FleetManagement() {
   return (
     <div className="h-screen w-screen bg-gray-900 text-gray-100 font-sans">
       <MessageDisplay message={message} />
-      <div className="h-full w-full max-w-lg mx-auto bg-gray-900 shadow-2xl overflow-hidden">
+
+      {/* 🔥 NEW: Page 1 Bookings Notification Banner */}
+      {page1BookingsNeedingAmount.count > 0 && (
+        <div
+          onClick={handleNotificationClick}
+          className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 px-4 cursor-pointer hover:from-blue-700 hover:to-blue-900 transition-all shadow-lg border-b-2 border-blue-400"
+        >
+          <div className="max-w-lg mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl animate-bounce">🔔</span>
+              <div>
+                <p className="font-bold text-sm">
+                  {page1BookingsNeedingAmount.count} νέα ναύλα από Check-in
+                </p>
+                <p className="text-xs text-blue-200">
+                  Χρειάζονται συμπλήρωση τιμής - Πατήστε για επεξεργασία
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="bg-blue-500 px-3 py-1 rounded-full text-sm font-bold">
+                {page1BookingsNeedingAmount.count}
+              </span>
+              <span className="text-xl">→</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={`h-full w-full max-w-lg mx-auto bg-gray-900 shadow-2xl overflow-hidden ${page1BookingsNeedingAmount.count > 0 ? 'pt-16' : ''}`}>
         {renderPage()}
       </div>
 
@@ -2460,26 +2584,40 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
             </h3>
           </div>
           <div className="space-y-1 p-2 flex-grow overflow-y-auto">
-            {filteredBoats.map(boat => (
-              <button
-                key={boat.id}
-                onClick={() => loadBoatDetails(boat.id)}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${
-                  selectedBoat === boat.id 
-                    ? 'bg-teal-700 border-teal-500' 
-                    : 'bg-gray-800 hover:bg-gray-700 border-gray-700'
-                } border`}
-              >
-                <div className="font-bold text-white text-sm">{boat.name || boat.id}</div>
-                <div className={`text-lg font-bold ${boat.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {formatCurrency(boat.net)}
-                </div>
-                <div className="flex justify-between text-xs mt-1">
-                  <span className="text-green-400">{formatCurrency(boat.income)}</span>
-                  <span className="text-red-400">{formatCurrency(boat.expenses)}</span>
-                </div>
-              </button>
-            ))}
+            {filteredBoats.map(boat => {
+              const hasPage1Bookings = boat.draftCount > 0;
+
+              return (
+                <button
+                  key={boat.id}
+                  onClick={() => loadBoatDetails(boat.id)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors border-2 ${
+                    selectedBoat === boat.id
+                      ? 'bg-teal-700 border-teal-500'
+                      : hasPage1Bookings
+                        ? 'bg-blue-900/50 border-blue-500 hover:bg-blue-800/50'
+                        : 'bg-gray-800 hover:bg-gray-700 border-gray-700'
+                  }`}
+                >
+                  {/* 📝 Page 1 booking badge - prominent at top */}
+                  {hasPage1Bookings && (
+                    <div className="mb-2 px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded inline-flex items-center gap-1">
+                      📝 {boat.draftCount === 1 ? 'Νέο ναύλο από Check-in' : `${boat.draftCount} νέα ναύλα από Check-in`}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-white text-sm">{boat.name || boat.id}</span>
+                  </div>
+                  <div className={`text-lg font-bold ${boat.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {formatCurrency(boat.net)}
+                  </div>
+                  <div className="flex justify-between text-xs mt-1">
+                    <span className="text-green-400">{formatCurrency(boat.income)}</span>
+                    <span className="text-red-400">{formatCurrency(boat.expenses)}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -4487,12 +4625,50 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
 function CharterPage({ items, boat, showMessage, saveItems }) {
   const [selectedCharter, setSelectedCharter] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  // 🔥 NEW: Filter for Page 1 bookings
+  const [charterFilter, setCharterFilter] = useState<'all' | 'page1' | 'confirmed'>('all');
+
   // 🔥 FIX 9: Added 5 skipper fields
   const [newCharter, setNewCharter] = useState({
-    code: '', startDate: '', endDate: '', amount: '', commissionPercent: '',
+    code: '', startDate: '', endDate: '', startTime: '', endTime: '', amount: '', commissionPercent: '',
     departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
     skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
   });
+
+  // 🔥 DEBUG: Log Page 1 bookings when loading
+  useEffect(() => {
+    const page1Bookings = items.filter(c => c.source === 'page1' || c.status === 'Draft');
+    const confirmedBookings = items.filter(c => c.status === 'Confirmed');
+    console.log('📋 CHARTER PAGE DEBUG:', {
+      total: items.length,
+      page1Bookings: page1Bookings.length,
+      confirmedBookings: confirmedBookings.length,
+      page1Details: page1Bookings.map(c => ({
+        code: c.code,
+        status: c.status,
+        source: c.source,
+        vesselName: c.vesselName
+      }))
+    });
+  }, [items]);
+
+  // 🔥 Filter charters based on selected filter
+  const filteredItems = useMemo(() => {
+    switch (charterFilter) {
+      case 'page1':
+        return items.filter(c => c.source === 'page1' || c.status === 'Draft');
+      case 'confirmed':
+        return items.filter(c => c.status === 'Confirmed');
+      default:
+        return items;
+    }
+  }, [items, charterFilter]);
+
+  // 🔥 Count Page 1 bookings for badge
+  const page1Count = useMemo(() =>
+    items.filter(c => c.source === 'page1' || c.status === 'Draft').length,
+    [items]
+  );
 
   // 🔥 NEW: Validation error states
   const [charterCodeError, setCharterCodeError] = useState('');
@@ -4523,7 +4699,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
             ...prev,
             code: prev.code || fleetData.code,
             startDate: prev.startDate || fleetData.startDate,
+            startTime: prev.startTime || fleetData.startTime,
             endDate: prev.endDate || fleetData.endDate,
+            endTime: prev.endTime || fleetData.endTime,
             skipperFirstName: prev.skipperFirstName || fleetData.skipperFirstName,
             skipperLastName: prev.skipperLastName || fleetData.skipperLastName,
             skipperAddress: prev.skipperAddress || fleetData.skipperAddress,
@@ -4553,8 +4731,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       console.log('🔄 FLEET SYNC - Converted syncData:', syncData);
       saveBookingSync(syncData, 'fleetManagement');
     }
-  }, [showAddForm, newCharter.code, newCharter.startDate, newCharter.endDate,
-      newCharter.skipperFirstName, newCharter.skipperLastName, newCharter.skipperAddress,
+  }, [showAddForm, newCharter.code, newCharter.startDate, newCharter.startTime,
+      newCharter.endDate, newCharter.endTime, newCharter.skipperFirstName,
+      newCharter.skipperLastName, newCharter.skipperAddress,
       newCharter.skipperEmail, newCharter.skipperPhone, boat?.name]);
 
   const handleFormChange = (e) => {
@@ -5332,7 +5511,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                   <div ref={datesRef}>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">FROM *</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">CHECK-IN DATE *</label>
                         <input
                           type="date"
                           name="startDate"
@@ -5344,7 +5523,20 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">TO *</label>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">CHECK-IN TIME</label>
+                        <input
+                          type="time"
+                          name="startTime"
+                          value={newCharter.startTime}
+                          onChange={handleFormChange}
+                          onKeyDown={handleFormKeyDown}
+                          className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">CHECK-OUT DATE *</label>
                         <input
                           type="date"
                           name="endDate"
@@ -5353,6 +5545,17 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                           onKeyDown={handleFormKeyDown}
                           min={newCharter.startDate || new Date().toISOString().split('T')[0]}
                           className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${dateRangeError || doubleBookingError ? 'border-red-500' : 'border-gray-500'} focus:border-teal-500 focus:outline-none`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">CHECK-OUT TIME</label>
+                        <input
+                          type="time"
+                          name="endTime"
+                          value={newCharter.endTime}
+                          onChange={handleFormChange}
+                          onKeyDown={handleFormKeyDown}
+                          className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -5376,8 +5579,10 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">STATUS</label>
                     <select name="status" value={newCharter.status} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-3 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none font-bold">
+                      <option value="Draft" className="bg-blue-400 text-white">📝 DRAFT (Από Check-in)</option>
                       <option value="Option" className="bg-yellow-400 text-black">🟡 OPTION (Αναμονή Owner)</option>
                       <option value="Reservation" className="bg-yellow-400 text-black">🟡 RESERVATION (Κράτηση)</option>
+                      <option value="Pending Approval" className="bg-orange-400 text-black">🟠 PENDING APPROVAL (Προς Έγκριση)</option>
                       <option value="Confirmed" className="bg-green-500 text-white">🟢 CONFIRMED (Κλεισμένο)</option>
                     </select>
                   </div>
@@ -5496,8 +5701,42 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
         </div>
       )}
 
+      {/* 🔥 Filter Tabs for Page 1 bookings */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button
+          onClick={() => setCharterFilter('all')}
+          className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+            charterFilter === 'all'
+              ? 'bg-teal-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          Όλοι ({items.length})
+        </button>
+        <button
+          onClick={() => setCharterFilter('page1')}
+          className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+            charterFilter === 'page1'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          📝 Από Check-in ({page1Count})
+        </button>
+        <button
+          onClick={() => setCharterFilter('confirmed')}
+          className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+            charterFilter === 'confirmed'
+              ? 'bg-green-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          ✅ Confirmed ({items.filter(c => c.status === 'Confirmed').length})
+        </button>
+      </div>
+
       <div className="space-y-3">
-        {items.map(charter => {
+        {filteredItems.map(charter => {
           const totalPaid = (charter.payments || []).reduce((sum, p) => sum + p.amount, 0);
           const paymentInfo = getPaymentStatusInfo(charter.paymentStatus);
           
@@ -5514,8 +5753,26 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                   <p className="text-sm text-gray-400">
                     {charter.startDate ? new Date(charter.startDate).toLocaleDateString('el-GR') : ''} - {charter.endDate ? new Date(charter.endDate).toLocaleDateString('el-GR') : ''}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Status: <span className={charter.status === 'Confirmed' ? 'text-green-400' : (charter.status === 'Rejected' || charter.status === 'Cancelled' || charter.status === 'Canceled') ? 'text-red-400' : 'text-yellow-400'}>{charter.status}</span>
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
+                    Status: <span className={
+                      charter.status === 'Confirmed' ? 'text-green-400' :
+                      charter.status === 'Draft' ? 'text-blue-400' :
+                      charter.status === 'Pending Approval' ? 'text-orange-400' :
+                      (charter.status === 'Rejected' || charter.status === 'Cancelled' || charter.status === 'Canceled') ? 'text-red-400' :
+                      'text-yellow-400'
+                    }>{charter.status}</span>
+                    {/* Badge for Draft status or source=page1 (from Page 1 check-in) */}
+                    {(charter.status === 'Draft' || charter.source === 'page1') && (
+                      <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/50">
+                        📝 Από Check-in
+                      </span>
+                    )}
+                    {/* Badge if financial details are missing */}
+                    {(!charter.amount || charter.amount === 0) && charter.status !== 'Cancelled' && charter.status !== 'Canceled' && (
+                      <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded border border-orange-500/50">
+                        💰 Χρειάζεται Ποσό
+                      </span>
+                    )}
                   </p>
                   {/* 🔥 Payment Status - ΚΕΙΜΕΝΟ */}
                   <p className={`text-xs mt-1 font-semibold ${paymentInfo.color}`}>
@@ -5805,10 +6062,27 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
         <div className="bg-gray-700 p-4 rounded-lg mb-4 space-y-2 border border-gray-600">
           <div className="flex justify-between"><span className="text-gray-300">YACHT:</span><span className="font-bold">{boat.name || boat.id}</span></div>
-          <div className="flex justify-between"><span className="text-gray-300">FROM:</span><span className="font-bold">{charter.startDate}</span></div>
-          <div className="flex justify-between"><span className="text-gray-300">TO:</span><span className="font-bold">{charter.endDate}</span></div>
+          <div className="flex justify-between"><span className="text-gray-300">FROM:</span><span className="font-bold">{charter.startDate}{charter.startTime && ` @ ${charter.startTime}`}</span></div>
+          <div className="flex justify-between"><span className="text-gray-300">TO:</span><span className="font-bold">{charter.endDate}{charter.endTime && ` @ ${charter.endTime}`}</span></div>
           <div className="flex justify-between"><span className="text-gray-300">DEPARTURE:</span><span className="font-bold">{charter.departure || 'ALIMOS MARINA'}</span></div>
           <div className="flex justify-between"><span className="text-gray-300">ARRIVAL:</span><span className="font-bold">{charter.arrival || 'ALIMOS MARINA'}</span></div>
+          {/* Status badge for Draft bookings */}
+          {charter.status === 'Draft' && (
+            <div className="flex justify-between items-center pt-2 border-t border-gray-600">
+              <span className="text-gray-300">STATUS:</span>
+              <span className="px-3 py-1 bg-blue-500/30 text-blue-400 rounded-lg text-sm font-bold border border-blue-500/50">
+                📝 DRAFT - Από Check-in
+              </span>
+            </div>
+          )}
+          {/* Show skipper info if available */}
+          {(charter.skipperFirstName || charter.skipperLastName) && (
+            <div className="pt-2 border-t border-gray-600">
+              <div className="flex justify-between"><span className="text-gray-300">SKIPPER:</span><span className="font-bold">{charter.skipperFirstName} {charter.skipperLastName}</span></div>
+              {charter.skipperEmail && <div className="flex justify-between"><span className="text-gray-300">EMAIL:</span><span className="text-sm">{charter.skipperEmail}</span></div>}
+              {charter.skipperPhone && <div className="flex justify-between"><span className="text-gray-300">PHONE:</span><span className="text-sm">{charter.skipperPhone}</span></div>}
+            </div>
+          )}
         </div>
 
         {canViewFinancials && (

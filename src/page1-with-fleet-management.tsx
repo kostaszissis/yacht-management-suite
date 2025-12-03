@@ -209,6 +209,7 @@ const saveBookingData = async (bookingNumber: string, data: any) => {
 
   try {
     // ✅ Use Page 1 specific API - saves to /api/page1.php AND localStorage
+    // 🔥 Always mark as source: 'page1' so Fleet Management can identify it
     const result = await savePage1DataHybrid(bookingNumber, {
       bookingNumber,
       vesselName: data.vesselName,
@@ -225,10 +226,19 @@ const saveBookingData = async (bookingNumber: string, data: any) => {
       skipperPhone: data.skipperPhone,
       phoneCountryCode: data.phoneCountryCode,
       mode: data.mode,
-      status: data.status
+      status: data.status || 'Draft',
+      source: 'page1'  // 🔥 Mark as coming from Page 1 check-in
     } as Page1FormData);
 
+    console.log('📝 PAGE 1: Saving with source=page1, status=', data.status || 'Draft');
+
     localStorage.setItem('currentBooking', bookingNumber);
+
+    // 🔥🔥🔥 CRITICAL: Also save to Fleet Management storage format
+    // This ensures the booking appears in Fleet Management immediately
+    if (data.vesselId) {
+      saveToFleetManagementStorage(bookingNumber, data);
+    }
 
     console.log('💾 Saved booking:', bookingNumber, result.synced ? '(synced to API)' : '(localStorage only)');
   } catch (error) {
@@ -238,16 +248,116 @@ const saveBookingData = async (bookingNumber: string, data: any) => {
     try {
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
       bookings[bookingNumber] = {
-        bookingData: data,
+        bookingData: {
+          ...data,
+          status: data.status || 'Draft',
+          source: 'page1'  // 🔥 Mark as from Page 1
+        },
         lastModified: new Date().toISOString(),
         synced: false
       };
       localStorage.setItem('bookings', JSON.stringify(bookings));
       localStorage.setItem('currentBooking', bookingNumber);
-      console.log('💾 Saved booking to localStorage (API failed):', bookingNumber);
+
+      // 🔥 Also save to Fleet Management storage on fallback
+      if (data.vesselId) {
+        saveToFleetManagementStorage(bookingNumber, data);
+      }
+
+      console.log('💾 Saved booking to localStorage (API failed) with source=page1:', bookingNumber);
     } catch (localError) {
       console.error('Error saving to localStorage:', localError);
     }
+  }
+};
+
+// 🔥🔥🔥 NEW: Save booking to Fleet Management's storage format
+// This is CRITICAL - Fleet Management reads from `fleet_{vesselId}_ΝΑΥΛΑ` key
+const saveToFleetManagementStorage = (bookingNumber: string, data: any) => {
+  try {
+    const vesselId = data.vesselId;
+    if (!vesselId) {
+      console.warn('⚠️ Cannot save to Fleet Management storage - no vesselId');
+      return;
+    }
+
+    const storageKey = `fleet_${vesselId}_ΝΑΥΛΑ`;
+
+    // 🔍 DEBUG: Log exactly what key we're saving to
+    console.log('🔑 PAGE 1 SAVING TO KEY:', storageKey);
+    console.log('🔑 vesselId value:', vesselId, 'type:', typeof vesselId);
+    console.log('🔑 vesselName:', data.vesselName);
+    console.log('🔑 bookingNumber:', bookingNumber);
+
+    const existingCharters = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+    // Check if charter already exists (update) or is new (add)
+    const existingIndex = existingCharters.findIndex((c: any) =>
+      c.code === bookingNumber || c.id === bookingNumber
+    );
+
+    // Convert Page 1 data to Fleet Management charter format
+    const charter = {
+      id: bookingNumber,
+      code: bookingNumber,
+      startDate: data.checkInDate || '',
+      startTime: data.checkInTime || '',
+      endDate: data.checkOutDate || '',
+      endTime: data.checkOutTime || '',
+      departure: 'ALIMOS MARINA',
+      arrival: 'ALIMOS MARINA',
+      boatName: data.vesselName || '',
+      vesselName: data.vesselName || '',
+      vesselId: vesselId,
+      ownerCode: '',
+      amount: 0,  // 🔥 No amount from Page 1 - needs to be filled in Fleet Management
+      commissionPercent: 0,
+      commission: 0,
+      vat_on_commission: 0,
+      status: data.status || 'Draft',
+      bookingStatus: data.status || 'Draft',
+      paymentStatus: 'Pending',
+      payments: [],
+      skipperFirstName: data.skipperFirstName || '',
+      skipperLastName: data.skipperLastName || '',
+      skipperAddress: data.skipperAddress || '',
+      skipperEmail: data.skipperEmail || '',
+      skipperPhone: data.skipperPhone || '',
+      source: 'page1',  // 🔥 Mark as from Page 1 check-in
+      createdBy: 'Page 1 Check-in',
+      createdAt: new Date().toISOString()
+    };
+
+    if (existingIndex >= 0) {
+      // Update existing charter (preserve financial data if already set)
+      const existing = existingCharters[existingIndex];
+      charter.amount = existing.amount || 0;
+      charter.commissionPercent = existing.commissionPercent || 0;
+      charter.commission = existing.commission || 0;
+      charter.vat_on_commission = existing.vat_on_commission || 0;
+      charter.payments = existing.payments || [];
+      charter.paymentStatus = existing.paymentStatus || 'Pending';
+      // Keep original status if it was changed from Draft
+      if (existing.status !== 'Draft' && existing.source === 'page1') {
+        charter.status = existing.status;
+        charter.bookingStatus = existing.status;
+      }
+      existingCharters[existingIndex] = charter;
+      console.log('📝 Updated existing charter in Fleet Management storage:', bookingNumber);
+    } else {
+      // Add new charter
+      existingCharters.push(charter);
+      console.log('✅ Added NEW charter to Fleet Management storage:', bookingNumber);
+    }
+
+    localStorage.setItem(storageKey, JSON.stringify(existingCharters));
+    console.log(`💾 Saved to Fleet Management storage key: ${storageKey}`, charter);
+
+    // Verify the save worked
+    console.log('✅ Saved to:', storageKey);
+
+  } catch (error) {
+    console.error('❌ Error saving to Fleet Management storage:', error);
   }
 };
 
@@ -289,15 +399,20 @@ const loadBookingData = async (bookingNumber: string) => {
   }
 };
 
-const getAllBookings = async () => {
+// 🔥 SYNC VERSION: Get all bookings from localStorage (for useMemo)
+const getAllBookingsSync = (): any[] => {
   try {
-    // ✅ Use hybrid API - loads from API with localStorage fallback
-    const bookings = await getBookingsHybrid();
+    const bookingsStr = localStorage.getItem('bookings');
+    if (!bookingsStr) return [];
+
+    const bookings = JSON.parse(bookingsStr);
+    if (!bookings || typeof bookings !== 'object') return [];
+
     return Object.keys(bookings).map(bookingNumber => ({
       bookingNumber,
-      ...bookings[bookingNumber].bookingData,
-      lastModified: bookings[bookingNumber].lastModified,
-      synced: bookings[bookingNumber].synced
+      ...(bookings[bookingNumber]?.bookingData || {}),
+      lastModified: bookings[bookingNumber]?.lastModified,
+      synced: bookings[bookingNumber]?.synced
     }));
   } catch (error) {
     console.error('Error getting all bookings:', error);
@@ -305,20 +420,44 @@ const getAllBookings = async () => {
   }
 };
 
-// 🔥 NEW: GET TODAY'S CHECK-OUTS
-const getTodayCheckouts = () => {
+// 🔥 ASYNC VERSION: Get all bookings with API fallback
+const getAllBookings = async () => {
+  try {
+    // ✅ Use hybrid API - loads from API with localStorage fallback
+    const bookings = await getBookingsHybrid();
+    if (!bookings || typeof bookings !== 'object') return [];
+
+    return Object.keys(bookings).map(bookingNumber => ({
+      bookingNumber,
+      ...(bookings[bookingNumber]?.bookingData || {}),
+      lastModified: bookings[bookingNumber]?.lastModified,
+      synced: bookings[bookingNumber]?.synced
+    }));
+  } catch (error) {
+    console.error('Error getting all bookings:', error);
+    return [];
+  }
+};
+
+// 🔥 SYNC VERSION: GET TODAY'S CHECK-OUTS (for useMemo)
+const getTodayCheckoutsSync = (): any[] => {
   try {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const allBookings = getAllBookings();
-    
-    return allBookings.filter(booking => 
-      booking.checkOutDate === today
+    const allBookings = getAllBookingsSync();
+
+    if (!Array.isArray(allBookings)) return [];
+
+    return allBookings.filter(booking =>
+      booking?.checkOutDate === today
     );
   } catch (error) {
     console.error('Error getting today checkouts:', error);
     return [];
   }
 };
+
+// 🔥 Legacy function - kept for backwards compatibility
+const getTodayCheckouts = getTodayCheckoutsSync;
 
 const deleteBooking = (bookingNumber) => {
   try {
@@ -393,6 +532,7 @@ export default function Page1() {
     bookingNumber: "",
     vesselCategory: "",
     vesselName: "",
+    vesselId: "",
     checkInDate: "",
     checkInTime: "",
     checkOutDate: "",
@@ -403,7 +543,52 @@ export default function Page1() {
     skipperEmail: "",
     skipperPhone: "",
     phoneCountryCode: "+30",
+    status: "Draft",  // 🔥 Page 1 bookings always start as Draft
   });
+
+  // 🔥 NEW: Track unsaved changes to prevent data loss
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedForm, setLastSavedForm] = useState<string>('');
+
+  // 🔥 Warn user before leaving with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'Έχετε μη αποθηκευμένες αλλαγές. Είστε σίγουροι ότι θέλετε να φύγετε;';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // 🔥 Track form changes to detect unsaved changes
+  useEffect(() => {
+    const currentFormString = JSON.stringify(form);
+    if (lastSavedForm && currentFormString !== lastSavedForm) {
+      setHasUnsavedChanges(true);
+    }
+  }, [form, lastSavedForm]);
+
+  // 🔥 AUTO-SAVE: Save form automatically after 3 seconds of no changes
+  useEffect(() => {
+    // Only auto-save if we have a booking number and vessel selected
+    if (!form.bookingNumber || !form.vesselId) return;
+
+    const autoSaveTimer = setTimeout(() => {
+      if (hasUnsavedChanges) {
+        console.log('💾 AUTO-SAVE triggered for booking:', form.bookingNumber);
+        const dataToSave = { ...form, mode };
+        saveBookingData(form.bookingNumber, dataToSave);
+        setLastSavedForm(JSON.stringify(form));
+        setHasUnsavedChanges(false);
+      }
+    }, 3000); // Auto-save after 3 seconds of no changes
+
+    return () => clearTimeout(autoSaveTimer);
+  }, [form, hasUnsavedChanges, mode]);
 
   const [history, setHistory] = useState({
     bookingNumbers: [],
@@ -437,28 +622,40 @@ export default function Page1() {
     if (location.state?.bookingCode) {
       const bookingCode = location.state.bookingCode;
       console.log('📂 Loading booking from HomePage:', bookingCode);
-      
-      const data = loadBookingData(bookingCode);
-      if (data) {
-        setCurrentBookingNumber(bookingCode);
-        setForm(data);
-        setMode(data.mode || 'in');
-      }
+
+      const loadData = async () => {
+        const data = await loadBookingData(bookingCode);
+        if (data) {
+          setCurrentBookingNumber(bookingCode);
+          const formData = { ...data, status: data.status || 'Draft' };
+          setForm(formData);  // 🔥 Default to Draft
+          setLastSavedForm(JSON.stringify(formData));  // 🔥 Mark as saved
+          setHasUnsavedChanges(false);
+          setMode(data.mode || 'in');
+        }
+      };
+      loadData();
     }
   }, [location.state]);
   // 🔥 CRITICAL FIX: Load data when booking number or mode changes
   useEffect(() => {
     console.log('🔄 Loading data for booking:', currentBookingNumber);
-    
+
     if (currentBookingNumber) {
-      const data = loadBookingData(currentBookingNumber);
-      if (data) {
-        console.log('✅ Data loaded successfully');
-        setForm(data);
-        // Don't override mode from data - keep current mode
-      } else {
-        console.log('⚠️ No data found for this booking');
-      }
+      const loadData = async () => {
+        const data = await loadBookingData(currentBookingNumber);
+        if (data) {
+          console.log('✅ Data loaded successfully');
+          const formData = { ...data, status: data.status || 'Draft' };
+          setForm(formData);  // 🔥 Default to Draft
+          setLastSavedForm(JSON.stringify(formData));  // 🔥 Mark as saved
+          setHasUnsavedChanges(false);
+          // Don't override mode from data - keep current mode
+        } else {
+          console.log('⚠️ No data found for this booking');
+        }
+      };
+      loadData();
     }
   }, [currentBookingNumber]);
   
@@ -495,7 +692,9 @@ export default function Page1() {
           bookingNumber: prev.bookingNumber || page1Data.bookingNumber,
           vesselName: prev.vesselName || page1Data.vesselName,
           checkInDate: prev.checkInDate || page1Data.checkInDate,
+          checkInTime: prev.checkInTime || page1Data.checkInTime,
           checkOutDate: prev.checkOutDate || page1Data.checkOutDate,
+          checkOutTime: prev.checkOutTime || page1Data.checkOutTime,
           skipperFirstName: prev.skipperFirstName || page1Data.skipperFirstName,
           skipperLastName: prev.skipperLastName || page1Data.skipperLastName,
           skipperAddress: prev.skipperAddress || page1Data.skipperAddress,
@@ -524,9 +723,9 @@ export default function Page1() {
       console.log('🔄 PAGE1 SYNC - Converted syncData:', syncData);
       saveBookingSync(syncData, 'page1');
     }
-  }, [form.bookingNumber, form.vesselName, form.checkInDate, form.checkOutDate,
-      form.skipperFirstName, form.skipperLastName, form.skipperAddress,
-      form.skipperEmail, form.skipperPhone]);
+  }, [form.bookingNumber, form.vesselName, form.checkInDate, form.checkInTime,
+      form.checkOutDate, form.checkOutTime, form.skipperFirstName, form.skipperLastName,
+      form.skipperAddress, form.skipperEmail, form.skipperPhone]);
 
   useEffect(() => {
     const newHistory = { ...history };
@@ -1004,6 +1203,10 @@ export default function Page1() {
     const dataToSave = { ...form, mode };
     saveBookingData(currentBookingNumber || form.bookingNumber, dataToSave);
 
+    // 🔥 Mark as saved - clear unsaved changes flag
+    setLastSavedForm(JSON.stringify(form));
+    setHasUnsavedChanges(false);
+
     alert(lang === 'el' ? 'Το προσχέδιο αποθηκεύτηκε!' : 'Draft saved!');
   };
 
@@ -1014,6 +1217,10 @@ export default function Page1() {
     // Save booking first
     const dataToSave = { ...form, mode };
     saveBookingData(currentBookingNumber || form.bookingNumber, dataToSave);
+
+    // 🔥 Mark as saved - clear unsaved changes flag
+    setLastSavedForm(JSON.stringify(form));
+    setHasUnsavedChanges(false);
 
     // Navigate to Fleet Management with pre-filled charter data
     navigate('/fleet-management', {
@@ -1300,12 +1507,14 @@ export default function Page1() {
     </div>
   );
 
-  // 🔥 NEW: Get bookings with memoization
-  const allBookings = useMemo(() => getAllBookings(), [currentBookingNumber]);
-  const todayCheckouts = useMemo(() => getTodayCheckouts(), [currentBookingNumber]);
-  
-  // 🔥 NEW: Determine which bookings to show
-  const displayedBookings = showAllBookings ? allBookings : todayCheckouts;
+  // 🔥 NEW: Get bookings with memoization (using sync versions for useMemo)
+  const allBookings = useMemo(() => getAllBookingsSync(), [currentBookingNumber]);
+  const todayCheckouts = useMemo(() => getTodayCheckoutsSync(), [currentBookingNumber]);
+
+  // 🔥 NEW: Determine which bookings to show (ensure it's always an array)
+  const displayedBookings = Array.isArray(showAllBookings ? allBookings : todayCheckouts)
+    ? (showAllBookings ? allBookings : todayCheckouts)
+    : [];
   return (
     <>
       <style>{`

@@ -93,6 +93,8 @@ export default function AdminDashboard({
   const [showUserGuide, setShowUserGuide] = useState(false);
   // 🔥 Auto-refresh: Track last update time
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  // 📝 Track Page 1 bookings per boat for highlighting
+  const [page1BookingsByBoat, setPage1BookingsByBoat] = useState<{[boatId: string]: {count: number, firstBooking: any}}>({});
   const user = authService.getCurrentUser();
   const reactNavigate = useNavigate();
 
@@ -175,6 +177,112 @@ export default function AdminDashboard({
   useEffect(() => {
     loadFinancialsData();
   }, [loadFinancialsData]);
+
+  // 📝 Scan localStorage for Page 1 bookings per boat
+  useEffect(() => {
+    const scanPage1Bookings = () => {
+      const bookingsByBoat: {[boatId: string]: {count: number, firstBooking: any}} = {};
+
+      // 🔍 DEBUG: Log ALL localStorage keys to find the mismatch
+      console.log('📂 ALL localStorage keys:', Object.keys(localStorage));
+      console.log('📂 Keys with "fleet":', Object.keys(localStorage).filter(k => k.toLowerCase().includes('fleet')));
+      console.log('📂 Keys with "ΝΑΥΛΑ":', Object.keys(localStorage).filter(k => k.includes('ΝΑΥΛΑ')));
+      console.log('📂 Keys with "bookings":', Object.keys(localStorage).filter(k => k.toLowerCase().includes('booking')));
+
+      console.log('🔍 AdminDashboard: Scanning for Page 1 bookings...');
+      console.log('📦 Available boats:', boats.map(b => ({ id: b.id, name: b.name })));
+
+      boats.forEach((boat: any) => {
+        // 🔥 FIX: Check ALL possible key variations (case sensitivity)
+        const keysToCheck = [
+          `fleet_${boat.id}_ΝΑΥΛΑ`,                           // By ID (e.g., fleet_7_ΝΑΥΛΑ)
+          `fleet_${boat.name}_ΝΑΥΛΑ`,                         // By name exact (e.g., fleet_Perla_ΝΑΥΛΑ)
+          `fleet_${boat.name?.toUpperCase()}_ΝΑΥΛΑ`,          // By name UPPER (e.g., fleet_PERLA_ΝΑΥΛΑ)
+          `fleet_${boat.name?.toLowerCase()}_ΝΑΥΛΑ`,          // By name lower (e.g., fleet_perla_ΝΑΥΛΑ)
+        ];
+
+        // Combine charters from ALL keys
+        let allCharters: any[] = [];
+
+        keysToCheck.forEach(key => {
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            try {
+              const charters = JSON.parse(stored);
+              // Add only if not already in the list (avoid duplicates)
+              charters.forEach((c: any) => {
+                if (!allCharters.find(existing => existing.code === c.code || existing.id === c.id)) {
+                  allCharters.push(c);
+                }
+              });
+              console.log(`   ✅ Found ${charters.length} charters in ${key}`);
+            } catch (e) {
+              console.error(`❌ Error parsing ${key}:`, e);
+            }
+          }
+        });
+
+        // 🔍 SPECIAL DEBUG FOR PERLA - show ALL data
+        if (boat.name?.toLowerCase() === 'perla') {
+          console.log('🔍 PERLA SPECIAL DEBUG:', {
+            boatId: boat.id,
+            boatName: boat.name,
+            keysChecked: keysToCheck,
+            allChartersFound: allCharters,
+            chartersWithSource: allCharters.map(c => ({ code: c.code, source: c.source, status: c.status, amount: c.amount })),
+            allFleetKeys: Object.keys(localStorage).filter(k => k.includes('fleet') && k.includes('ΝΑΥΛΑ'))
+          });
+        }
+
+        console.log(`📂 ${boat.name}: Found ${allCharters.length} total charters`);
+
+        if (allCharters.length > 0) {
+          // Find Page 1 bookings that need financial details
+          // Check: source='page1' OR status='Draft' (more lenient)
+          // AND: amount is missing or 0
+          const page1Bookings = allCharters.filter((c: any) => {
+            const isFromPage1 = c.source === 'page1';
+            const isDraft = c.status === 'Draft';
+            const needsAmount = !c.amount || c.amount === 0;
+
+            // 🔍 Debug each charter
+            if (boat.name?.toLowerCase() === 'perla') {
+              console.log(`   🔍 Charter ${c.code}:`, { isFromPage1, isDraft, needsAmount, source: c.source, status: c.status, amount: c.amount });
+            }
+
+            // Include if: (from Page 1 OR Draft) AND needs amount
+            return (isFromPage1 || isDraft) && needsAmount;
+          });
+
+          console.log(`📝 ${boat.name}: Found ${page1Bookings.length} Page 1 bookings needing attention from ${allCharters.length} total`);
+
+          if (page1Bookings.length > 0) {
+            bookingsByBoat[boat.id] = {
+              count: page1Bookings.length,
+              firstBooking: page1Bookings[0]
+            };
+          }
+        }
+      });
+
+      console.log('✅ Page 1 bookings summary:', bookingsByBoat);
+      console.log('✅ Boats with Page 1 bookings:', Object.keys(bookingsByBoat));
+      setPage1BookingsByBoat(bookingsByBoat);
+    };
+
+    scanPage1Bookings();
+
+    // Re-scan when storage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key?.includes('fleet_') && e.key?.includes('_ΝΑΥΛΑ')) {
+        console.log('🔄 Storage changed, re-scanning Page 1 bookings');
+        scanPage1Bookings();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [boats]);
 
   const handleBackNavigation = () => {
     const isEmployee = authService.isTechnical() || authService.isBooking() || authService.isAccounting();
@@ -342,23 +450,50 @@ export default function AdminDashboard({
 
             {/* Responsive Grid for Boats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 flex-grow overflow-y-auto">
-              {filteredBoats.length > 0 ? filteredBoats.map(boat => (
-                <button
-                  key={boat.id}
-                  onClick={() => onSelectBoat(boat)}
-                  className="text-left bg-white/90 backdrop-blur-xl p-4 rounded-2xl hover:bg-white transition-all duration-300 border border-blue-200 hover:border-blue-400 shadow-md hover:shadow-2xl hover:-translate-y-2 hover:scale-105 h-fit transform-gpu"
-                  style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-base font-bold text-blue-600">{boat.name || boat.id}</h3>
-                      <p className="text-xs text-slate-600 font-semibold">{boat.id}</p>
-                      <p className="text-xs text-slate-500">{boat.type} {boat.model && `• ${boat.model}`}</p>
+              {filteredBoats.length > 0 ? filteredBoats.map(boat => {
+                const hasPage1Bookings = page1BookingsByBoat[boat.id];
+                const page1Count = hasPage1Bookings?.count || 0;
+
+                // 🔍 DEBUG: Log card rendering for Perla
+                if (boat.name === 'Perla' || boat.name === 'PERLA') {
+                  console.log('🎨 RENDERING PERLA CARD:', {
+                    boatId: boat.id,
+                    boatName: boat.name,
+                    page1BookingsByBoat,
+                    hasPage1Bookings,
+                    page1Count,
+                    shouldHighlight: !!hasPage1Bookings
+                  });
+                }
+
+                return (
+                  <button
+                    key={boat.id}
+                    onClick={() => onSelectBoat(boat)}
+                    className={`text-left backdrop-blur-xl p-4 rounded-2xl transition-all duration-300 shadow-md hover:shadow-2xl hover:-translate-y-2 hover:scale-105 h-fit transform-gpu ${
+                      hasPage1Bookings
+                        ? 'bg-blue-50 border-2 border-blue-500 hover:bg-blue-100'
+                        : 'bg-white/90 border border-blue-200 hover:bg-white hover:border-blue-400'
+                    }`}
+                    style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
+                  >
+                    {/* Page 1 Badge */}
+                    {hasPage1Bookings && (
+                      <div className="mb-2 px-2 py-1 bg-blue-500 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1">
+                        📝 {page1Count === 1 ? 'Νέο ναύλο από Check-in' : `${page1Count} νέα ναύλα από Check-in`}
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-base font-bold text-blue-600">{boat.name || boat.id}</h3>
+                        <p className="text-xs text-slate-600 font-semibold">{boat.id}</p>
+                        <p className="text-xs text-slate-500">{boat.type} {boat.model && `• ${boat.model}`}</p>
+                      </div>
+                      <div className="text-blue-500 text-xl">→</div>
                     </div>
-                    <div className="text-blue-500 text-xl">→</div>
-                  </div>
-                </button>
-              )) : (
+                  </button>
+                );
+              }) : (
                 <div className="col-span-full bg-white/90 backdrop-blur-xl p-4 rounded-2xl text-center border border-blue-200">
                   <p className="text-slate-600 text-sm">
                     {searchTerm ? `Δεν βρέθηκαν σκάφη για "${searchTerm}"` : 'Δεν βρέθηκαν σκάφη.'}
