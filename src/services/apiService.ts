@@ -465,23 +465,67 @@ export async function deleteBookingHybrid(bookingNumber: string) {
  * @param vesselId - The vessel ID to fetch bookings for
  */
 export async function getBookingsByVesselHybrid(vesselId: number | string): Promise<any[]> {
-  const localKey = `fleet_${vesselId}_ΝΑΥΛΑ`;
+  // 🔥 FIX: Get vessel name from ID for key lookup
+  const vesselName = typeof vesselId === 'number' ? VESSEL_NAMES[vesselId] : vesselId;
+
+  // 🔥 FIX: Check ALL possible localStorage key variations
+  const keysToCheck = [
+    `fleet_${vesselId}_ΝΑΥΛΑ`,                         // By ID (e.g., fleet_7_ΝΑΥΛΑ)
+    `fleet_${vesselName}_ΝΑΥΛΑ`,                       // By name exact (e.g., fleet_Perla_ΝΑΥΛΑ)
+    `fleet_${vesselName?.toUpperCase()}_ΝΑΥΛΑ`,        // By name UPPER (e.g., fleet_PERLA_ΝΑΥΛΑ)
+    `fleet_${vesselName?.toLowerCase()}_ΝΑΥΛΑ`,        // By name lower (e.g., fleet_perla_ΝΑΥΛΑ)
+  ].filter(k => k && !k.includes('undefined'));
+
+  // 🔥 FIX: Also scan ALL localStorage keys for any that match this vessel
+  const allStorageKeys = Object.keys(localStorage);
+  const fleetKeys = allStorageKeys.filter(k => k.startsWith('fleet_') && k.endsWith('_ΝΑΥΛΑ'));
+
+  fleetKeys.forEach(key => {
+    const match = key.match(/^fleet_(.+)_ΝΑΥΛΑ$/);
+    if (match) {
+      const keyVesselId = match[1];
+      // Check if this key's vesselId matches our vessel (case-insensitive)
+      if (keyVesselId.toLowerCase() === vesselName?.toLowerCase() ||
+          keyVesselId.toLowerCase() === String(vesselId).toLowerCase()) {
+        if (!keysToCheck.includes(key)) {
+          keysToCheck.push(key);
+          console.log(`   🔍 getBookingsByVesselHybrid: Added matching key: ${key}`);
+        }
+      }
+    }
+  });
+
+  console.log(`🔍 getBookingsByVesselHybrid: vesselId=${vesselId}, vesselName=${vesselName}, keysToCheck:`, keysToCheck);
+
   let localCharters: any[] = [];
 
-  // Load from localStorage first
-  try {
-    const stored = localStorage.getItem(localKey);
-    if (stored) {
-      localCharters = JSON.parse(stored);
+  // 🔥 FIX: Load from ALL matching localStorage keys
+  for (const keyToCheck of keysToCheck) {
+    try {
+      const stored = localStorage.getItem(keyToCheck);
+      if (stored) {
+        const charters = JSON.parse(stored);
+        // Add only if not already in the list (avoid duplicates by code/id)
+        charters.forEach((c: any) => {
+          const charterKey = c.code || c.id;
+          if (charterKey && !localCharters.find(existing => (existing.code || existing.id) === charterKey)) {
+            localCharters.push(c);
+          }
+        });
+        console.log(`   ✅ Loaded ${charters.length} charters from ${keyToCheck}`);
+      }
+    } catch (e) {
+      console.warn(`⚠️ Error reading localStorage key ${keyToCheck}:`, e);
     }
-  } catch (e) {
-    console.warn('⚠️ Error reading localStorage:', e);
   }
+
+  console.log(`📦 Total local charters found: ${localCharters.length}`);
+
+  // 🔥 FIX: Primary key for saving back (use boat ID for consistency with FleetManagement)
+  const primaryKey = `fleet_${vesselId}_ΝΑΥΛΑ`;
 
   // Try to fetch from API
   try {
-    // 🔥 FIX 17: Convert vessel ID to name for API call
-    const vesselName = typeof vesselId === 'number' ? VESSEL_NAMES[vesselId] : vesselId;
     console.log(`🔍 API Call: vesselId=${vesselId}, vesselName=${vesselName}`);
     const response = await fetch(`${API_URL}/bookings?vessel=${encodeURIComponent(vesselName || String(vesselId))}`);
     if (!response.ok) throw new Error('API request failed');
@@ -498,8 +542,13 @@ export async function getBookingsByVesselHybrid(vesselId: number | string): Prom
     // Merge API data with localStorage (API takes priority for same booking code)
     const mergedCharters = mergeCharters(apiCharters, localCharters);
 
-    // Update localStorage with merged data
-    localStorage.setItem(localKey, JSON.stringify(mergedCharters));
+    // 🔥 FIX: Only update localStorage if we have data (don't overwrite with empty)
+    if (mergedCharters.length > 0 || localCharters.length === 0) {
+      localStorage.setItem(primaryKey, JSON.stringify(mergedCharters));
+      console.log(`💾 Saved ${mergedCharters.length} charters to ${primaryKey}`);
+    } else {
+      console.log(`⚠️ Skipping localStorage save - would overwrite ${localCharters.length} local charters with empty API result`);
+    }
 
     return mergedCharters;
   } catch (error) {

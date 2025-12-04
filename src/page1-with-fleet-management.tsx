@@ -1017,18 +1017,28 @@ export default function Page1() {
     }
 
     if (name === 'vesselName' && value) {
-      const vesselId = value.toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace('sun-odyssey', 'so')
-        .replace(/\./g, '');
+      // 🔥 FIX: Use vesselName directly (not transformed) for localStorage key matching
+      // AdminDashboard checks: fleet_{boat.name}_ΝΑΥΛΑ, fleet_{UPPER}_ΝΑΥΛΑ, fleet_{lower}_ΝΑΥΛΑ
+      // So we should save with the exact vesselName to ensure matching
+      const vesselId = value; // Use exact vessel name for storage key matching
 
       console.log('🔥 PAGE 1: Setting vessel ID:', vesselId);
+      console.log('🔥 PAGE 1: Storage key will be: fleet_' + vesselId + '_ΝΑΥΛΑ');
       localStorage.setItem('selectedVessel', vesselId);
+
+      // 🔥 FIX: Also set vesselId in form so saveToFleetManagementStorage receives it
+      setForm(prev => ({
+        ...prev,
+        [name]: value,
+        vesselId: vesselId
+      }));
 
       // Check double booking when vessel changes
       if (value && form.checkInDate && form.checkOutDate) {
         await checkDoubleBooking(value, form.checkInDate, form.checkOutDate);
       }
+
+      return; // Don't call setForm again below
     }
 
     if (name === 'bookingNumber' && value) {

@@ -98,6 +98,38 @@ export default function AdminDashboard({
   const user = authService.getCurrentUser();
   const reactNavigate = useNavigate();
 
+  // 🔥 DEBUG: Show all fleet localStorage data on mount
+  useEffect(() => {
+    console.log('');
+    console.log('╔════════════════════════════════════════════════════════════════╗');
+    console.log('║           🔍 FLEET LOCALSTORAGE DEBUG                          ║');
+    console.log('╚════════════════════════════════════════════════════════════════╝');
+    const keys = Object.keys(localStorage).filter(k => k.includes('fleet_') && k.includes('ΝΑΥΛΑ'));
+    console.log('📦 Found', keys.length, 'fleet keys:', keys);
+    console.log('');
+    keys.forEach(key => {
+      try {
+        const data = JSON.parse(localStorage.getItem(key) || '[]');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔑 KEY:', key);
+        console.log('   Charters count:', data.length);
+        data.forEach((c: any) => {
+          console.log('   📋 Charter:', c.code);
+          console.log('      vesselName:', c.vesselName);
+          console.log('      vesselId:', c.vesselId, '(type:', typeof c.vesselId + ')');
+          console.log('      boatName:', c.boatName);
+          console.log('      source:', c.source);
+          console.log('      status:', c.status);
+        });
+      } catch (e) {
+        console.log('❌ Error parsing key:', key, e);
+      }
+    });
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🚢 Available boats:', boats.map(b => ({ id: b.id, name: b.name })));
+    console.log('╚════════════════════════════════════════════════════════════════╝');
+  }, [boats]);
+
   // Filter boats based on search (case-insensitive)
   const filteredBoats = boats.filter(boat => {
     if (!searchTerm.trim()) return true;
@@ -200,6 +232,48 @@ export default function AdminDashboard({
           `fleet_${boat.name?.toUpperCase()}_ΝΑΥΛΑ`,          // By name UPPER (e.g., fleet_PERLA_ΝΑΥΛΑ)
           `fleet_${boat.name?.toLowerCase()}_ΝΑΥΛΑ`,          // By name lower (e.g., fleet_perla_ΝΑΥΛΑ)
         ];
+
+        // 🔥 FIX: Also scan ALL localStorage keys for any that match this boat
+        // This handles cases where vesselId was stored differently
+        const allStorageKeys = Object.keys(localStorage);
+        const fleetKeys = allStorageKeys.filter(k => k.startsWith('fleet_') && k.endsWith('_ΝΑΥΛΑ'));
+
+        // Add any fleet keys that might match this boat (case-insensitive comparison)
+        fleetKeys.forEach(key => {
+          // Extract vessel identifier from key (fleet_{vesselId}_ΝΑΥΛΑ)
+          const match = key.match(/^fleet_(.+)_ΝΑΥΛΑ$/);
+          if (match) {
+            const keyVesselId = match[1];
+            // Check if this key's vesselId matches boat name (case-insensitive)
+            if (keyVesselId.toLowerCase() === boat.name?.toLowerCase() ||
+                keyVesselId.toLowerCase() === boat.id?.toString().toLowerCase()) {
+              if (!keysToCheck.includes(key)) {
+                keysToCheck.push(key);
+                console.log(`   🔍 Added matching key from scan: ${key}`);
+              }
+            }
+
+            // 🔥 FIX: Also check if any charter inside this key has vesselName matching this boat
+            if (!keysToCheck.includes(key)) {
+              try {
+                const stored = localStorage.getItem(key);
+                if (stored) {
+                  const charters = JSON.parse(stored);
+                  const hasMatchingCharter = charters.some((c: any) =>
+                    c.vesselName?.toLowerCase() === boat.name?.toLowerCase() ||
+                    c.boatName?.toLowerCase() === boat.name?.toLowerCase()
+                  );
+                  if (hasMatchingCharter) {
+                    keysToCheck.push(key);
+                    console.log(`   🔍 Added key with matching vesselName: ${key}`);
+                  }
+                }
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+          }
+        });
 
         // Combine charters from ALL keys
         let allCharters: any[] = [];

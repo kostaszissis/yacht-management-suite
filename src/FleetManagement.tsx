@@ -1032,7 +1032,7 @@ export default function FleetManagement() {
 
       if (boat) {
         setBoatData(boat);
-        setSelectedCategory({ name: 'ΝΑΥΛΑ', icon: '⚓' });
+        setSelectedCategory('ΝΑΥΛΑ');  // 🔥 FIX: Use string not object
         setPage('details');
         showMessage(`📝 Μεταφορά στο ${boat.name} - Ναύλος: ${page1BookingsNeedingAmount.firstBooking.code}`, 'info');
       }
@@ -4625,6 +4625,8 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
 function CharterPage({ items, boat, showMessage, saveItems }) {
   const [selectedCharter, setSelectedCharter] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  // 🔥 NEW: Edit mode for Draft/Page1 charters
+  const [editingCharter, setEditingCharter] = useState<any>(null);
   // 🔥 NEW: Filter for Page 1 bookings
   const [charterFilter, setCharterFilter] = useState<'all' | 'page1' | 'confirmed'>('all');
 
@@ -5123,12 +5125,15 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   });
 
   // 🔥 FIX 6: Add saveBookingHybrid API sync
+  // 🔥 NEW: Handles both ADD and EDIT modes
   const handleAddCharter = async () => {
-    console.log('🔥 handleAddCharter called');
+    const isEditMode = !!editingCharter;
+    console.log('🔥 handleAddCharter called - MODE:', isEditMode ? 'EDIT' : 'ADD');
     console.log('canEditCharters:', canEditCharters);
     console.log('isFormValid:', isFormValid);
     console.log('hasValidationErrors:', hasValidationErrors);
     console.log('newCharter:', newCharter);
+    if (isEditMode) console.log('✏️ Editing charter:', editingCharter.code);
 
     if (!canEditCharters) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
@@ -5162,10 +5167,16 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     }
 
     // 🔥 CRITICAL: Final check for duplicate charter code before saving (using localStorage)
+    // 🔥 SKIP duplicate check if editing the SAME charter code
+    const isCodeChanged = isEditMode && editingCharter.code !== newCharter.code;
+    const shouldCheckDuplicate = !isEditMode || isCodeChanged;
+
     console.log('🛑🛑🛑 FINAL CHECK for duplicate code:', newCharter.code);
+    console.log('🛑 isEditMode:', isEditMode, 'isCodeChanged:', isCodeChanged, 'shouldCheckDuplicate:', shouldCheckDuplicate);
     console.log('🛑 Current items count:', items.length);
     console.log('🛑 Items codes:', items.map((c: any) => c.code));
-    const isDuplicateCode = checkDuplicateOnEnter(newCharter.code);
+
+    const isDuplicateCode = shouldCheckDuplicate ? checkDuplicateOnEnter(newCharter.code) : false;
     console.log('🛑 isDuplicateCode result:', isDuplicateCode);
 
     // 🔥🔥🔥 ABSOLUTE BLOCK - IF DUPLICATE FOUND, DO NOT CONTINUE
@@ -5215,9 +5226,19 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     }
 
     // 🔥 CRITICAL: Check for date overlap on same vessel
+    // 🔥 SKIP overlap check for the same charter when editing
     console.log('🔍 FINAL CHECK for date overlap');
     console.log('🔍 Dates:', newCharter.startDate, '-', newCharter.endDate);
-    const hasDateOverlap = checkDoubleBookingOnEnter(newCharter.startDate, newCharter.endDate);
+    // When editing, exclude the current charter from overlap check
+    const hasDateOverlap = isEditMode
+      ? items.filter((c: any) => c.id !== editingCharter.id).some((charter: any) => {
+          const existingStart = new Date(charter.startDate);
+          const existingEnd = new Date(charter.endDate);
+          const newStart = new Date(newCharter.startDate);
+          const newEnd = new Date(newCharter.endDate);
+          return newStart <= existingEnd && newEnd >= existingStart;
+        })
+      : checkDoubleBookingOnEnter(newCharter.startDate, newCharter.endDate);
     console.log('🔍 hasDateOverlap result:', hasDateOverlap);
     if (hasDateOverlap) {
       console.log('❌❌❌ BLOCKING SAVE - DATE OVERLAP DETECTED!');
@@ -5258,19 +5279,25 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
     console.log('✅✅✅ All checks passed - OK to save');
 
-    // 🔥🔥🔥 FINAL SAFETY CHECK - One last verification before saving
-    const finalDuplicateCheck = checkDuplicateOnEnter(newCharter.code);
-    if (finalDuplicateCheck) {
-      console.log('🛑🛑🛑 FINAL SAFETY CHECK CAUGHT DUPLICATE - ABSOLUTELY BLOCKING SAVE!');
-      alert('❌ ΣΤΑΜΑΤΑ! Βρέθηκε διπλότυπο charter party code στον τελικό έλεγχο!\n\nΔεν αποθηκεύτηκε!');
-      return;
+    // 🔥🔥🔥 FINAL SAFETY CHECK - One last verification before saving (skip for edit mode same code)
+    if (shouldCheckDuplicate) {
+      const finalDuplicateCheck = checkDuplicateOnEnter(newCharter.code);
+      if (finalDuplicateCheck) {
+        console.log('🛑🛑🛑 FINAL SAFETY CHECK CAUGHT DUPLICATE - ABSOLUTELY BLOCKING SAVE!');
+        alert('❌ ΣΤΑΜΑΤΑ! Βρέθηκε διπλότυπο charter party code στον τελικό έλεγχο!\n\nΔεν αποθηκεύτηκε!');
+        return;
+      }
     }
 
+    // 🔥 CREATE or UPDATE charter object
     const charter = {
-      id: uid(),
+      // Keep original id when editing, generate new when adding
+      id: isEditMode ? editingCharter.id : uid(),
       code: newCharter.code,
       startDate: newCharter.startDate,
       endDate: newCharter.endDate,
+      startTime: newCharter.startTime,
+      endTime: newCharter.endTime,
       departure: newCharter.departure,
       arrival: newCharter.arrival,
       boatName: boat.name,
@@ -5283,23 +5310,37 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       vat_on_commission: financials.vat,
       status: newCharter.status,
       bookingStatus: newCharter.status,
-      paymentStatus: 'Pending',
-      payments: [],
+      // 🔥 Keep existing payment data when editing, reset when adding
+      paymentStatus: isEditMode ? (editingCharter.paymentStatus || 'Pending') : 'Pending',
+      payments: isEditMode ? (editingCharter.payments || []) : [],
       // 🔥 FIX 9: Skipper fields
       skipperFirstName: newCharter.skipperFirstName,
       skipperLastName: newCharter.skipperLastName,
       skipperAddress: newCharter.skipperAddress,
       skipperEmail: newCharter.skipperEmail,
       skipperPhone: newCharter.skipperPhone,
-      createdBy: authService.getCurrentUser()?.name,
-      createdAt: new Date().toISOString()
+      // 🔥 Keep original created data when editing
+      createdBy: isEditMode ? editingCharter.createdBy : authService.getCurrentUser()?.name,
+      createdAt: isEditMode ? editingCharter.createdAt : new Date().toISOString(),
+      // 🔥 Add updated info
+      updatedBy: authService.getCurrentUser()?.name,
+      updatedAt: new Date().toISOString(),
+      // 🔥 Keep source info when editing
+      source: isEditMode ? editingCharter.source : undefined
     };
 
     // 🔥 FIX 6: Debug logging
-    console.log('📝 Adding charter:', charter);
+    console.log(isEditMode ? '✏️ Updating charter:' : '📝 Adding charter:', charter);
 
-    // Save locally first
-    saveItems([...items, charter]);
+    // Save locally - UPDATE existing or ADD new
+    if (isEditMode) {
+      // Update: replace the existing charter
+      const updatedItems = items.map((item: any) => item.id === editingCharter.id ? charter : item);
+      saveItems(updatedItems);
+    } else {
+      // Add: append new charter
+      saveItems([...items, charter]);
+    }
 
     // 🔥 FIX 6: Sync to API
     try {
@@ -5309,31 +5350,38 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       console.error('❌ API sync error (charter saved locally):', error);
     }
 
-    // 🔥 FIX 13 + FIX 38: Send email when new charter is created (pass boat object for owner lookup)
+    // 🔥 FIX 13 + FIX 38: Send email when new charter is created (skip email on edit unless status changed)
     // 🔥 FIX: Map status to correct email action
-    let emailAction = 'new_charter'; // Default for Option status
-    if (newCharter.status === 'Reservation' || newCharter.status === 'reservation') {
-      emailAction = 'pending_final_confirmation';
-      console.log('📧 Reservation status detected - sending pending_final_confirmation email');
-    } else if (newCharter.status === 'Confirmed' || newCharter.status === 'confirmed') {
-      emailAction = 'confirmed';
-      console.log('📧 Confirmed status detected - sending confirmed email');
+    if (!isEditMode || (isEditMode && editingCharter.status !== newCharter.status)) {
+      let emailAction = 'new_charter'; // Default for Option status
+      if (newCharter.status === 'Reservation' || newCharter.status === 'reservation') {
+        emailAction = 'pending_final_confirmation';
+        console.log('📧 Reservation status detected - sending pending_final_confirmation email');
+      } else if (newCharter.status === 'Confirmed' || newCharter.status === 'confirmed') {
+        emailAction = 'confirmed';
+        console.log('📧 Confirmed status detected - sending confirmed email');
+      }
+      console.log('📧 Sending email with action:', emailAction, 'for status:', newCharter.status);
+      await sendCharterEmail(charter, boat, emailAction);
+    } else {
+      console.log('📧 Skipping email - status unchanged during edit');
     }
-    console.log('📧 Sending email with action:', emailAction, 'for status:', newCharter.status);
-    await sendCharterEmail(charter, boat, emailAction);
 
-    authService.logActivity('add_charter', `${boat.id}/${charter.code}`);
-    // 🔥 FIX 9: Reset form with skipper fields
+    authService.logActivity(isEditMode ? 'edit_charter' : 'add_charter', `${boat.id}/${charter.code}`);
+
+    // 🔥 Reset form and state
     setNewCharter({
-      code: '', startDate: '', endDate: '', amount: '', commissionPercent: '',
+      code: '', startDate: '', endDate: '', startTime: '', endTime: '', amount: '', commissionPercent: '',
       departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
       skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
     });
+    setEditingCharter(null); // 🔥 Clear edit mode
     setShowAddForm(false);
-    showMessage('✅ Ο ναύλος προστέθηκε.', 'success');
+    showMessage(isEditMode ? '✅ Ο ναύλος ενημερώθηκε.' : '✅ Ο ναύλος προστέθηκε.', 'success');
   };
 
-  // 🔥 FIX 19: Fixed delete to find charter by code OR id (API charters use code)
+  // 🔥 FIX 19 + FIX 40: Fixed delete to work locally even when API fails
+  // Deletes from ALL possible localStorage keys (by ID and by vessel name)
   const handleDeleteCharter = async (charterKey) => {
     if (!canEditCharters) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα διαγραφής', 'error');
@@ -5346,7 +5394,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
     console.log(`🗑️ Deleting charter: key=${charterKey}, code=${bookingCode}, found=${!!charter}`);
 
-    // Delete from API using booking code (not id!)
+    // 1. Try to delete from API (don't block on failure)
     if (bookingCode) {
       try {
         const response = await fetch(`https://yachtmanagementsuite.com/api/bookings/${encodeURIComponent(bookingCode)}`, {
@@ -5359,11 +5407,44 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
           console.log('✅ Charter deleted from API:', bookingCode);
         }
       } catch (error) {
-        console.warn('API delete error:', error);
+        console.warn('⚠️ API delete error (will still delete locally):', error);
       }
     }
 
-    // Delete from local storage (filter by code OR id)
+    // 2. 🔥 FIX 40: Delete from ALL possible localStorage keys
+    // Page 1 saves to fleet_{vesselName}_ΝΑΥΛΑ, FleetManagement saves to fleet_{boatId}_ΝΑΥΛΑ
+    const keysToCheck = [
+      `fleet_${boat.id}_ΝΑΥΛΑ`,                           // By numeric ID (e.g., fleet_7_ΝΑΥΛΑ)
+      `fleet_${boat.name}_ΝΑΥΛΑ`,                         // By name exact (e.g., fleet_Perla_ΝΑΥΛΑ)
+      `fleet_${boat.name?.toUpperCase()}_ΝΑΥΛΑ`,          // By name UPPER (e.g., fleet_PERLA_ΝΑΥΛΑ)
+      `fleet_${boat.name?.toLowerCase()}_ΝΑΥΛΑ`,          // By name lower (e.g., fleet_perla_ΝΑΥΛΑ)
+    ];
+
+    // Also check the charter's vesselId in case it's different
+    if (charter?.vesselId && !keysToCheck.includes(`fleet_${charter.vesselId}_ΝΑΥΛΑ`)) {
+      keysToCheck.push(`fleet_${charter.vesselId}_ΝΑΥΛΑ`);
+    }
+
+    console.log('🗑️ Checking localStorage keys:', keysToCheck);
+
+    keysToCheck.forEach(key => {
+      try {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const charters = JSON.parse(stored);
+          const beforeCount = charters.length;
+          const filtered = charters.filter((c: any) => c.code !== bookingCode && c.id !== charterKey);
+          if (filtered.length < beforeCount) {
+            localStorage.setItem(key, JSON.stringify(filtered));
+            console.log(`   ✅ Removed from ${key} (${beforeCount} → ${filtered.length})`);
+          }
+        }
+      } catch (e) {
+        console.warn(`   ⚠️ Error cleaning key ${key}:`, e);
+      }
+    });
+
+    // 3. Update React state
     saveItems(items.filter((item) => item.code !== charterKey && item.id !== charterKey));
     authService.logActivity('delete_charter', `${boat.id}/${bookingCode}`);
     setSelectedCharter(null);
@@ -5425,6 +5506,39 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     authService.logActivity('BOOKING_UPDATED', `${boat.id}/${bookingCode}`);
   };
 
+  // 🔥 NEW: Handle editing a charter (Draft/Page1 charters get full edit capability)
+  const handleEditCharter = (charter) => {
+    console.log('✏️ EDIT CHARTER:', charter.code, 'Status:', charter.status, 'Source:', charter.source);
+
+    // Populate the form with existing charter data
+    setNewCharter({
+      code: charter.code || '',
+      startDate: charter.startDate || '',
+      endDate: charter.endDate || '',
+      startTime: charter.startTime || '',
+      endTime: charter.endTime || '',
+      amount: charter.amount?.toString() || '',
+      commissionPercent: charter.commissionPercent?.toString() || '',
+      departure: charter.departure || 'ALIMOS MARINA',
+      arrival: charter.arrival || 'ALIMOS MARINA',
+      status: charter.status || 'Option',
+      skipperFirstName: charter.skipperFirstName || '',
+      skipperLastName: charter.skipperLastName || '',
+      skipperAddress: charter.skipperAddress || '',
+      skipperEmail: charter.skipperEmail || '',
+      skipperPhone: charter.skipperPhone || ''
+    });
+
+    // Set editing mode
+    setEditingCharter(charter);
+
+    // Close detail modal and show form
+    setSelectedCharter(null);
+    setShowAddForm(true);
+
+    showMessage('✏️ Επεξεργασία ναύλου: ' + charter.code, 'info');
+  };
+
   // 🔥 FIX: Fetch latest status from API when opening charter modal
   const handleSelectCharter = async (charter) => {
     authService.logActivity('view_charter_details', `${boat.id}/${charter.code}`);
@@ -5478,14 +5592,35 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
       {canEditCharters && (
         <div className="mb-4">
-          <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center justify-center w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 border border-gray-700">
-            {icons.plus} <span className="ml-2">{showAddForm ? 'Ακύρωση' : 'Προσθήκη Νέου Ναύλου'}</span>
+          <button onClick={() => {
+            if (showAddForm) {
+              // Cancel: clear form and editing state
+              setShowAddForm(false);
+              setEditingCharter(null);
+              setNewCharter({
+                code: '', startDate: '', endDate: '', startTime: '', endTime: '', amount: '', commissionPercent: '',
+                departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
+                skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
+              });
+            } else {
+              setShowAddForm(true);
+            }
+          }} className={`flex items-center justify-center w-full ${editingCharter ? 'bg-blue-800 hover:bg-blue-700 border-blue-600' : 'bg-gray-800 hover:bg-gray-700 border-gray-700'} text-white font-bold py-3 px-4 rounded-lg transition duration-200 border`}>
+            {editingCharter ? icons.edit : icons.plus} <span className="ml-2">{showAddForm ? 'Ακύρωση' : 'Προσθήκη Νέου Ναύλου'}</span>
           </button>
           
           {showAddForm && (
-            <form onSubmit={(e) => e.preventDefault()} className="mt-4 p-5 bg-gray-800 rounded-lg border-2 border-gray-700 space-y-4">
+            <form onSubmit={(e) => e.preventDefault()} className={`mt-4 p-5 rounded-lg border-2 space-y-4 ${editingCharter ? 'bg-blue-900 border-blue-600' : 'bg-gray-800 border-gray-700'}`}>
+              {/* 🔥 Edit mode header banner */}
+              {editingCharter && (
+                <div className="bg-blue-600 text-white p-3 rounded-lg text-center font-bold text-lg mb-2 border-2 border-blue-400">
+                  ✏️ ΕΠΕΞΕΡΓΑΣΙΑ ΝΑΥΛΟΥ: {editingCharter.code}
+                </div>
+              )}
               <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
-                <h3 className="text-lg font-bold text-teal-400 mb-3">CHARTERING INFORMATION</h3>
+                <h3 className="text-lg font-bold text-teal-400 mb-3">
+                  {editingCharter ? '✏️ ΕΠΕΞΕΡΓΑΣΙΑ ΝΑΥΛΟΥ' : 'CHARTERING INFORMATION'}
+                </h3>
                 <div className="grid grid-cols-1 gap-3">
                   <div ref={charterCodeRef}>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Κωδικός Ναύλου *</label>
@@ -5692,9 +5827,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                 type="button"
                 id="save-charter-btn"
                 onClick={handleAddCharter}
-                className={`w-full py-3 px-4 rounded-lg font-bold text-lg transition duration-200 ${isFormValid ? 'bg-teal-600 hover:bg-teal-700 text-white' : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
+                className={`w-full py-3 px-4 rounded-lg font-bold text-lg transition duration-200 ${isFormValid ? (editingCharter ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-teal-600 hover:bg-teal-700 text-white') : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
               >
-                💾 Αποθήκευση Ναύλου {!isFormValid && '(Συμπληρώστε τα υποχρεωτικά πεδία)'}
+                {editingCharter ? '✏️ Ενημέρωση Ναύλου' : '💾 Αποθήκευση Ναύλου'} {!isFormValid && '(Συμπληρώστε τα υποχρεωτικά πεδία)'}
               </button>
             </form>
           )}
@@ -5793,17 +5928,18 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       </div>
 
       {selectedCharter && (
-        <CharterDetailModal 
+        <CharterDetailModal
           charter={selectedCharter} boat={boat} canViewFinancials={canViewFinancials} canEditCharters={canEditCharters}
-          canAcceptCharter={canAcceptCharter} isOwnerUser={isOwnerUser} onClose={() => setSelectedCharter(null)} 
+          canAcceptCharter={canAcceptCharter} isOwnerUser={isOwnerUser} onClose={() => setSelectedCharter(null)}
           onDelete={handleDeleteCharter} onUpdateStatus={handleUpdateStatus} onUpdatePayments={handleUpdatePayments} showMessage={showMessage}
+          onEdit={handleEditCharter}
         />
       )}
     </div>
   );
 }
 
-function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters, canAcceptCharter, isOwnerUser, onClose, onDelete, onUpdateStatus, onUpdatePayments, showMessage }) {
+function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters, canAcceptCharter, isOwnerUser, onClose, onDelete, onUpdateStatus, onUpdatePayments, showMessage, onEdit }) {
   // 🔥 DEBUG: Log permissions for troubleshooting
   console.log('🔍 CharterDetailModal - Permissions:', {
     charterCode: charter.code,
@@ -6051,6 +6187,30 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           </div>
         )}
 
+        {/* 🔥 EDIT BUTTON - TOP OF MODAL - FORCED TO SHOW FOR TESTING */}
+        {console.log('🔥 EDIT BUTTON RENDER - canEditCharters:', canEditCharters, 'onEdit:', !!onEdit, 'status:', charter?.status, 'source:', charter?.source)}
+
+        {/* 🔥 TEST: Always show edit button if onEdit exists */}
+        {onEdit && (
+          <button
+            onClick={() => {
+              console.log('🔥 EDIT BUTTON CLICKED!', charter);
+              onEdit(charter);
+            }}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-4 rounded-lg flex items-center justify-center mb-4 border-2 border-blue-400 shadow-xl text-lg"
+            style={{ animation: 'pulse 2s infinite' }}
+          >
+            <span className="text-xl">✏️ ΕΠΕΞΕΡΓΑΣΙΑ ΝΑΥΛΟΥ</span>
+          </button>
+        )}
+
+        {/* 🔥 FALLBACK: If onEdit is missing, show why */}
+        {!onEdit && (
+          <div className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg mb-4 text-center">
+            ⚠️ onEdit prop is missing - Edit button disabled
+          </div>
+        )}
+
         <div className="text-center mb-4 pb-4 border-b border-gray-700">
           <h3 className="font-bold text-lg">{COMPANY_INFO.name}</h3>
           <p className="text-sm text-gray-400">{COMPANY_INFO.address}</p>
@@ -6231,6 +6391,8 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
             <button type="button" onClick={savePayments} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg">Αποθήκευση Πληρωμών</button>
           </div>
         )}
+
+        {/* Edit button moved to top of modal */}
 
         {canEditCharters && (
           <button onClick={async () => {
