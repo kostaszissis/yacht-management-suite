@@ -4437,10 +4437,80 @@ function MediaPage({ items, boatId, showMessage }) {
 function TaskPage({ boat, items, showMessage, saveItems }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTaskDesc, setNewTaskDesc] = useState('');
-  
+  const [winterizationData, setWinterizationData] = useState<{
+    completed: number;
+    total: number;
+    replacements: number;
+    lastSaved: string | null;
+  } | null>(null);
+  const reactNavigate = useNavigate();
+
   const isOwnerUser = authService.isOwner();
   const canManageTasks = authService.canManageTasks() && !isOwnerUser;
   const canView = true;
+
+  // Load winterization summary data
+  useEffect(() => {
+    if (!boat?.name) return;
+
+    const vesselKey = boat.name.replace(/\s+/g, '_').toLowerCase();
+    const savedData = localStorage.getItem(`winterization_${vesselKey}_data`);
+    const savedCustom = localStorage.getItem(`winterization_${vesselKey}_custom_items`);
+
+    if (savedData) {
+      try {
+        const data = JSON.parse(savedData);
+        let completed = 0;
+        let total = 0;
+        let replacements = 0;
+
+        // Count from default items
+        if (data.sections) {
+          Object.values(data.sections).forEach((section: any) => {
+            if (section.items) {
+              section.items.forEach((item: any) => {
+                total++;
+                if (item.checked) completed++;
+                if (item.replaceQty > 0) replacements += item.replaceQty;
+              });
+            }
+          });
+        }
+
+        // Count custom items
+        if (savedCustom) {
+          const customData = JSON.parse(savedCustom);
+          Object.values(customData).forEach((sectionItems: any) => {
+            if (Array.isArray(sectionItems)) {
+              sectionItems.forEach((item: any) => {
+                total++;
+                if (item.checked) completed++;
+                if (item.replaceQty > 0) replacements += item.replaceQty;
+              });
+            }
+          });
+        }
+
+        setWinterizationData({
+          completed,
+          total: total || 75, // Default 75 items if none saved
+          replacements,
+          lastSaved: data.lastSaved || null
+        });
+      } catch (e) {
+        console.error('Error loading winterization data:', e);
+        setWinterizationData(null);
+      }
+    } else {
+      // No data saved yet - show empty state
+      setWinterizationData({
+        completed: 0,
+        total: 75,
+        replacements: 0,
+        lastSaved: null
+      });
+    }
+  }, [boat?.name]);
 
   useEffect(() => {
     if (items.length === 0 && canManageTasks) {
@@ -4567,7 +4637,64 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
           <div className="text-xs text-orange-300">Repair</div>
         </div>
       </div>
-      
+
+      {/* ❄️ Winterization Summary Card */}
+      {winterizationData && (
+        <button
+          onClick={() => {
+            // Find vessel ID from VESSELS list
+            const vesselId = [
+              { id: 1, name: "Maria 1" },
+              { id: 2, name: "Maria 2" },
+              { id: 3, name: "Valesia" },
+              { id: 4, name: "Bar Bar" },
+              { id: 5, name: "Kalispera" },
+              { id: 6, name: "Infinity" },
+              { id: 7, name: "Perla" },
+              { id: 8, name: "Bob" },
+            ].find(v => v.name.toLowerCase() === boat?.name?.toLowerCase())?.id;
+
+            if (vesselId) {
+              localStorage.setItem('winterization_last_vessel', String(vesselId));
+            }
+            reactNavigate('/winterization');
+          }}
+          className="w-full mb-4 p-4 bg-gradient-to-r from-cyan-900 to-blue-900 rounded-xl border border-cyan-600 hover:border-cyan-400 transition-all hover:shadow-lg hover:shadow-cyan-500/20 text-left"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">❄️</span>
+              <div>
+                <h4 className="font-bold text-cyan-300 text-lg">Χειμωνιάσμα</h4>
+                <p className="text-xs text-cyan-400/70">Winterization Check-in</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-green-400">✅</span>
+                <span className="font-bold text-white">{winterizationData.completed}/{winterizationData.total}</span>
+              </div>
+              {winterizationData.replacements > 0 && (
+                <div className="flex items-center gap-2 text-red-400">
+                  <span>🔴</span>
+                  <span className="text-sm">{winterizationData.replacements} αντ/σεις</span>
+                </div>
+              )}
+            </div>
+          </div>
+          {winterizationData.lastSaved && (
+            <div className="mt-2 text-xs text-gray-400">
+              📅 Τελευταία ενημέρωση: {new Date(winterizationData.lastSaved).toLocaleDateString('el-GR')}
+            </div>
+          )}
+          {!winterizationData.lastSaved && (
+            <div className="mt-2 text-xs text-yellow-400">
+              ⚠️ Δεν έχει ξεκινήσει - Πατήστε για να ξεκινήσετε
+            </div>
+          )}
+        </button>
+      )}
+
       <div className="mb-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
         <h3 className="text-sm font-bold text-gray-300 mb-2">Επεξήγηση Χρωμάτων:</h3>
         <div className="flex items-center gap-4 text-xs">

@@ -493,6 +493,18 @@ export default function AdminDashboard({
                 <span className="text-xs font-medium">+Boat</span>
               </button>
             )}
+
+            {/* 🆕 Winterization Check-in Button */}
+            {authService.canManageTasks() && (
+              <button
+                onClick={() => reactNavigate('/winterization')}
+                className="w-full h-10 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                title="Winterization Check-in"
+              >
+                <span className="text-lg">❄️</span>
+                <span className="text-xs font-medium">Winter</span>
+              </button>
+            )}
           </div>
 
           {/* Center - Boats List */}

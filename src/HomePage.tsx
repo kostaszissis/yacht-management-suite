@@ -773,6 +773,7 @@ export default function HomePage() {
     { id: 'ai', icon: '🤖', label: language === 'en' ? 'AI Assistant' : 'AI Βοηθός', action: () => navigate('/ai-assistant') },
     { id: 'weather', icon: '🌤️', label: language === 'en' ? 'Weather' : 'Καιρός', action: handleWeather },
     { id: 'music', icon: '🎵', label: language === 'en' ? 'Music' : 'Μουσική', action: () => setShowMusicModal(true) },
+    { id: 'winterization', icon: '❄️', label: language === 'en' ? 'Winterization' : 'Χειμωνιάτικο', action: () => navigate('/winterization') },
   ];
 
   return (

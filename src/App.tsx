@@ -17,6 +17,7 @@ import OwnerProfile from './OwnerProfile';
 import AdminPanel from './AdminPanel'; // 🆕 NEW
 import TechnicalSupportChat from './TechnicalSupportChat'; // 🆕 Technical Support Chat
 import TechnicalManagerDashboard from './TechnicalManagerDashboard'; // 🆕 Technical Manager Dashboard
+import WinterizationCheckin from './WinterizationCheckin'; // 🆕 Winterization Check-in
 
 // 🆕 NEW: Import auth service
 import { initializeAuth } from './authService';
@@ -431,6 +432,9 @@ function App() {
 
             {/* 🆕 NEW: Technical Manager Dashboard - View all support chats */}
             <Route path="/technical-manager" element={<TechnicalManagerDashboard />} />
+
+            {/* 🆕 NEW: Winterization Check-in */}
+            <Route path="/winterization" element={<WinterizationCheckin />} />
 
             {/* Charter Agreement & Documents Page */}
             <Route path="/charter-agreement" element={<CharterAgreementPage />} />
