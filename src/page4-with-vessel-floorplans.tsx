@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import authService from './authService';
-import { saveBookingHybrid } from './services/apiService';
+import { savePage4DataHybrid, getPage4DataHybrid } from './services/apiService';
 import {
   compressImage,
   getBase64Size,
@@ -121,15 +121,43 @@ const VESSELS = [
   { id: 'bavaria-c42-valesia', name: 'Bavaria c42 Cruiser-VALESIA', category: 'monohull' }
 ];
 
-const VESSEL_FLOORPLANS = {
-  'lagoon-42-bob': '/images/floorplans/lagoon-42.webp',
-  'lagoon-46-perla': '/images/floorplans/lagoon-46.png',
-  'bali-42-infinity': '/images/floorplans/bali-4-2-infinity.png',
-  'jeanneau-so-449-maria1': '/images/floorplans/jeanneau-449.png',
-  'jeanneau-yacht-54-maria2': '/images/floorplans/jeanneau-54.png',
-  'beneteau-oceanis-46-1-bar-bar': '/images/floorplans/beneteau-oceanis-46-new.png',
-  'bavaria-c42-kalispera': '/images/floorplans/bavaria-c42-cruiser-kalispera.png',
-  'bavaria-c42-valesia': '/images/floorplans/bavaria-c42-cruiser-valesia.png'
+// Floorplan images - using full server URL for all environments
+// Images must be uploaded to: /var/www/html/images/floorplans/ on the server
+const IMAGE_BASE_URL = 'https://yachtmanagementsuite.com/images/floorplans';
+
+const VESSEL_FLOORPLANS: Record<string, string> = {
+  // BOB - Lagoon 42
+  'lagoon-42-bob': `${IMAGE_BASE_URL}/lagoon-42.webp`,
+  // PERLA - Lagoon 46
+  'lagoon-46-perla': `${IMAGE_BASE_URL}/lagoon-46.png`,
+  // INFINITY - Bali 4.2
+  'bali-42-infinity': `${IMAGE_BASE_URL}/bali-4-2-infinity.png`,
+  // MARIA 1 - Jeanneau Sun Odyssey 449
+  'jeanneau-so-449-maria1': `${IMAGE_BASE_URL}/jeanneau-449.png`,
+  // MARIA 2 - Jeanneau yacht 54
+  'jeanneau-yacht-54-maria2': `${IMAGE_BASE_URL}/jeanneau-54.png`,
+  // BAR BAR - Beneteau Oceanis 46.1
+  'beneteau-oceanis-46-1-bar-bar': `${IMAGE_BASE_URL}/beneteau-oceanis-46-new.png`,
+  // KALISPERA - Bavaria c42 Cruiser
+  'bavaria-c42-kalispera': `${IMAGE_BASE_URL}/bavaria-c42-cruiser-kalispera.png`,
+  // VALESIA - Bavaria c42 Cruiser
+  'bavaria-c42-valesia': `${IMAGE_BASE_URL}/bavaria-c42-cruiser-valesia.png`
+};
+
+// Map boat nicknames to vessel IDs for reliable matching
+const BOAT_NAME_TO_VESSEL_ID: Record<string, string> = {
+  'bob': 'lagoon-42-bob',
+  'perla': 'lagoon-46-perla',
+  'infinity': 'bali-42-infinity',
+  'maria1': 'jeanneau-so-449-maria1',
+  'maria 1': 'jeanneau-so-449-maria1',
+  'maria2': 'jeanneau-yacht-54-maria2',
+  'maria 2': 'jeanneau-yacht-54-maria2',
+  'bar-bar': 'beneteau-oceanis-46-1-bar-bar',
+  'bar bar': 'beneteau-oceanis-46-1-bar-bar',
+  'barbar': 'beneteau-oceanis-46-1-bar-bar',
+  'kalispera': 'bavaria-c42-kalispera',
+  'valesia': 'bavaria-c42-valesia'
 };
 
 const VESSEL_HOTSPOTS = {
@@ -326,17 +354,44 @@ export default function Page4({ onNavigate }) {
         
         const rawVesselName = bookingData?.vesselName || bookingData?.vessel || '';
         console.log('📍 Raw vessel name:', rawVesselName);
-        
+
         if (rawVesselName) {
-          const vesselId = rawVesselName.toLowerCase()
-            .replace(/\s+/g, '-')
-            .replace(/[()]/g, '')
-            .replace(/\./g, '-')
-            .replace('4-2', '42')
-            .replace('sun-odyssey', 'so')
-            .replace('cruiser-', '');
-          
-          console.log('📍 Converted vessel ID:', vesselId);
+          const vesselLower = rawVesselName.toLowerCase();
+          let vesselId: string | null = null;
+
+          // Step 1: Try exact match by boat nickname (most reliable)
+          for (const [nickname, id] of Object.entries(BOAT_NAME_TO_VESSEL_ID)) {
+            if (vesselLower.includes(nickname)) {
+              vesselId = id;
+              console.log('📍 Matched by nickname:', nickname, '→', id);
+              break;
+            }
+          }
+
+          // Step 2: Try converted vessel ID match
+          if (!vesselId) {
+            const convertedId = vesselLower
+              .replace(/\s+/g, '-')
+              .replace(/[()]/g, '')
+              .replace(/\./g, '-')
+              .replace('4-2', '42')
+              .replace('sun-odyssey', 'so')
+              .replace('cruiser-', '');
+
+            if (VESSEL_FLOORPLANS[convertedId]) {
+              vesselId = convertedId;
+              console.log('📍 Matched by converted ID:', convertedId);
+            }
+          }
+
+          // Step 3: Fallback to default
+          if (!vesselId) {
+            console.warn('⚠️ No floorplan found for vessel:', rawVesselName, '- using default');
+            vesselId = 'lagoon-42-bob';
+          }
+
+          console.log('📍 Final vessel ID:', vesselId);
+          console.log('📍 Floorplan URL:', VESSEL_FLOORPLANS[vesselId]);
           setSelectedVessel(vesselId);
         }
         
@@ -347,26 +402,41 @@ export default function Page4({ onNavigate }) {
     }
   }, []);
 
-  const loadDataForMode = (bookingNumber, selectedMode) => {
-    const storageKey = selectedMode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    let data = bookings[bookingNumber]?.[storageKey] || null;
-    
-    if (selectedMode === 'out' && !data) {
-      const checkInData = bookings[bookingNumber]?.page4DataCheckIn || null;
-      if (checkInData) {
-        data = JSON.parse(JSON.stringify(checkInData));
-        
-        ['items', 'navItems', 'safetyItems', 'genItems', 'deckItems', 'fdeckItems', 'dinghyItems', 'fendersItems', 'boathookItems'].forEach(section => {
-          if (data[section]) {
-            data[section] = data[section].map(item => ({ ...item, out: null }));
-          }
-        });
-        
-        data.signatureImage = '';
+  const loadDataForMode = async (bookingNumber, selectedMode) => {
+    // 🔥 Try API first, then localStorage fallback
+    let data = null;
+    try {
+      const apiData = await getPage4DataHybrid(bookingNumber, selectedMode);
+      if (apiData) {
+        console.log('✅ Page 4 data loaded from API');
+        data = apiData;
+      }
+    } catch (error) {
+      console.warn('⚠️ API load failed, using localStorage:', error);
+    }
+
+    // Fallback to localStorage
+    if (!data) {
+      const storageKey = selectedMode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      data = bookings[bookingNumber]?.[storageKey] || null;
+
+      if (selectedMode === 'out' && !data) {
+        const checkInData = bookings[bookingNumber]?.page4DataCheckIn || null;
+        if (checkInData) {
+          data = JSON.parse(JSON.stringify(checkInData));
+
+          ['items', 'navItems', 'safetyItems', 'genItems', 'deckItems', 'fdeckItems', 'dinghyItems', 'fendersItems', 'boathookItems'].forEach(section => {
+            if (data[section]) {
+              data[section] = data[section].map(item => ({ ...item, out: null }));
+            }
+          });
+
+          data.signatureImage = '';
+        }
       }
     }
-    
+
     if (data) {
       setItems(data.items || initItems(KITCHEN_KEYS));
       setNavItems(data.navItems || initItems(NAV_KEYS));
@@ -703,24 +773,15 @@ export default function Page4({ onNavigate }) {
       signatureImage
     };
 
-    // ✅ Save to API using hybrid function
-    const modeKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
+    // ✅ Save to Page 4 API using hybrid function
     try {
-      await saveBookingHybrid(currentBookingNumber, {
-        [modeKey]: dataToSave
-      });
+      const result = await savePage4DataHybrid(currentBookingNumber, dataToSave, mode);
 
-      // Also save to localStorage for backward compatibility
-      const storageKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-
-      if (bookings[currentBookingNumber]) {
-        bookings[currentBookingNumber][storageKey] = dataToSave;
-        bookings[currentBookingNumber].lastModified = new Date().toISOString();
-        localStorage.setItem('bookings', JSON.stringify(bookings));
+      if (result.synced) {
+        alert(lang === 'el' ? '✅ Αποθηκεύτηκε και συγχρονίστηκε!' : '✅ Saved and synced!');
+      } else {
+        alert(lang === 'el' ? '✅ Αποθηκεύτηκε τοπικά!' : '✅ Saved locally!');
       }
-
-      alert(lang === 'el' ? '✅ Αποθηκεύτηκε!' : '✅ Saved!');
     } catch (error) {
       console.error('Error saving:', error);
       alert(lang === 'el' ? '❌ Σφάλμα αποθήκευσης!' : '❌ Save error!');
@@ -915,22 +976,9 @@ export default function Page4({ onNavigate }) {
       signatureImage
     };
 
-    // ✅ Save to API before navigating
-    const modeKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
+    // ✅ Save to Page 4 API before navigating
     try {
-      await saveBookingHybrid(currentBookingNumber, {
-        [modeKey]: dataToSave
-      });
-
-      // Also save to localStorage for backward compatibility
-      const storageKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-
-      if (bookings[currentBookingNumber]) {
-        bookings[currentBookingNumber][storageKey] = dataToSave;
-        bookings[currentBookingNumber].lastModified = new Date().toISOString();
-        localStorage.setItem('bookings', JSON.stringify(bookings));
-      }
+      await savePage4DataHybrid(currentBookingNumber, dataToSave, mode);
 
       if (onNavigate && typeof onNavigate === 'function') {
         onNavigate('next');

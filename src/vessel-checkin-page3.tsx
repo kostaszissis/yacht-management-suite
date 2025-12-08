@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
-import { saveBookingHybrid } from './services/apiService';
+import { savePage3DataHybrid, getPage3DataHybrid } from './services/apiService';
 import {
   compressImage,
   getBase64Size,
@@ -198,15 +198,31 @@ export default function Page3({ onNavigate }) {
     }
   }, []);
 
-  const loadDataForMode = (bookingNumber, selectedMode) => {
-    const loaded = loadPage3Data(bookingNumber, selectedMode);
+  const loadDataForMode = async (bookingNumber, selectedMode) => {
+    // 🔥 Try API first, then localStorage fallback
+    let loaded = null;
+    try {
+      const apiData = await getPage3DataHybrid(bookingNumber, selectedMode);
+      if (apiData) {
+        console.log('✅ Page 3 data loaded from API');
+        loaded = apiData;
+      }
+    } catch (error) {
+      console.warn('⚠️ API load failed, using localStorage:', error);
+    }
+
+    // Fallback to localStorage
+    if (!loaded) {
+      loaded = loadPage3Data(bookingNumber, selectedMode);
+    }
+
     if (loaded) {
       // 🔥 MIGRATION: Προσθήκη νέων cabin items αν λείπουν
       const existingCabinKeys = (loaded.cabinItems || []).map(item => item.key);
       const missingCabinKeys = CABIN_KEYS.filter(key => !existingCabinKeys.includes(key));
-      
+
       let migratedCabinItems = loaded.cabinItems || [];
-      
+
       if (missingCabinKeys.length > 0) {
         console.log('🔄 MIGRATION: Adding missing cabin items:', missingCabinKeys);
         const newItems = missingCabinKeys.map(key => ({
@@ -220,7 +236,7 @@ export default function Page3({ onNavigate }) {
         }));
         migratedCabinItems = [...migratedCabinItems, ...newItems];
       }
-      
+
       setSafetyItems(loaded.safetyItems || initItems(SAFETY_KEYS));
       setCabinItems(migratedCabinItems);
       setOptionalItems(loaded.optionalItems || initItems(OPTIONAL_KEYS));
@@ -439,17 +455,18 @@ export default function Page3({ onNavigate }) {
       toiletWarningAccepted
     };
 
-    // ✅ Save to API using hybrid function
-    const modeKey = mode === 'in' ? 'page3DataCheckIn' : 'page3DataCheckOut';
+    // ✅ Save to Page 3 API using hybrid function
     try {
-      await saveBookingHybrid(currentBookingNumber, {
-        [modeKey]: dataToSave
-      });
+      const result = await savePage3DataHybrid(currentBookingNumber, dataToSave, mode);
 
       // Also save via shared function for backward compatibility
       savePage3Data(currentBookingNumber, dataToSave, mode);
 
-      alert(lang === 'el' ? '✅ Αποθηκεύτηκε!' : '✅ Saved!');
+      if (result.synced) {
+        alert(lang === 'el' ? '✅ Αποθηκεύτηκε και συγχρονίστηκε!' : '✅ Saved and synced!');
+      } else {
+        alert(lang === 'el' ? '✅ Αποθηκεύτηκε τοπικά!' : '✅ Saved locally!');
+      }
     } catch (error) {
       console.error('Error saving:', error);
       alert(lang === 'el' ? '❌ Σφάλμα αποθήκευσης!' : '❌ Save error!');
@@ -532,12 +549,9 @@ export default function Page3({ onNavigate }) {
       toiletWarningAccepted
     };
 
-    // ✅ Save to API before navigating
-    const modeKey = mode === 'in' ? 'page3DataCheckIn' : 'page3DataCheckOut';
+    // ✅ Save to Page 3 API before navigating
     try {
-      await saveBookingHybrid(currentBookingNumber, {
-        [modeKey]: dataToSave
-      });
+      await savePage3DataHybrid(currentBookingNumber, dataToSave, mode);
 
       // Also save via shared function for backward compatibility
       savePage3Data(currentBookingNumber, dataToSave, mode);

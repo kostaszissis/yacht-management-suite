@@ -1467,3 +1467,677 @@ export async function saveTaskCheckin(vesselId: number, category: string, sectio
     lastSaved: new Date().toISOString()
   }, localKey);
 }
+
+// =====================================================
+// PAGE 2 API - Crew List & Passengers
+// =====================================================
+
+const PAGE2_API_URL = `${API_BASE}/page2.php`;
+
+export interface CrewMember {
+  firstName?: string;
+  lastName?: string;
+  nationality?: string;
+  passportNumber?: string;
+  dateOfBirth?: string;
+  placeOfBirth?: string;
+  role?: string;
+}
+
+/**
+ * Get Page 2 crew data from API
+ * @param bookingNumber - The booking number
+ */
+export async function getPage2Data(bookingNumber: string): Promise<{ crewList: CrewMember[] } | null> {
+  try {
+    const encodedBN = encodeURIComponent(bookingNumber);
+    const response = await fetch(`${PAGE2_API_URL}?booking_number=${encodedBN}`);
+
+    if (!response.ok) {
+      console.warn('⚠️ Page 2 API GET failed:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.crewList) {
+      console.log('✅ Page 2 data loaded from API:', bookingNumber);
+      return { crewList: result.crewList };
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Page 2 API error:', error);
+    return null;
+  }
+}
+
+/**
+ * Save Page 2 crew data to API
+ * @param bookingNumber - The booking number
+ * @param crewList - Array of crew members
+ */
+export async function savePage2Data(
+  bookingNumber: string,
+  crewList: CrewMember[]
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(PAGE2_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bookingNumber,
+        crewList
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('✅ Page 2 data saved to API:', bookingNumber);
+      return { success: true, message: result.message };
+    }
+
+    // If POST fails with 409 (already exists), try PUT
+    if (response.status === 409) {
+      console.log('📝 Page 2 data exists, updating...');
+      const putResponse = await fetch(PAGE2_API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingNumber, crewList })
+      });
+      const putResult = await putResponse.json();
+      return { success: putResult.success, message: putResult.message };
+    }
+
+    console.warn('⚠️ Page 2 API save failed:', result.error);
+    return { success: false, message: result.error };
+  } catch (error) {
+    console.warn('⚠️ Page 2 API save error:', error);
+    return { success: false, message: String(error) };
+  }
+}
+
+/**
+ * Hybrid: Load Page 2 data from API, fallback to localStorage
+ */
+export async function getPage2DataHybrid(bookingNumber: string, mode: 'in' | 'out'): Promise<any | null> {
+  // Try API first
+  try {
+    const apiData = await getPage2Data(bookingNumber);
+    if (apiData) {
+      return apiData;
+    }
+  } catch (error) {
+    console.warn('⚠️ Page 2 API failed, trying localStorage...', error);
+  }
+
+  // Fallback to localStorage
+  try {
+    const bookings = localStorage.getItem('bookings');
+    if (bookings) {
+      const parsed = JSON.parse(bookings);
+      const booking = parsed[bookingNumber];
+      const key = mode === 'in' ? 'page2DataCheckIn' : 'page2DataCheckOut';
+      if (booking?.[key]) {
+        console.log('📂 Page 2 data loaded from localStorage:', bookingNumber);
+        return booking[key];
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ localStorage fallback error:', e);
+  }
+
+  return null;
+}
+
+/**
+ * Hybrid: Save Page 2 data to API and localStorage
+ */
+export async function savePage2DataHybrid(
+  bookingNumber: string,
+  data: any,
+  mode: 'in' | 'out'
+): Promise<{ success: boolean; synced: boolean }> {
+  let synced = false;
+  const storageKey = mode === 'in' ? 'page2DataCheckIn' : 'page2DataCheckOut';
+
+  // Save to localStorage immediately
+  try {
+    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+    if (!bookings[bookingNumber]) {
+      bookings[bookingNumber] = { bookingData: {}, lastModified: new Date().toISOString(), synced: false };
+    }
+    bookings[bookingNumber][storageKey] = data;
+    bookings[bookingNumber].lastModified = new Date().toISOString();
+    bookings[bookingNumber].synced = false;
+    localStorage.setItem('bookings', JSON.stringify(bookings));
+    console.log('💾 Page 2 saved to localStorage:', bookingNumber);
+  } catch (e) {
+    console.warn('⚠️ localStorage save error:', e);
+  }
+
+  // Try to save to API
+  try {
+    const crewList = data.crewList || data.crew || [];
+    const result = await savePage2Data(bookingNumber, crewList);
+    if (result.success) {
+      // Mark as synced
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      if (bookings[bookingNumber]) {
+        bookings[bookingNumber].synced = true;
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+      }
+      synced = true;
+    }
+  } catch (error) {
+    console.warn('⚠️ API sync failed, will retry later:', error);
+  }
+
+  return { success: true, synced };
+}
+
+// =====================================================
+// PAGE 3 API - Equipment Checklist
+// =====================================================
+
+const PAGE3_API_URL = `${API_BASE}/page3.php`;
+
+export interface Page3EquipmentData {
+  checklistData?: any;
+  safetyEquipment?: any;
+  navigationEquipment?: any;
+  galleyEquipment?: any;
+  deckEquipment?: any;
+  cabinEquipment?: any;
+  notes?: string;
+  checkedBy?: string;
+  checkedAt?: string;
+}
+
+/**
+ * Get Page 3 equipment data from API
+ */
+export async function getPage3Data(bookingNumber: string): Promise<Page3EquipmentData | null> {
+  try {
+    const encodedBN = encodeURIComponent(bookingNumber);
+    const response = await fetch(`${PAGE3_API_URL}?booking_number=${encodedBN}`);
+
+    if (!response.ok) {
+      console.warn('⚠️ Page 3 API GET failed:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.equipmentData) {
+      console.log('✅ Page 3 data loaded from API:', bookingNumber);
+      return result.equipmentData;
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Page 3 API error:', error);
+    return null;
+  }
+}
+
+/**
+ * Save Page 3 equipment data to API
+ */
+export async function savePage3Data(
+  bookingNumber: string,
+  data: Page3EquipmentData
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(PAGE3_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingNumber, ...data })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('✅ Page 3 data saved to API:', bookingNumber);
+      return { success: true, message: result.message };
+    }
+
+    // If POST fails with 409, try PUT
+    if (response.status === 409) {
+      console.log('📝 Page 3 data exists, updating...');
+      const putResponse = await fetch(PAGE3_API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingNumber, ...data })
+      });
+      const putResult = await putResponse.json();
+      return { success: putResult.success, message: putResult.message };
+    }
+
+    console.warn('⚠️ Page 3 API save failed:', result.error);
+    return { success: false, message: result.error };
+  } catch (error) {
+    console.warn('⚠️ Page 3 API save error:', error);
+    return { success: false, message: String(error) };
+  }
+}
+
+/**
+ * Hybrid: Load Page 3 data from API, fallback to localStorage
+ */
+export async function getPage3DataHybrid(bookingNumber: string, mode: 'in' | 'out'): Promise<any | null> {
+  // Try API first
+  try {
+    const apiData = await getPage3Data(bookingNumber);
+    if (apiData) {
+      return apiData;
+    }
+  } catch (error) {
+    console.warn('⚠️ Page 3 API failed, trying localStorage...', error);
+  }
+
+  // Fallback to localStorage
+  try {
+    const bookings = localStorage.getItem('bookings');
+    if (bookings) {
+      const parsed = JSON.parse(bookings);
+      const booking = parsed[bookingNumber];
+      const key = mode === 'in' ? 'page3DataCheckIn' : 'page3DataCheckOut';
+      if (booking?.[key]) {
+        console.log('📂 Page 3 data loaded from localStorage:', bookingNumber);
+        return booking[key];
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ localStorage fallback error:', e);
+  }
+
+  return null;
+}
+
+/**
+ * Hybrid: Save Page 3 data to API and localStorage
+ */
+export async function savePage3DataHybrid(
+  bookingNumber: string,
+  data: any,
+  mode: 'in' | 'out'
+): Promise<{ success: boolean; synced: boolean }> {
+  let synced = false;
+  const storageKey = mode === 'in' ? 'page3DataCheckIn' : 'page3DataCheckOut';
+
+  // Save to localStorage immediately
+  try {
+    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+    if (!bookings[bookingNumber]) {
+      bookings[bookingNumber] = { bookingData: {}, lastModified: new Date().toISOString(), synced: false };
+    }
+    bookings[bookingNumber][storageKey] = data;
+    bookings[bookingNumber].lastModified = new Date().toISOString();
+    bookings[bookingNumber].synced = false;
+    localStorage.setItem('bookings', JSON.stringify(bookings));
+    console.log('💾 Page 3 saved to localStorage:', bookingNumber);
+  } catch (e) {
+    console.warn('⚠️ localStorage save error:', e);
+  }
+
+  // Try to save to API
+  try {
+    const result = await savePage3Data(bookingNumber, data);
+    if (result.success) {
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      if (bookings[bookingNumber]) {
+        bookings[bookingNumber].synced = true;
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+      }
+      synced = true;
+    }
+  } catch (error) {
+    console.warn('⚠️ API sync failed, will retry later:', error);
+  }
+
+  return { success: true, synced };
+}
+
+// =====================================================
+// PAGE 4 API - Vessel Inspection
+// =====================================================
+
+const PAGE4_API_URL = `${API_BASE}/page4.php`;
+
+export interface Page4InspectionData {
+  inspectionType?: string;
+  hullCondition?: string;
+  deckCondition?: string;
+  interiorCondition?: string;
+  engineHours?: number;
+  fuelLevel?: number;
+  waterLevel?: number;
+  batteryLevel?: number;
+  damagesFound?: any[];
+  photos?: any[];
+  floorplanAnnotations?: any[];
+  inspectorName?: string;
+  inspectorSignature?: string;
+  inspectionDate?: string;
+  notes?: string;
+}
+
+/**
+ * Get Page 4 inspection data from API
+ */
+export async function getPage4Data(bookingNumber: string): Promise<Page4InspectionData | null> {
+  try {
+    const encodedBN = encodeURIComponent(bookingNumber);
+    const response = await fetch(`${PAGE4_API_URL}?booking_number=${encodedBN}`);
+
+    if (!response.ok) {
+      console.warn('⚠️ Page 4 API GET failed:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.inspectionData) {
+      console.log('✅ Page 4 data loaded from API:', bookingNumber);
+      return result.inspectionData;
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Page 4 API error:', error);
+    return null;
+  }
+}
+
+/**
+ * Save Page 4 inspection data to API
+ */
+export async function savePage4Data(
+  bookingNumber: string,
+  data: Page4InspectionData
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(PAGE4_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingNumber, ...data })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('✅ Page 4 data saved to API:', bookingNumber);
+      return { success: true, message: result.message };
+    }
+
+    // If POST fails with 409, try PUT
+    if (response.status === 409) {
+      console.log('📝 Page 4 data exists, updating...');
+      const putResponse = await fetch(PAGE4_API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingNumber, ...data })
+      });
+      const putResult = await putResponse.json();
+      return { success: putResult.success, message: putResult.message };
+    }
+
+    console.warn('⚠️ Page 4 API save failed:', result.error);
+    return { success: false, message: result.error };
+  } catch (error) {
+    console.warn('⚠️ Page 4 API save error:', error);
+    return { success: false, message: String(error) };
+  }
+}
+
+/**
+ * Hybrid: Load Page 4 data from API, fallback to localStorage
+ */
+export async function getPage4DataHybrid(bookingNumber: string, mode: 'in' | 'out'): Promise<any | null> {
+  // Try API first
+  try {
+    const apiData = await getPage4Data(bookingNumber);
+    if (apiData) {
+      return apiData;
+    }
+  } catch (error) {
+    console.warn('⚠️ Page 4 API failed, trying localStorage...', error);
+  }
+
+  // Fallback to localStorage
+  try {
+    const bookings = localStorage.getItem('bookings');
+    if (bookings) {
+      const parsed = JSON.parse(bookings);
+      const booking = parsed[bookingNumber];
+      const key = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
+      if (booking?.[key]) {
+        console.log('📂 Page 4 data loaded from localStorage:', bookingNumber);
+        return booking[key];
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ localStorage fallback error:', e);
+  }
+
+  return null;
+}
+
+/**
+ * Hybrid: Save Page 4 data to API and localStorage
+ */
+export async function savePage4DataHybrid(
+  bookingNumber: string,
+  data: any,
+  mode: 'in' | 'out'
+): Promise<{ success: boolean; synced: boolean }> {
+  let synced = false;
+  const storageKey = mode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
+
+  // Save to localStorage immediately
+  try {
+    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+    if (!bookings[bookingNumber]) {
+      bookings[bookingNumber] = { bookingData: {}, lastModified: new Date().toISOString(), synced: false };
+    }
+    bookings[bookingNumber][storageKey] = data;
+    bookings[bookingNumber].lastModified = new Date().toISOString();
+    bookings[bookingNumber].synced = false;
+    localStorage.setItem('bookings', JSON.stringify(bookings));
+    console.log('💾 Page 4 saved to localStorage:', bookingNumber);
+  } catch (e) {
+    console.warn('⚠️ localStorage save error:', e);
+  }
+
+  // Try to save to API
+  try {
+    const result = await savePage4Data(bookingNumber, data);
+    if (result.success) {
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      if (bookings[bookingNumber]) {
+        bookings[bookingNumber].synced = true;
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+      }
+      synced = true;
+    }
+  } catch (error) {
+    console.warn('⚠️ API sync failed, will retry later:', error);
+  }
+
+  return { success: true, synced };
+}
+
+// =====================================================
+// PAGE 5 API - Final Agreement & Signatures
+// =====================================================
+
+const PAGE5_API_URL = `${API_BASE}/page5.php`;
+
+export interface Page5AgreementData {
+  agreementType?: string;
+  termsAccepted?: boolean;
+  depositAmount?: number;
+  depositPaid?: boolean;
+  depositMethod?: string;
+  damageDeposit?: number;
+  fuelCharge?: number;
+  otherCharges?: any[];
+  totalAmount?: number;
+  skipperSignature?: string;
+  skipperSignedAt?: string;
+  companySignature?: string;
+  companySignedAt?: string;
+  companyRepresentative?: string;
+  pdfGenerated?: boolean;
+  pdfUrl?: string;
+  emailSent?: boolean;
+  emailSentAt?: string;
+  notes?: string;
+}
+
+/**
+ * Get Page 5 agreement data from API
+ */
+export async function getPage5Data(bookingNumber: string): Promise<Page5AgreementData | null> {
+  try {
+    const encodedBN = encodeURIComponent(bookingNumber);
+    const response = await fetch(`${PAGE5_API_URL}?booking_number=${encodedBN}`);
+
+    if (!response.ok) {
+      console.warn('⚠️ Page 5 API GET failed:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.agreementData) {
+      console.log('✅ Page 5 data loaded from API:', bookingNumber);
+      return result.agreementData;
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Page 5 API error:', error);
+    return null;
+  }
+}
+
+/**
+ * Save Page 5 agreement data to API
+ */
+export async function savePage5Data(
+  bookingNumber: string,
+  data: Page5AgreementData
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(PAGE5_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingNumber, ...data })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('✅ Page 5 data saved to API:', bookingNumber);
+      return { success: true, message: result.message };
+    }
+
+    // If POST fails with 409, try PUT
+    if (response.status === 409) {
+      console.log('📝 Page 5 data exists, updating...');
+      const putResponse = await fetch(PAGE5_API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingNumber, ...data })
+      });
+      const putResult = await putResponse.json();
+      return { success: putResult.success, message: putResult.message };
+    }
+
+    console.warn('⚠️ Page 5 API save failed:', result.error);
+    return { success: false, message: result.error };
+  } catch (error) {
+    console.warn('⚠️ Page 5 API save error:', error);
+    return { success: false, message: String(error) };
+  }
+}
+
+/**
+ * Hybrid: Load Page 5 data from API, fallback to localStorage
+ */
+export async function getPage5DataHybrid(bookingNumber: string, mode: 'in' | 'out'): Promise<any | null> {
+  // Try API first
+  try {
+    const apiData = await getPage5Data(bookingNumber);
+    if (apiData) {
+      return apiData;
+    }
+  } catch (error) {
+    console.warn('⚠️ Page 5 API failed, trying localStorage...', error);
+  }
+
+  // Fallback to localStorage
+  try {
+    const bookings = localStorage.getItem('bookings');
+    if (bookings) {
+      const parsed = JSON.parse(bookings);
+      const booking = parsed[bookingNumber];
+      const key = mode === 'in' ? 'page5DataCheckIn' : 'page5DataCheckOut';
+      if (booking?.[key]) {
+        console.log('📂 Page 5 data loaded from localStorage:', bookingNumber);
+        return booking[key];
+      }
+    }
+  } catch (e) {
+    console.warn('⚠️ localStorage fallback error:', e);
+  }
+
+  return null;
+}
+
+/**
+ * Hybrid: Save Page 5 data to API and localStorage
+ */
+export async function savePage5DataHybrid(
+  bookingNumber: string,
+  data: any,
+  mode: 'in' | 'out'
+): Promise<{ success: boolean; synced: boolean }> {
+  let synced = false;
+  const storageKey = mode === 'in' ? 'page5DataCheckIn' : 'page5DataCheckOut';
+
+  // Save to localStorage immediately
+  try {
+    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+    if (!bookings[bookingNumber]) {
+      bookings[bookingNumber] = { bookingData: {}, lastModified: new Date().toISOString(), synced: false };
+    }
+    bookings[bookingNumber][storageKey] = data;
+    bookings[bookingNumber].lastModified = new Date().toISOString();
+    bookings[bookingNumber].synced = false;
+    localStorage.setItem('bookings', JSON.stringify(bookings));
+    console.log('💾 Page 5 saved to localStorage:', bookingNumber);
+  } catch (e) {
+    console.warn('⚠️ localStorage save error:', e);
+  }
+
+  // Try to save to API
+  try {
+    const result = await savePage5Data(bookingNumber, data);
+    if (result.success) {
+      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      if (bookings[bookingNumber]) {
+        bookings[bookingNumber].synced = true;
+        localStorage.setItem('bookings', JSON.stringify(bookings));
+      }
+      synced = true;
+    }
+  } catch (error) {
+    console.warn('⚠️ API sync failed, will retry later:', error);
+  }
+
+  return { success: true, synced };
+}

@@ -15,7 +15,7 @@ import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import { sendCheckInEmail, sendCheckOutEmail } from './services/emailService';
 import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
-import { saveBookingHybrid, getBookingHybrid } from './services/apiService';
+import { saveBookingHybrid, getBookingHybrid, savePage5DataHybrid, getPage5DataHybrid } from './services/apiService';
 
 import {
   brand,
@@ -1215,10 +1215,10 @@ export default function Page5({ onNavigate }) {
   }, []);
   
   useEffect(() => {
-    const loadData = () => {
+    const loadData = async () => {
       const items = getAllItems(lang);
       setAllItems(items);
-      
+
       if (mode === 'out') {
         const damaged = items.filter(item => item.out === 'not');
         setDamageItems(damaged);
@@ -1228,7 +1228,7 @@ export default function Page5({ onNavigate }) {
         const photos = getAllPhotos();
         setAllPhotos(photos);
       }
-      
+
       try {
         const currentBooking = localStorage.getItem('currentBooking');
         if (!currentBooking) return;
@@ -1236,27 +1236,44 @@ export default function Page5({ onNavigate }) {
         const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
         const data = bookings[currentBooking]?.bookingData || {};
         setBookingData(data);
-        
-        const storageKey = mode === 'in' ? `page5DataCheckIn_${currentBooking}` : `page5DataCheckOut_${currentBooking}`;
-        const savedPage5Data = localStorage.getItem(storageKey);
-        
-        if (savedPage5Data) {
-          try {
-            const parsed = JSON.parse(savedPage5Data);
-            setTermsAccepted(parsed.termsAccepted || false);
-            setPrivacyAccepted(parsed.privacyAccepted || false);
-            setReturnAccepted(parsed.returnAccepted || false);
-            setWarningAccepted(parsed.warningAccepted || false);
-            setPaymentAuthAccepted(parsed.paymentAuthAccepted || false);
-            setNotes(parsed.notes || '');
-            setSkipperSigned(!!parsed.skipperSignatureData);
-            setEmployeeSigned(!!parsed.employeeSignatureData);
-            setSignatureImage(parsed.skipperSignatureData || '');
-            setEmployeeSignatureImage(parsed.employeeSignatureData || '');
-            setPaymentAuthSignatureImage(parsed.paymentAuthSignatureData || '');
-          } catch (e) {
-            console.error('Error loading saved Page 5 data:', e);
+
+        // 🔥 Try API first for Page 5 data
+        let page5Data = null;
+        try {
+          const apiData = await getPage5DataHybrid(currentBooking, mode);
+          if (apiData) {
+            console.log('✅ Page 5 data loaded from API');
+            page5Data = apiData;
           }
+        } catch (error) {
+          console.warn('⚠️ API load failed, trying localStorage:', error);
+        }
+
+        // Fallback to localStorage
+        if (!page5Data) {
+          const storageKey = mode === 'in' ? `page5DataCheckIn_${currentBooking}` : `page5DataCheckOut_${currentBooking}`;
+          const savedPage5Data = localStorage.getItem(storageKey);
+          if (savedPage5Data) {
+            try {
+              page5Data = JSON.parse(savedPage5Data);
+            } catch (e) {
+              console.error('Error parsing saved Page 5 data:', e);
+            }
+          }
+        }
+
+        if (page5Data) {
+          setTermsAccepted(page5Data.termsAccepted || false);
+          setPrivacyAccepted(page5Data.privacyAccepted || false);
+          setReturnAccepted(page5Data.returnAccepted || false);
+          setWarningAccepted(page5Data.warningAccepted || false);
+          setPaymentAuthAccepted(page5Data.paymentAuthAccepted || false);
+          setNotes(page5Data.notes || '');
+          setSkipperSigned(!!page5Data.skipperSignatureData);
+          setEmployeeSigned(!!page5Data.employeeSignatureData);
+          setSignatureImage(page5Data.skipperSignatureData || '');
+          setEmployeeSignatureImage(page5Data.employeeSignatureData || '');
+          setPaymentAuthSignatureImage(page5Data.paymentAuthSignatureData || '');
         } else {
           setTermsAccepted(false);
           setPrivacyAccepted(false);
@@ -1284,7 +1301,7 @@ export default function Page5({ onNavigate }) {
   }, [lang, mode]);
   
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       const page5Data = {
         termsAccepted,
         privacyAccepted,
@@ -1303,8 +1320,15 @@ export default function Page5({ onNavigate }) {
       const storageKey = mode === 'in' ? `page5DataCheckIn_${currentBookingNumber}` : `page5DataCheckOut_${currentBookingNumber}`;
       if (currentBookingNumber) {
         localStorage.setItem(storageKey, JSON.stringify(page5Data));
+        // 🔥 Also save to API
+        try {
+          await savePage5DataHybrid(currentBookingNumber, page5Data, mode);
+          console.log('💾 Page 5 auto-saved to API');
+        } catch (error) {
+          console.warn('⚠️ Page 5 API auto-save failed:', error);
+        }
       }
-    }, 500);
+    }, 2000); // Increased to 2 seconds to reduce API calls
     return () => clearTimeout(timer);
   }, [termsAccepted, privacyAccepted, returnAccepted, warningAccepted, paymentAuthAccepted, notes, skipperSigned, employeeSigned, signatureImage, employeeSignatureImage, paymentAuthSignatureImage, currentEmployee, mode, currentBookingNumber]);
   

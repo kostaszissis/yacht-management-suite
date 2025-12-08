@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import { DataContext } from './App';
 import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
-import { saveBookingHybrid } from './services/apiService';
+import { savePage2DataHybrid, getPage2DataHybrid } from './services/apiService';
 
 // 🔥 IMPORT ΑΠΟ SharedComponents (ΤΑ ΚΟΙΝΑ)
 import {
@@ -336,24 +336,53 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
 
   useEffect(() => {
     console.log(`🚀🚀🚀 SIGNATURE useEffect TRIGGERED! mode=${mode}, booking=${currentBookingNumber}`);
-    
+
     if (currentBookingNumber) {
-      const savedData = loadBookingData(currentBookingNumber, mode);
-      if (savedData) {
-        if (savedData.items) setItems(savedData.items);
-        if (savedData.hullItems) setHullItems(savedData.hullItems);
-        if (savedData.dinghyItems) setDinghyItems(savedData.dinghyItems);
-        if (savedData.mainsailAgreed !== undefined) setMainsailAgreed(savedData.mainsailAgreed);
-        if (savedData.diversAgreed !== undefined) setDiversAgreed(savedData.diversAgreed);
-        if (savedData.remarks !== undefined) setRemarks(savedData.remarks);
-      }
-      
+      // 🔥 Load from API first, then localStorage fallback
+      const loadData = async () => {
+        try {
+          const apiData = await getPage2DataHybrid(currentBookingNumber, mode);
+          if (apiData) {
+            console.log('✅ Page 2 data loaded from API');
+            if (apiData.items) setItems(apiData.items);
+            if (apiData.hullItems) setHullItems(apiData.hullItems);
+            if (apiData.dinghyItems) setDinghyItems(apiData.dinghyItems);
+            if (apiData.mainsailAgreed !== undefined) setMainsailAgreed(apiData.mainsailAgreed);
+            if (apiData.diversAgreed !== undefined) setDiversAgreed(apiData.diversAgreed);
+            if (apiData.remarks !== undefined) setRemarks(apiData.remarks);
+          } else {
+            // Fallback to localStorage via shared function
+            const savedData = loadBookingData(currentBookingNumber, mode);
+            if (savedData) {
+              if (savedData.items) setItems(savedData.items);
+              if (savedData.hullItems) setHullItems(savedData.hullItems);
+              if (savedData.dinghyItems) setDinghyItems(savedData.dinghyItems);
+              if (savedData.mainsailAgreed !== undefined) setMainsailAgreed(savedData.mainsailAgreed);
+              if (savedData.diversAgreed !== undefined) setDiversAgreed(savedData.diversAgreed);
+              if (savedData.remarks !== undefined) setRemarks(savedData.remarks);
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ API load failed, using localStorage:', error);
+          const savedData = loadBookingData(currentBookingNumber, mode);
+          if (savedData) {
+            if (savedData.items) setItems(savedData.items);
+            if (savedData.hullItems) setHullItems(savedData.hullItems);
+            if (savedData.dinghyItems) setDinghyItems(savedData.dinghyItems);
+            if (savedData.mainsailAgreed !== undefined) setMainsailAgreed(savedData.mainsailAgreed);
+            if (savedData.diversAgreed !== undefined) setDiversAgreed(savedData.diversAgreed);
+            if (savedData.remarks !== undefined) setRemarks(savedData.remarks);
+          }
+        }
+      };
+      loadData();
+
       // 🔥 ΣΗΜΑΝΤΙΚΟ: Φορτώνει υπογραφή με το ΣΩΣΤΟ mode
       const signatureKey = `page2_signature_${currentBookingNumber}_${mode}`;
       const savedSignature = localStorage.getItem(signatureKey);
-      
+
       console.log(`🔍 Loading signature for mode: ${mode}, key: ${signatureKey}`);
-      
+
       if (savedSignature) {
         console.log(`✅ Signature found for ${mode}`);
         setSignatureImage(savedSignature);
@@ -363,7 +392,7 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
         setSignatureImage("");
         setSignatureDone(false);
       }
-      
+
       const diversKey = `page2_diversReport_${currentBookingNumber}_${mode}`;
       const savedDiversReport = localStorage.getItem(diversKey);
       if (savedDiversReport) {
@@ -640,17 +669,18 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
       diversAgreed, remarks
     };
 
-    // ✅ Save to API using hybrid function
-    const modeKey = mode === 'in' ? 'page2DataCheckIn' : 'page2DataCheckOut';
+    // ✅ Save to Page 2 API using hybrid function
     try {
-      await saveBookingHybrid(currentBookingNumber, {
-        [modeKey]: dataToSave
-      });
+      const result = await savePage2DataHybrid(currentBookingNumber, dataToSave, mode);
 
       // Also save via shared function for backward compatibility
       saveBookingData(currentBookingNumber, dataToSave, mode);
 
-      alert(lang === 'el' ? '✅ Το προσχέδιο αποθηκεύτηκε!' : '✅ Draft saved!');
+      if (result.synced) {
+        alert(lang === 'el' ? '✅ Το προσχέδιο αποθηκεύτηκε και συγχρονίστηκε!' : '✅ Draft saved and synced!');
+      } else {
+        alert(lang === 'el' ? '✅ Το προσχέδιο αποθηκεύτηκε τοπικά!' : '✅ Draft saved locally!');
+      }
     } catch (error) {
       console.error('Error saving:', error);
       alert(lang === 'el' ? '❌ Σφάλμα αποθήκευσης!' : '❌ Save error!');
