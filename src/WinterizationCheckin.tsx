@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import authService from './authService';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
+import { getWinterizationCheckin, saveWinterizationCheckin } from './services/apiService';
 
 // Brand colors (matching app theme)
 const brand = {
@@ -311,6 +312,8 @@ export default function WinterizationCheckin() {
   const [showAddSection, setShowAddSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [newSectionIcon, setNewSectionIcon] = useState('📋');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Check if user is owner (view-only access)
   const isOwnerUser = authService.isOwner();
@@ -371,106 +374,191 @@ export default function WinterizationCheckin() {
     // Save last selected vessel
     localStorage.setItem('winterization_last_vessel', String(selectedVessel));
 
-    // Start with fresh default sections
-    const newSections = initializeDefaultSections();
+    // Load data from API first, fallback to localStorage
+    const loadData = async () => {
+      setIsLoading(true);
+      const newSections = initializeDefaultSections();
 
-    // Load vessel-specific item data (checked status, qty, comments, replaceQty)
-    const savedData = localStorage.getItem(`winterization_${vesselKey}_data`);
-    if (savedData) {
       try {
-        const data = JSON.parse(savedData);
+        // Try API first
+        const apiData = await getWinterizationCheckin(selectedVessel);
 
-        // Apply saved data to default items
-        Object.keys(newSections).forEach(sectionId => {
-          if (data.sections?.[sectionId]?.items) {
-            newSections[sectionId].items = newSections[sectionId].items.map(defaultItem => {
-              const savedItem = data.sections[sectionId].items.find(
-                (si: ChecklistItem) => si.key === defaultItem.key && !si.isCustom
-              );
-              if (savedItem) {
-                return {
-                  ...defaultItem,
-                  checked: savedItem.checked || false,
-                  qty: savedItem.qty ?? 1,
-                  replaceQty: savedItem.replaceQty ?? 0,
-                  comments: savedItem.comments || ''
-                };
-              }
-              return defaultItem;
-            });
+        if (apiData && apiData.sections) {
+          console.log('✅ Winterization Checkin loaded from API for vessel', selectedVessel);
 
-            // Restore expanded state
-            if (data.sections[sectionId].expanded !== undefined) {
-              newSections[sectionId].expanded = data.sections[sectionId].expanded;
-            }
-          }
-        });
-
-        // Load general notes
-        if (data.generalNotes) {
-          setGeneralNotes(data.generalNotes);
-        } else {
-          setGeneralNotes('');
-        }
-      } catch (e) {
-        console.error('Error loading vessel data:', e);
-      }
-    } else {
-      setGeneralNotes('');
-    }
-
-    // Load vessel-specific custom items
-    const savedCustomItems = localStorage.getItem(`winterization_${vesselKey}_custom_items`);
-    if (savedCustomItems) {
-      try {
-        const customData = JSON.parse(savedCustomItems);
-
-        // Add custom items to appropriate sections
-        Object.keys(customData).forEach(sectionId => {
-          if (newSections[sectionId] && Array.isArray(customData[sectionId])) {
-            customData[sectionId].forEach((customItem: ChecklistItem) => {
-              newSections[sectionId].items.push({
-                ...customItem,
-                isCustom: true
+          // Apply API data to default items
+          Object.keys(newSections).forEach(sectionId => {
+            if (apiData.sections?.[sectionId]?.items) {
+              newSections[sectionId].items = newSections[sectionId].items.map(defaultItem => {
+                const savedItem = apiData.sections[sectionId].items.find(
+                  (si: ChecklistItem) => si.key === defaultItem.key && !si.isCustom
+                );
+                if (savedItem) {
+                  return {
+                    ...defaultItem,
+                    checked: savedItem.checked || false,
+                    qty: savedItem.qty ?? 1,
+                    replaceQty: savedItem.replaceQty ?? 0,
+                    comments: savedItem.comments || ''
+                  };
+                }
+                return defaultItem;
               });
+
+              if (apiData.sections[sectionId].expanded !== undefined) {
+                newSections[sectionId].expanded = apiData.sections[sectionId].expanded;
+              }
+            }
+          });
+
+          setGeneralNotes(apiData.generalNotes || '');
+
+          // Load custom items from API (cast to any for dynamic properties)
+          const apiDataAny = apiData as any;
+          if (apiDataAny.customItems) {
+            Object.keys(apiDataAny.customItems).forEach(sectionId => {
+              if (newSections[sectionId] && Array.isArray(apiDataAny.customItems[sectionId])) {
+                apiDataAny.customItems[sectionId].forEach((customItem: ChecklistItem) => {
+                  newSections[sectionId].items.push({
+                    ...customItem,
+                    isCustom: true
+                  });
+                });
+              }
             });
           }
-        });
-      } catch (e) {
-        console.error('Error loading custom items:', e);
-      }
-    }
 
-    // Load custom sections
-    const customSectionsData = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`);
-    if (customSectionsData) {
-      try {
-        const customData = JSON.parse(customSectionsData);
-        setCustomSections(customData);
-        // Add custom sections to sections state
-        Object.keys(customData).forEach(sectionId => {
-          if (savedData) {
-            const data = JSON.parse(savedData);
-            if (data.sections?.[sectionId]) {
-              newSections[sectionId] = {
-                expanded: data.sections[sectionId].expanded || false,
-                items: data.sections[sectionId].items || []
-              };
+          // Load custom sections from API
+          if (apiDataAny.customSections) {
+            setCustomSections(apiDataAny.customSections);
+            Object.keys(apiDataAny.customSections).forEach(sectionId => {
+              if (apiData.sections?.[sectionId]) {
+                newSections[sectionId] = {
+                  expanded: apiData.sections[sectionId].expanded || false,
+                  items: apiData.sections[sectionId].items || []
+                };
+              } else {
+                newSections[sectionId] = { expanded: false, items: [] };
+              }
+            });
+          }
+
+          // Update localStorage with API data
+          localStorage.setItem(`winterization_${vesselKey}_data`, JSON.stringify({
+            sections: apiData.sections,
+            generalNotes: apiData.generalNotes,
+            lastSaved: apiData.lastSaved
+          }));
+          if (apiDataAny.customItems) {
+            localStorage.setItem(`winterization_${vesselKey}_custom_items`, JSON.stringify(apiDataAny.customItems));
+          }
+          if (apiDataAny.customSections) {
+            localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`, JSON.stringify(apiDataAny.customSections));
+          }
+
+          setSections(newSections);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.warn('⚠️ API failed, falling back to localStorage:', error);
+      }
+
+      // Fallback to localStorage
+      const savedData = localStorage.getItem(`winterization_${vesselKey}_data`);
+      if (savedData) {
+        try {
+          const data = JSON.parse(savedData);
+
+          Object.keys(newSections).forEach(sectionId => {
+            if (data.sections?.[sectionId]?.items) {
+              newSections[sectionId].items = newSections[sectionId].items.map(defaultItem => {
+                const savedItem = data.sections[sectionId].items.find(
+                  (si: ChecklistItem) => si.key === defaultItem.key && !si.isCustom
+                );
+                if (savedItem) {
+                  return {
+                    ...defaultItem,
+                    checked: savedItem.checked || false,
+                    qty: savedItem.qty ?? 1,
+                    replaceQty: savedItem.replaceQty ?? 0,
+                    comments: savedItem.comments || ''
+                  };
+                }
+                return defaultItem;
+              });
+
+              if (data.sections[sectionId].expanded !== undefined) {
+                newSections[sectionId].expanded = data.sections[sectionId].expanded;
+              }
+            }
+          });
+
+          if (data.generalNotes) {
+            setGeneralNotes(data.generalNotes);
+          } else {
+            setGeneralNotes('');
+          }
+        } catch (e) {
+          console.error('Error loading vessel data:', e);
+        }
+      } else {
+        setGeneralNotes('');
+      }
+
+      // Load custom items from localStorage
+      const savedCustomItems = localStorage.getItem(`winterization_${vesselKey}_custom_items`);
+      if (savedCustomItems) {
+        try {
+          const customData = JSON.parse(savedCustomItems);
+          Object.keys(customData).forEach(sectionId => {
+            if (newSections[sectionId] && Array.isArray(customData[sectionId])) {
+              customData[sectionId].forEach((customItem: ChecklistItem) => {
+                newSections[sectionId].items.push({
+                  ...customItem,
+                  isCustom: true
+                });
+              });
+            }
+          });
+        } catch (e) {
+          console.error('Error loading custom items:', e);
+        }
+      }
+
+      // Load custom sections from localStorage
+      const customSectionsData = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`);
+      if (customSectionsData) {
+        try {
+          const customData = JSON.parse(customSectionsData);
+          setCustomSections(customData);
+          Object.keys(customData).forEach(sectionId => {
+            if (savedData) {
+              const data = JSON.parse(savedData);
+              if (data.sections?.[sectionId]) {
+                newSections[sectionId] = {
+                  expanded: data.sections[sectionId].expanded || false,
+                  items: data.sections[sectionId].items || []
+                };
+              } else {
+                newSections[sectionId] = { expanded: false, items: [] };
+              }
             } else {
               newSections[sectionId] = { expanded: false, items: [] };
             }
-          } else {
-            newSections[sectionId] = { expanded: false, items: [] };
-          }
-        });
-      } catch (e) {
-        console.error('Error loading custom sections:', e);
+          });
+        } catch (e) {
+          console.error('Error loading custom sections:', e);
+        }
+      } else {
+        setCustomSections({});
       }
-    } else {
-      setCustomSections({});
-    }
 
-    setSections(newSections);
+      setSections(newSections);
+      setIsLoading(false);
+    };
+
+    loadData();
   }, [selectedVessel]);
 
   // Calculate progress
@@ -728,12 +816,13 @@ export default function WinterizationCheckin() {
   };
 
   // Save data (vessel-specific)
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedVessel) {
       alert(lang === 'el' ? 'Πρέπει να επιλέξετε σκάφος πρώτα!' : 'Please select a vessel first!');
       return;
     }
 
+    setIsSaving(true);
     const vesselKey = getVesselName(selectedVessel);
 
     // Prepare sections data (only default items with their checked/qty/comments)
@@ -745,14 +834,6 @@ export default function WinterizationCheckin() {
       };
     });
 
-    // Save vessel-specific data (default item states + general notes)
-    const data = {
-      sections: sectionsToSave,
-      generalNotes,
-      lastSaved: new Date().toISOString()
-    };
-    localStorage.setItem(`winterization_${vesselKey}_data`, JSON.stringify(data));
-
     // Update custom items storage (in case any were modified)
     const customItems: { [key: string]: ChecklistItem[] } = {};
     Object.keys(sections).forEach(sectionId => {
@@ -761,8 +842,31 @@ export default function WinterizationCheckin() {
         customItems[sectionId] = sectionCustomItems;
       }
     });
+
+    // Save vessel-specific data (default item states + general notes)
+    const data = {
+      sections: sectionsToSave,
+      generalNotes,
+      lastSaved: new Date().toISOString()
+    };
+
+    // Save to localStorage immediately (for offline support)
+    localStorage.setItem(`winterization_${vesselKey}_data`, JSON.stringify(data));
     localStorage.setItem(`winterization_${vesselKey}_custom_items`, JSON.stringify(customItems));
 
+    // Try to save to API
+    try {
+      const result = await saveWinterizationCheckin(selectedVessel, sectionsToSave, customSections, generalNotes);
+      if (result.synced) {
+        console.log('✅ Winterization Checkin saved to API');
+      } else {
+        console.log('💾 Saved to localStorage, API sync pending');
+      }
+    } catch (error) {
+      console.warn('⚠️ API save failed, data saved to localStorage:', error);
+    }
+
+    setIsSaving(false);
     setShowSaveMessage(true);
     setTimeout(() => setShowSaveMessage(false), 3000);
   };

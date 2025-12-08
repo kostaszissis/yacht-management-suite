@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from './authService';
 import * as XLSX from 'xlsx';
+import { getWinterTakeover, saveWinterTakeover } from './services/apiService';
 
 // Vessels list
 const VESSELS = [
@@ -197,6 +198,8 @@ const WinterTakeOver: React.FC = () => {
   const [showAddSection, setShowAddSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [newSectionIcon, setNewSectionIcon] = useState('📋');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Check if user is owner (view-only access)
   const isOwnerUser = authService.isOwner();
@@ -248,64 +251,127 @@ const WinterTakeOver: React.FC = () => {
     const vesselKey = getVesselKey(selectedVessel);
     localStorage.setItem('takeover_last_vessel', String(selectedVessel));
 
-    const newSections = initializeDefaultSections();
-    const savedData = localStorage.getItem(`${STORAGE_KEY}_${vesselKey}`);
+    // Load data from API first, fallback to localStorage
+    const loadData = async () => {
+      setIsLoading(true);
+      const newSections = initializeDefaultSections();
 
-    if (savedData) {
       try {
-        const data = JSON.parse(savedData);
-        Object.keys(newSections).forEach(sectionId => {
-          if (data.sections?.[sectionId]) {
-            newSections[sectionId].expanded = data.sections[sectionId].expanded || false;
-            newSections[sectionId].items = newSections[sectionId].items.map(defaultItem => {
-              const savedItem = data.sections[sectionId].items?.find(
-                (si: TaskItem) => si.name === defaultItem.name && !si.isCustom
-              );
-              return savedItem ? { ...defaultItem, ...savedItem } : defaultItem;
+        // Try API first
+        const apiData = await getWinterTakeover(selectedVessel);
+
+        if (apiData && apiData.sections) {
+          console.log('✅ Winter TakeOver loaded from API for vessel', selectedVessel);
+
+          // Apply API data to sections
+          Object.keys(newSections).forEach(sectionId => {
+            if (apiData.sections?.[sectionId]) {
+              newSections[sectionId].expanded = apiData.sections[sectionId].expanded || false;
+              newSections[sectionId].items = newSections[sectionId].items.map(defaultItem => {
+                const savedItem = apiData.sections[sectionId].items?.find(
+                  (si: TaskItem) => si.name === defaultItem.name && !si.isCustom
+                );
+                return savedItem ? { ...defaultItem, ...savedItem } : defaultItem;
+              });
+              const customItems = apiData.sections[sectionId].items?.filter((i: TaskItem) => i.isCustom) || [];
+              newSections[sectionId].items.push(...customItems);
+            }
+          });
+          setGeneralNotes(apiData.generalNotes || '');
+
+          // Load custom sections from API data
+          if (apiData.customSections) {
+            setCustomSections(apiData.customSections);
+            Object.keys(apiData.customSections).forEach(sectionId => {
+              if (apiData.sections?.[sectionId]) {
+                newSections[sectionId] = {
+                  expanded: apiData.sections[sectionId].expanded || false,
+                  items: apiData.sections[sectionId].items || []
+                };
+              } else {
+                newSections[sectionId] = { expanded: false, items: [] };
+              }
             });
-            // Add custom items
-            const customItems = data.sections[sectionId].items?.filter((i: TaskItem) => i.isCustom) || [];
-            newSections[sectionId].items.push(...customItems);
           }
-        });
-        setGeneralNotes(data.generalNotes || '');
-      } catch (e) {
-        console.error('Error loading vessel data:', e);
-      }
-    } else {
-      setGeneralNotes('');
-    }
 
-    // Load custom sections
-    const customSectionsData = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`);
-    if (customSectionsData) {
-      try {
-        const customData = JSON.parse(customSectionsData);
-        setCustomSections(customData);
-        // Add custom sections to sections state
-        Object.keys(customData).forEach(sectionId => {
-          if (savedData) {
-            const data = JSON.parse(savedData);
+          // Update localStorage with API data
+          localStorage.setItem(`${STORAGE_KEY}_${vesselKey}`, JSON.stringify({
+            sections: apiData.sections,
+            generalNotes: apiData.generalNotes,
+            lastSaved: apiData.lastSaved
+          }));
+          if (apiData.customSections) {
+            localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`, JSON.stringify(apiData.customSections));
+          }
+
+          setSections(newSections);
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.warn('⚠️ API failed, falling back to localStorage:', error);
+      }
+
+      // Fallback to localStorage
+      const savedData = localStorage.getItem(`${STORAGE_KEY}_${vesselKey}`);
+
+      if (savedData) {
+        try {
+          const data = JSON.parse(savedData);
+          Object.keys(newSections).forEach(sectionId => {
             if (data.sections?.[sectionId]) {
-              newSections[sectionId] = {
-                expanded: data.sections[sectionId].expanded || false,
-                items: data.sections[sectionId].items || []
-              };
+              newSections[sectionId].expanded = data.sections[sectionId].expanded || false;
+              newSections[sectionId].items = newSections[sectionId].items.map(defaultItem => {
+                const savedItem = data.sections[sectionId].items?.find(
+                  (si: TaskItem) => si.name === defaultItem.name && !si.isCustom
+                );
+                return savedItem ? { ...defaultItem, ...savedItem } : defaultItem;
+              });
+              const customItems = data.sections[sectionId].items?.filter((i: TaskItem) => i.isCustom) || [];
+              newSections[sectionId].items.push(...customItems);
+            }
+          });
+          setGeneralNotes(data.generalNotes || '');
+        } catch (e) {
+          console.error('Error loading vessel data:', e);
+        }
+      } else {
+        setGeneralNotes('');
+      }
+
+      // Load custom sections from localStorage
+      const customSectionsData = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`);
+      if (customSectionsData) {
+        try {
+          const customData = JSON.parse(customSectionsData);
+          setCustomSections(customData);
+          Object.keys(customData).forEach(sectionId => {
+            if (savedData) {
+              const data = JSON.parse(savedData);
+              if (data.sections?.[sectionId]) {
+                newSections[sectionId] = {
+                  expanded: data.sections[sectionId].expanded || false,
+                  items: data.sections[sectionId].items || []
+                };
+              } else {
+                newSections[sectionId] = { expanded: false, items: [] };
+              }
             } else {
               newSections[sectionId] = { expanded: false, items: [] };
             }
-          } else {
-            newSections[sectionId] = { expanded: false, items: [] };
-          }
-        });
-      } catch (e) {
-        console.error('Error loading custom sections:', e);
+          });
+        } catch (e) {
+          console.error('Error loading custom sections:', e);
+        }
+      } else {
+        setCustomSections({});
       }
-    } else {
-      setCustomSections({});
-    }
 
-    setSections(newSections);
+      setSections(newSections);
+      setIsLoading(false);
+    };
+
+    loadData();
   }, [selectedVessel]);
 
   // Get status style
@@ -493,14 +559,32 @@ const WinterTakeOver: React.FC = () => {
   };
 
   // Save
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedVessel) {
       alert(lang === 'el' ? 'Επιλέξτε σκάφος πρώτα!' : 'Select a vessel first!');
       return;
     }
+
+    setIsSaving(true);
     const vesselKey = getVesselKey(selectedVessel);
     const data = { sections, generalNotes, lastSaved: new Date().toISOString() };
+
+    // Save to localStorage immediately (for offline support)
     localStorage.setItem(`${STORAGE_KEY}_${vesselKey}`, JSON.stringify(data));
+
+    // Try to save to API
+    try {
+      const result = await saveWinterTakeover(selectedVessel, sections, customSections, generalNotes);
+      if (result.synced) {
+        console.log('✅ Winter TakeOver saved to API');
+      } else {
+        console.log('💾 Saved to localStorage, API sync pending');
+      }
+    } catch (error) {
+      console.warn('⚠️ API save failed, data saved to localStorage:', error);
+    }
+
+    setIsSaving(false);
     setShowSaveMessage(true);
     setTimeout(() => setShowSaveMessage(false), 3000);
   };

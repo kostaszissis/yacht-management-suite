@@ -1195,3 +1195,275 @@ export async function savePage1DataHybrid(
 
   return { success: true, synced };
 }
+
+// =====================================================
+// WINTER/TASK CHECKIN API - Per Vessel Data Storage
+// =====================================================
+
+/**
+ * Generic interface for checkin data
+ */
+export interface CheckinData {
+  vesselId: number;
+  vesselName: string;
+  category?: string;  // For task category checkins
+  sections: any;
+  customSections?: any;
+  generalNotes?: string;
+  lastSaved: string;
+}
+
+/**
+ * Get checkin data from API
+ * @param endpoint - API endpoint (e.g., 'winterization-checkin', 'winter-inventory')
+ * @param vesselId - The vessel ID
+ * @param category - Optional category for task checkins
+ */
+export async function getCheckinData(
+  endpoint: string,
+  vesselId: number,
+  category?: string
+): Promise<CheckinData | null> {
+  try {
+    const url = category
+      ? `${API_URL}/${endpoint}/${vesselId}?category=${encodeURIComponent(category)}`
+      : `${API_URL}/${endpoint}/${vesselId}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      if (response.status === 404) return null;
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log(`✅ ${endpoint} data loaded from API for vessel ${vesselId}`);
+    return result.data || result;
+  } catch (error) {
+    console.warn(`⚠️ ${endpoint} API GET failed:`, error);
+    return null;
+  }
+}
+
+/**
+ * Save checkin data to API
+ * @param endpoint - API endpoint
+ * @param data - Checkin data to save
+ */
+export async function saveCheckinData(
+  endpoint: string,
+  data: CheckinData
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const response = await fetch(`${API_URL}/${endpoint}/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+
+    if (result.success || response.ok) {
+      console.log(`✅ ${endpoint} data saved to API for vessel ${data.vesselId}`);
+      return { success: true, message: result.message };
+    }
+
+    console.warn(`⚠️ ${endpoint} API save failed:`, result.error);
+    return { success: false, message: result.error };
+  } catch (error) {
+    console.warn(`⚠️ ${endpoint} API save error:`, error);
+    return { success: false, message: String(error) };
+  }
+}
+
+/**
+ * Hybrid: Get checkin data from API, fallback to localStorage
+ */
+export async function getCheckinDataHybrid(
+  endpoint: string,
+  vesselId: number,
+  localStorageKey: string,
+  category?: string
+): Promise<CheckinData | null> {
+  // Try API first
+  try {
+    const apiData = await getCheckinData(endpoint, vesselId, category);
+    if (apiData) {
+      // Update localStorage with API data
+      localStorage.setItem(localStorageKey, JSON.stringify(apiData));
+      return apiData;
+    }
+  } catch (error) {
+    console.warn(`⚠️ ${endpoint} API failed, trying localStorage...`, error);
+  }
+
+  // Fallback to localStorage
+  try {
+    const stored = localStorage.getItem(localStorageKey);
+    if (stored) {
+      console.log(`📂 ${endpoint} data loaded from localStorage`);
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.warn('⚠️ localStorage fallback error:', e);
+  }
+
+  return null;
+}
+
+/**
+ * Hybrid: Save checkin data to API and localStorage
+ */
+export async function saveCheckinDataHybrid(
+  endpoint: string,
+  data: CheckinData,
+  localStorageKey: string
+): Promise<{ success: boolean; synced: boolean }> {
+  let synced = false;
+
+  // Save to localStorage immediately
+  try {
+    localStorage.setItem(localStorageKey, JSON.stringify({
+      ...data,
+      synced: false
+    }));
+    console.log(`💾 ${endpoint} saved to localStorage`);
+  } catch (e) {
+    console.warn('⚠️ localStorage save error:', e);
+  }
+
+  // Try to save to API
+  try {
+    const result = await saveCheckinData(endpoint, data);
+    if (result.success) {
+      // Mark as synced in localStorage
+      const stored = localStorage.getItem(localStorageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsed.synced = true;
+        localStorage.setItem(localStorageKey, JSON.stringify(parsed));
+      }
+      synced = true;
+    }
+  } catch (error) {
+    console.warn('⚠️ API sync failed, will retry later:', error);
+  }
+
+  return { success: true, synced };
+}
+
+// =====================================================
+// WINTERIZATION CHECKIN API
+// =====================================================
+
+export async function getWinterizationCheckin(vesselId: number): Promise<CheckinData | null> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `winterization_${vesselName.replace(/\s+/g, '_').toLowerCase()}_data`;
+  return getCheckinDataHybrid('winterization-checkin', vesselId, localKey);
+}
+
+export async function saveWinterizationCheckin(vesselId: number, sections: any, customSections: any, generalNotes: string): Promise<{ success: boolean; synced: boolean }> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `winterization_${vesselName.replace(/\s+/g, '_').toLowerCase()}_data`;
+  return saveCheckinDataHybrid('winterization-checkin', {
+    vesselId,
+    vesselName,
+    sections,
+    customSections,
+    generalNotes,
+    lastSaved: new Date().toISOString()
+  }, localKey);
+}
+
+// =====================================================
+// WINTER MAINTENANCE INVENTORY API
+// =====================================================
+
+export async function getWinterInventory(vesselId: number): Promise<CheckinData | null> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `winter_inventory_${vesselName.replace(/\s+/g, '_').toLowerCase()}`;
+  return getCheckinDataHybrid('winter-inventory', vesselId, localKey);
+}
+
+export async function saveWinterInventory(vesselId: number, sections: any, customSections: any, generalNotes: string): Promise<{ success: boolean; synced: boolean }> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `winter_inventory_${vesselName.replace(/\s+/g, '_').toLowerCase()}`;
+  return saveCheckinDataHybrid('winter-inventory', {
+    vesselId,
+    vesselName,
+    sections,
+    customSections,
+    generalNotes,
+    lastSaved: new Date().toISOString()
+  }, localKey);
+}
+
+// =====================================================
+// WINTER SAFETY EQUIPMENT API
+// =====================================================
+
+export async function getWinterSafety(vesselId: number): Promise<CheckinData | null> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `winter_safety_equipment_v3_${vesselName.replace(/\s+/g, '_').toLowerCase()}`;
+  return getCheckinDataHybrid('safety-equipment', vesselId, localKey);
+}
+
+export async function saveWinterSafety(vesselId: number, sections: any, customSections: any, generalNotes: string): Promise<{ success: boolean; synced: boolean }> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `winter_safety_equipment_v3_${vesselName.replace(/\s+/g, '_').toLowerCase()}`;
+  return saveCheckinDataHybrid('safety-equipment', {
+    vesselId,
+    vesselName,
+    sections,
+    customSections,
+    generalNotes,
+    lastSaved: new Date().toISOString()
+  }, localKey);
+}
+
+// =====================================================
+// WINTER TAKEOVER API
+// =====================================================
+
+export async function getWinterTakeover(vesselId: number): Promise<CheckinData | null> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `winter_take_over_v3_${vesselName.replace(/\s+/g, '_').toLowerCase()}`;
+  return getCheckinDataHybrid('winter-takeover', vesselId, localKey);
+}
+
+export async function saveWinterTakeover(vesselId: number, sections: any, customSections: any, generalNotes: string): Promise<{ success: boolean; synced: boolean }> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `winter_take_over_v3_${vesselName.replace(/\s+/g, '_').toLowerCase()}`;
+  return saveCheckinDataHybrid('winter-takeover', {
+    vesselId,
+    vesselName,
+    sections,
+    customSections,
+    generalNotes,
+    lastSaved: new Date().toISOString()
+  }, localKey);
+}
+
+// =====================================================
+// TASK CATEGORY CHECKIN API
+// =====================================================
+
+export async function getTaskCheckin(vesselId: number, category: string): Promise<CheckinData | null> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `task_${category}_${vesselName.replace(/\s+/g, '_').toLowerCase()}_data`;
+  return getCheckinDataHybrid('task-checkins', vesselId, localKey, category);
+}
+
+export async function saveTaskCheckin(vesselId: number, category: string, sections: any, customSections: any, generalNotes: string): Promise<{ success: boolean; synced: boolean }> {
+  const vesselName = VESSEL_NAMES[vesselId] || '';
+  const localKey = `task_${category}_${vesselName.replace(/\s+/g, '_').toLowerCase()}_data`;
+  return saveCheckinDataHybrid('task-checkins', {
+    vesselId,
+    vesselName,
+    category,
+    sections,
+    customSections,
+    generalNotes,
+    lastSaved: new Date().toISOString()
+  }, localKey);
+}
