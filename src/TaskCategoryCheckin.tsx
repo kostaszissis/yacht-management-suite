@@ -1,269 +1,550 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import authService from './authService';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
 
-// Brand colors (matching app theme)
-const brand = {
-  black: "#000000",
-  blue: "#3B82F6",
-  pink: "#d11b65",
-  successBorder: "#22c55e",
-  successBg: "#d1fae5",
-  navy: "#0B1D51",
-  gold: "#C6A664",
-  white: "#FFFFFF",
-};
-
-// Translations
-const I18N = {
-  en: {
-    title: "ΧΕΙΜΕΡΙΝΟ INVENTORY CHECK-IN",
-    subtitle: "End of Season Inspection",
-    selectVessel: "Select Vessel",
-    progress: "Progress",
-    completed: "completed",
-    save: "Save Draft",
-    generatePDF: "Generate PDF",
-    back: "Back",
-    addItem: "Add Item",
-    removeItem: "Remove",
-    comments: "Comments",
-    commentsPlaceholder: "Add notes here...",
-    expandAll: "Expand All",
-    collapseAll: "Collapse All",
-    saved: "Saved successfully!",
-    // Section titles
-    equipment: "Equipment Inventory",
-    hull: "Hull Inspection",
-    dinghy: "Dinghy & Outboard",
-    safety: "Safety Equipment",
-    cabin: "Cabin Inventory",
-    optional: "Optional Equipment",
-    kitchen: "Kitchen / Galley",
-    navigation: "Navigation",
-    generator: "Generator",
-    deck: "Deck Equipment",
-    frontDeck: "Front Deck / Lines",
-    fenders: "Fenders",
-    boathook: "Boat-hook",
+// Task category definitions with items
+const TASK_CATEGORIES: { [key: string]: {
+  icon: string;
+  nameEl: string;
+  nameEn: string;
+  color: string;
+  sections: {
+    id: string;
+    titleEl: string;
+    titleEn: string;
+    icon: string;
+    items: { key: string; el: string; en: string }[]
+  }[]
+}} = {
+  engine: {
+    icon: '⚙️',
+    nameEl: 'ΜΗΧΑΝΗ',
+    nameEn: 'ENGINE',
+    color: '#3b82f6', // blue
+    sections: [
+      {
+        id: 'oil_system',
+        titleEl: 'Σύστημα Λαδιού',
+        titleEn: 'Oil System',
+        icon: '🛢️',
+        items: [
+          { key: 'oil_level', el: 'Έλεγχος στάθμης λαδιού', en: 'Oil level check' },
+          { key: 'oil_change', el: 'Αλλαγή λαδιού', en: 'Oil change' },
+          { key: 'oil_filter', el: 'Φίλτρο λαδιού', en: 'Oil filter' },
+          { key: 'oil_leaks', el: 'Έλεγχος διαρροών λαδιού', en: 'Oil leak check' },
+        ]
+      },
+      {
+        id: 'fuel_system',
+        titleEl: 'Σύστημα Καυσίμων',
+        titleEn: 'Fuel System',
+        icon: '⛽',
+        items: [
+          { key: 'fuel_filter', el: 'Φίλτρο καυσίμου', en: 'Fuel filter' },
+          { key: 'fuel_lines', el: 'Σωληνώσεις καυσίμων', en: 'Fuel lines' },
+          { key: 'fuel_pump', el: 'Αντλία καυσίμων', en: 'Fuel pump' },
+          { key: 'water_separator', el: 'Διαχωριστής νερού', en: 'Water separator' },
+        ]
+      },
+      {
+        id: 'cooling_system',
+        titleEl: 'Σύστημα Ψύξης',
+        titleEn: 'Cooling System',
+        icon: '❄️',
+        items: [
+          { key: 'coolant_level', el: 'Στάθμη ψυκτικού', en: 'Coolant level' },
+          { key: 'coolant_condition', el: 'Κατάσταση ψυκτικού', en: 'Coolant condition' },
+          { key: 'water_pump', el: 'Αντλία νερού', en: 'Water pump' },
+          { key: 'thermostat', el: 'Θερμοστάτης', en: 'Thermostat' },
+          { key: 'heat_exchanger', el: 'Εναλλάκτης θερμότητας', en: 'Heat exchanger' },
+          { key: 'raw_water_impeller', el: 'Φτερωτή θαλασσινού νερού', en: 'Raw water impeller' },
+        ]
+      },
+      {
+        id: 'belt_system',
+        titleEl: 'Ιμάντες & Τροχαλίες',
+        titleEn: 'Belts & Pulleys',
+        icon: '🔄',
+        items: [
+          { key: 'alternator_belt', el: 'Ιμάντας δυναμό', en: 'Alternator belt' },
+          { key: 'water_pump_belt', el: 'Ιμάντας αντλίας νερού', en: 'Water pump belt' },
+          { key: 'belt_tension', el: 'Τάνυση ιμάντων', en: 'Belt tension' },
+          { key: 'pulleys_condition', el: 'Κατάσταση τροχαλιών', en: 'Pulleys condition' },
+        ]
+      },
+      {
+        id: 'electrical',
+        titleEl: 'Ηλεκτρικά Μηχανής',
+        titleEn: 'Engine Electrical',
+        icon: '⚡',
+        items: [
+          { key: 'starter_motor', el: 'Μίζα', en: 'Starter motor' },
+          { key: 'alternator', el: 'Δυναμό', en: 'Alternator' },
+          { key: 'glow_plugs', el: 'Προθερμαντήρες', en: 'Glow plugs' },
+          { key: 'wiring', el: 'Καλωδίωση', en: 'Wiring' },
+        ]
+      },
+    ]
   },
-  el: {
-    title: "ΧΕΙΜΕΡΙΝΟ INVENTORY CHECK-IN",
-    subtitle: "Επιθεώρηση Τέλους Σεζόν",
-    selectVessel: "Επιλέξτε Σκάφος",
-    progress: "Πρόοδος",
-    completed: "ολοκληρώθηκαν",
-    save: "Αποθήκευση",
-    generatePDF: "Δημιουργία PDF",
-    back: "Πίσω",
-    addItem: "Προσθήκη",
-    removeItem: "Διαγραφή",
-    comments: "Σχόλια",
-    commentsPlaceholder: "Προσθέστε σημειώσεις...",
-    expandAll: "Ανάπτυξη Όλων",
-    collapseAll: "Σύμπτυξη Όλων",
-    saved: "Αποθηκεύτηκε επιτυχώς!",
-    // Section titles
-    equipment: "Απογραφή Εξοπλισμού",
-    hull: "Επιθεώρηση Γάστρας",
-    dinghy: "Λέμβος & Εξωλέμβιος",
-    safety: "Εξοπλισμός Ασφαλείας",
-    cabin: "Απογραφή Καμπίνας",
-    optional: "Προαιρετικός Εξοπλισμός",
-    kitchen: "Κουζίνα",
-    navigation: "Ναυσιπλοΐα",
-    generator: "Γεννήτρια",
-    deck: "Εξοπλισμός Καταστρώματος",
-    frontDeck: "Πλώρη / Σχοινιά",
-    fenders: "Μπαλόνια",
-    boathook: "Γάντζος",
+  generator: {
+    icon: '⚡',
+    nameEl: 'ΓΕΝΝΗΤΡΙΑ',
+    nameEn: 'GENERATOR',
+    color: '#3b82f6', // blue
+    sections: [
+      {
+        id: 'gen_oil',
+        titleEl: 'Σύστημα Λαδιού',
+        titleEn: 'Oil System',
+        icon: '🛢️',
+        items: [
+          { key: 'gen_oil_level', el: 'Στάθμη λαδιού', en: 'Oil level' },
+          { key: 'gen_oil_change', el: 'Αλλαγή λαδιού', en: 'Oil change' },
+          { key: 'gen_oil_filter', el: 'Φίλτρο λαδιού', en: 'Oil filter' },
+        ]
+      },
+      {
+        id: 'gen_fuel',
+        titleEl: 'Σύστημα Καυσίμων',
+        titleEn: 'Fuel System',
+        icon: '⛽',
+        items: [
+          { key: 'gen_fuel_filter', el: 'Φίλτρο καυσίμου', en: 'Fuel filter' },
+          { key: 'gen_fuel_lines', el: 'Σωληνώσεις καυσίμων', en: 'Fuel lines' },
+        ]
+      },
+      {
+        id: 'gen_cooling',
+        titleEl: 'Σύστημα Ψύξης',
+        titleEn: 'Cooling System',
+        icon: '❄️',
+        items: [
+          { key: 'gen_coolant', el: 'Ψυκτικό υγρό', en: 'Coolant' },
+          { key: 'gen_impeller', el: 'Φτερωτή', en: 'Impeller' },
+          { key: 'gen_heat_exchanger', el: 'Εναλλάκτης θερμότητας', en: 'Heat exchanger' },
+        ]
+      },
+      {
+        id: 'gen_electrical',
+        titleEl: 'Ηλεκτρικά',
+        titleEn: 'Electrical',
+        icon: '🔌',
+        items: [
+          { key: 'gen_battery', el: 'Μπαταρία εκκίνησης', en: 'Start battery' },
+          { key: 'gen_output', el: 'Έξοδος ρεύματος', en: 'Power output' },
+          { key: 'gen_control_panel', el: 'Πίνακας ελέγχου', en: 'Control panel' },
+          { key: 'gen_hours', el: 'Ώρες λειτουργίας', en: 'Operating hours' },
+        ]
+      },
+    ]
+  },
+  shaft: {
+    icon: '🔧',
+    nameEl: 'ΑΞΟΝΑΣ',
+    nameEn: 'SHAFT',
+    color: '#3b82f6', // blue
+    sections: [
+      {
+        id: 'shaft_main',
+        titleEl: 'Άξονας & Προπέλα',
+        titleEn: 'Shaft & Propeller',
+        icon: '🔩',
+        items: [
+          { key: 'shaft_alignment', el: 'Ευθυγράμμιση άξονα', en: 'Shaft alignment' },
+          { key: 'shaft_bearing', el: 'Ρουλεμάν άξονα', en: 'Shaft bearing' },
+          { key: 'propeller_condition', el: 'Κατάσταση προπέλας', en: 'Propeller condition' },
+          { key: 'propeller_zinc', el: 'Ψευδάργυρος προπέλας', en: 'Propeller zinc' },
+          { key: 'shaft_zinc', el: 'Ψευδάργυρος άξονα', en: 'Shaft zinc' },
+        ]
+      },
+      {
+        id: 'shaft_seal',
+        titleEl: 'Στεγανοποίηση',
+        titleEn: 'Sealing',
+        icon: '💧',
+        items: [
+          { key: 'shaft_seal', el: 'Τσιμούχα άξονα', en: 'Shaft seal' },
+          { key: 'stuffing_box', el: 'Στυπιοθλίπτης', en: 'Stuffing box' },
+          { key: 'drip_rate', el: 'Ρυθμός στάξης', en: 'Drip rate' },
+        ]
+      },
+      {
+        id: 'shaft_coupling',
+        titleEl: 'Σύνδεση',
+        titleEn: 'Coupling',
+        icon: '🔗',
+        items: [
+          { key: 'coupling_condition', el: 'Κατάσταση σύμπλεξης', en: 'Coupling condition' },
+          { key: 'coupling_bolts', el: 'Μπουλόνια σύμπλεξης', en: 'Coupling bolts' },
+          { key: 'flexible_coupling', el: 'Ελαστική σύμπλεξη', en: 'Flexible coupling' },
+        ]
+      },
+    ]
+  },
+  valves: {
+    icon: '🚿',
+    nameEl: 'ΒΑΝΕΣ ΘΑΛΑΣΣΗΣ',
+    nameEn: 'SEA VALVES',
+    color: '#3b82f6', // blue
+    sections: [
+      {
+        id: 'engine_valves',
+        titleEl: 'Βάνες Μηχανής',
+        titleEn: 'Engine Valves',
+        icon: '⚙️',
+        items: [
+          { key: 'engine_intake', el: 'Εισαγωγή ψύξης μηχανής', en: 'Engine cooling intake' },
+          { key: 'engine_discharge', el: 'Εξαγωγή ψύξης μηχανής', en: 'Engine cooling discharge' },
+        ]
+      },
+      {
+        id: 'generator_valves',
+        titleEl: 'Βάνες Γεννήτριας',
+        titleEn: 'Generator Valves',
+        icon: '⚡',
+        items: [
+          { key: 'gen_intake', el: 'Εισαγωγή ψύξης γεννήτριας', en: 'Generator cooling intake' },
+          { key: 'gen_discharge', el: 'Εξαγωγή ψύξης γεννήτριας', en: 'Generator cooling discharge' },
+        ]
+      },
+      {
+        id: 'sanitary_valves',
+        titleEl: 'Βάνες Υγιεινής',
+        titleEn: 'Sanitary Valves',
+        icon: '🚽',
+        items: [
+          { key: 'toilet_intake', el: 'Εισαγωγή WC', en: 'Toilet intake' },
+          { key: 'toilet_discharge', el: 'Εξαγωγή WC', en: 'Toilet discharge' },
+          { key: 'sink_discharge', el: 'Εξαγωγή νεροχύτη', en: 'Sink discharge' },
+          { key: 'shower_discharge', el: 'Εξαγωγή ντους', en: 'Shower discharge' },
+        ]
+      },
+      {
+        id: 'ac_valves',
+        titleEl: 'Βάνες Κλιματισμού',
+        titleEn: 'A/C Valves',
+        icon: '❄️',
+        items: [
+          { key: 'ac_intake', el: 'Εισαγωγή A/C', en: 'A/C intake' },
+          { key: 'ac_discharge', el: 'Εξαγωγή A/C', en: 'A/C discharge' },
+        ]
+      },
+      {
+        id: 'other_valves',
+        titleEl: 'Λοιπές Βάνες',
+        titleEn: 'Other Valves',
+        icon: '🔧',
+        items: [
+          { key: 'bilge_discharge', el: 'Εξαγωγή σεντινών', en: 'Bilge discharge' },
+          { key: 'deck_wash', el: 'Πλύσιμο καταστρώματος', en: 'Deck wash' },
+          { key: 'emergency_valve', el: 'Βάνα έκτακτης ανάγκης', en: 'Emergency valve' },
+        ]
+      },
+    ]
+  },
+  electrical: {
+    icon: '💡',
+    nameEl: 'ΗΛΕΚΤΡΟΛΟΓΙΚΑ',
+    nameEn: 'ELECTRICAL',
+    color: '#3b82f6', // blue
+    sections: [
+      {
+        id: 'batteries',
+        titleEl: 'Μπαταρίες',
+        titleEn: 'Batteries',
+        icon: '🔋',
+        items: [
+          { key: 'house_batteries', el: 'Μπαταρίες οικίας', en: 'House batteries' },
+          { key: 'engine_battery', el: 'Μπαταρία μηχανής', en: 'Engine battery' },
+          { key: 'battery_charger', el: 'Φορτιστής μπαταριών', en: 'Battery charger' },
+          { key: 'battery_switch', el: 'Διακόπτης μπαταριών', en: 'Battery switch' },
+          { key: 'battery_cables', el: 'Καλώδια μπαταριών', en: 'Battery cables' },
+        ]
+      },
+      {
+        id: 'shore_power',
+        titleEl: 'Ρεύμα Ξηράς',
+        titleEn: 'Shore Power',
+        icon: '🔌',
+        items: [
+          { key: 'shore_inlet', el: 'Πρίζα ξηράς', en: 'Shore inlet' },
+          { key: 'shore_cable', el: 'Καλώδιο ξηράς', en: 'Shore cable' },
+          { key: 'isolation_transformer', el: 'Μετασχηματιστής απομόνωσης', en: 'Isolation transformer' },
+        ]
+      },
+      {
+        id: 'inverter_system',
+        titleEl: 'Inverter / Converter',
+        titleEn: 'Inverter / Converter',
+        icon: '⚡',
+        items: [
+          { key: 'inverter', el: 'Inverter', en: 'Inverter' },
+          { key: 'converter', el: 'Μετατροπέας DC-DC', en: 'DC-DC Converter' },
+        ]
+      },
+      {
+        id: 'lighting',
+        titleEl: 'Φωτισμός',
+        titleEn: 'Lighting',
+        icon: '💡',
+        items: [
+          { key: 'nav_lights', el: 'Φώτα ναυσιπλοΐας', en: 'Navigation lights' },
+          { key: 'anchor_light', el: 'Φως αγκυροβολίας', en: 'Anchor light' },
+          { key: 'cabin_lights', el: 'Φώτα καμπινών', en: 'Cabin lights' },
+          { key: 'deck_lights', el: 'Φώτα καταστρώματος', en: 'Deck lights' },
+          { key: 'underwater_lights', el: 'Υποβρύχια φώτα', en: 'Underwater lights' },
+        ]
+      },
+      {
+        id: 'windlass_system',
+        titleEl: 'Εργάτης Άγκυρας',
+        titleEn: 'Anchor Windlass',
+        icon: '⚓',
+        items: [
+          { key: 'windlass_motor', el: 'Μοτέρ εργάτη', en: 'Windlass motor' },
+          { key: 'windlass_brushes', el: 'Καρβουνάκια εργάτη', en: 'Windlass brushes' },
+          { key: 'windlass_gearbox', el: 'Κιβώτιο ταχυτήτων', en: 'Windlass gearbox' },
+          { key: 'windlass_solenoid', el: 'Σωληνοειδές ρελέ', en: 'Windlass solenoid' },
+        ]
+      },
+      {
+        id: 'panel',
+        titleEl: 'Πίνακας Ηλεκτρικών',
+        titleEn: 'Electrical Panel',
+        icon: '🎛️',
+        items: [
+          { key: 'main_breaker', el: 'Κεντρικός διακόπτης', en: 'Main breaker' },
+          { key: 'circuit_breakers', el: 'Ασφαλειοδιακόπτες', en: 'Circuit breakers' },
+          { key: 'fuses', el: 'Ασφάλειες', en: 'Fuses' },
+          { key: 'voltmeter', el: 'Βολτόμετρο', en: 'Voltmeter' },
+          { key: 'ammeter', el: 'Αμπερόμετρο', en: 'Ammeter' },
+        ]
+      },
+    ]
+  },
+  desalination: {
+    icon: '💧',
+    nameEl: 'ΑΦΑΛΑΤΩΣΗ',
+    nameEn: 'DESALINATION',
+    color: '#3b82f6', // blue
+    sections: [
+      {
+        id: 'watermaker_main',
+        titleEl: 'Water Maker - Κύριο Σύστημα',
+        titleEn: 'Water Maker - Main System',
+        icon: '💧',
+        items: [
+          { key: 'high_pressure_pump', el: 'Αντλία υψηλής πίεσης', en: 'High pressure pump' },
+          { key: 'feed_pump', el: 'Αντλία τροφοδοσίας', en: 'Feed pump' },
+          { key: 'boost_pump', el: 'Αντλία ενίσχυσης', en: 'Boost pump' },
+          { key: 'membrane', el: 'Μεμβράνη αντίστροφης όσμωσης', en: 'Reverse osmosis membrane' },
+          { key: 'pressure_gauge', el: 'Μανόμετρο πίεσης', en: 'Pressure gauge' },
+          { key: 'flow_meter', el: 'Ροόμετρο', en: 'Flow meter' },
+        ]
+      },
+      {
+        id: 'watermaker_filters',
+        titleEl: 'Φίλτρα',
+        titleEn: 'Filters',
+        icon: '🔧',
+        items: [
+          { key: 'prefilter_5micron', el: 'Προφίλτρο 5 micron', en: '5 micron prefilter' },
+          { key: 'prefilter_20micron', el: 'Προφίλτρο 20 micron', en: '20 micron prefilter' },
+          { key: 'carbon_filter', el: 'Φίλτρο ενεργού άνθρακα', en: 'Carbon filter' },
+          { key: 'sediment_filter', el: 'Φίλτρο ιζημάτων', en: 'Sediment filter' },
+        ]
+      },
+      {
+        id: 'watermaker_valves',
+        titleEl: 'Βάνες & Σωληνώσεις',
+        titleEn: 'Valves & Plumbing',
+        icon: '🚿',
+        items: [
+          { key: 'seawater_inlet', el: 'Είσοδος θαλασσινού νερού', en: 'Seawater inlet valve' },
+          { key: 'brine_discharge', el: 'Έξοδος άλμης', en: 'Brine discharge valve' },
+          { key: 'product_water_valve', el: 'Βάνα καθαρού νερού', en: 'Product water valve' },
+          { key: 'flush_valve', el: 'Βάνα ξεπλύματος', en: 'Flush valve' },
+          { key: 'bypass_valve', el: 'Βάνα παράκαμψης', en: 'Bypass valve' },
+        ]
+      },
+      {
+        id: 'watermaker_electrical',
+        titleEl: 'Ηλεκτρικά & Έλεγχος',
+        titleEn: 'Electrical & Control',
+        icon: '⚡',
+        items: [
+          { key: 'control_panel', el: 'Πίνακας ελέγχου', en: 'Control panel' },
+          { key: 'salinity_sensor', el: 'Αισθητήρας αλατότητας', en: 'Salinity sensor' },
+          { key: 'pressure_switch', el: 'Πιεσοστάτης', en: 'Pressure switch' },
+          { key: 'auto_flush', el: 'Αυτόματο ξέπλυμα', en: 'Auto flush system' },
+          { key: 'motor_starter', el: 'Εκκινητής μοτέρ', en: 'Motor starter' },
+        ]
+      },
+      {
+        id: 'watermaker_maintenance',
+        titleEl: 'Συντήρηση & Χημικά',
+        titleEn: 'Maintenance & Chemicals',
+        icon: '🧪',
+        items: [
+          { key: 'pickling_solution', el: 'Διάλυμα συντήρησης', en: 'Pickling solution' },
+          { key: 'membrane_cleaner', el: 'Καθαριστικό μεμβράνης', en: 'Membrane cleaner' },
+          { key: 'descaler', el: 'Αφαλατωτικό', en: 'Descaler' },
+          { key: 'biocide', el: 'Βιοκτόνο', en: 'Biocide' },
+          { key: 'storage_solution', el: 'Διάλυμα αποθήκευσης', en: 'Storage solution' },
+        ]
+      },
+    ]
+  },
+  documents: {
+    icon: '📄',
+    nameEl: 'ΕΓΓΡΑΦΑ',
+    nameEn: 'DOCUMENTS',
+    color: '#3b82f6',
+    sections: [
+      {
+        id: 'certificates',
+        titleEl: 'Πιστοποιητικά',
+        titleEn: 'Certificates',
+        icon: '📜',
+        items: [
+          { key: 'seaworthiness_cert', el: 'Πιστοποιητικό Αξιοπλοΐας', en: 'Certificate of Seaworthiness' },
+          { key: 'insurance', el: 'Ασφάλεια', en: 'Insurance' },
+          { key: 'dekpa', el: 'ΔΕΚΠΑ', en: 'DEKPA' },
+          { key: 'radio_license', el: 'Radio License', en: 'Radio License' },
+        ]
+      },
+      {
+        id: 'logs_manuals',
+        titleEl: 'Ημερολόγια & Εγχειρίδια',
+        titleEn: 'Logs & Manuals',
+        icon: '📚',
+        items: [
+          { key: 'transit_log', el: 'Transit Log', en: 'Transit Log' },
+          { key: 'engine_manual', el: 'Εγχειρίδιο Μηχανής', en: 'Engine Manual' },
+          { key: 'generator_manual', el: 'Εγχειρίδιο Γεννήτριας', en: 'Generator Manual' },
+          { key: 'electronics_manual', el: 'Εγχειρίδια Ηλεκτρονικών', en: 'Electronics Manuals' },
+          { key: 'equipment_manual', el: 'Εγχειρίδια Εξοπλισμού', en: 'Equipment Manuals' },
+        ]
+      },
+      {
+        id: 'registration',
+        titleEl: 'Νηολόγηση',
+        titleEn: 'Registration',
+        icon: '🏛️',
+        items: [
+          { key: 'registration_cert', el: 'Έγγραφο Εθνικότητας', en: 'Registration Certificate' },
+          { key: 'ownership_docs', el: 'Έγγραφα Ιδιοκτησίας', en: 'Ownership Documents' },
+          { key: 'crew_list', el: 'Κατάλογος Πληρώματος', en: 'Crew List' },
+        ]
+      },
+    ]
+  },
+  hull: {
+    icon: '🚢',
+    nameEl: 'ΓΑΣΤΡΑ',
+    nameEn: 'HULL',
+    color: '#3b82f6',
+    sections: [
+      {
+        id: 'hull_paint',
+        titleEl: 'Βαφή Γάστρας',
+        titleEn: 'Hull Paint',
+        icon: '🎨',
+        items: [
+          { key: 'bottom_paint', el: 'Υφαλοχρώματα', en: 'Bottom paint' },
+          { key: 'antifouling', el: 'Antifouling', en: 'Antifouling' },
+          { key: 'waterline', el: 'Ίσαλος Γραμμή', en: 'Waterline' },
+          { key: 'gel_coat', el: 'Gel Coat', en: 'Gel Coat' },
+        ]
+      },
+      {
+        id: 'hull_fittings',
+        titleEl: 'Εξαρτήματα Γάστρας',
+        titleEn: 'Hull Fittings',
+        icon: '🔩',
+        items: [
+          { key: 'thru_hulls', el: 'Thru-hulls', en: 'Thru-hulls' },
+          { key: 'anodes', el: 'Ανόδια', en: 'Anodes/Zincs' },
+          { key: 'propeller', el: 'Προπέλα', en: 'Propeller' },
+          { key: 'shaft', el: 'Άξονας', en: 'Shaft' },
+          { key: 'rudder', el: 'Τιμόνι/Πηδάλιο', en: 'Rudder' },
+          { key: 'keel', el: 'Καρίνα', en: 'Keel' },
+        ]
+      },
+      {
+        id: 'hull_inspection',
+        titleEl: 'Επιθεώρηση Γάστρας',
+        titleEn: 'Hull Inspection',
+        icon: '🔍',
+        items: [
+          { key: 'osmosis_check', el: 'Έλεγχος Ώσμωσης', en: 'Osmosis check' },
+          { key: 'hull_cleaning', el: 'Καθαρισμός Γάστρας', en: 'Hull cleaning' },
+          { key: 'hull_polishing', el: 'Γυάλισμα Γάστρας', en: 'Hull polishing' },
+          { key: 'striping', el: 'Ρίγες/Διακοσμητικά', en: 'Striping/Decals' },
+        ]
+      },
+    ]
+  },
+  electronics: {
+    icon: '📡',
+    nameEl: 'ΗΛΕΚΤΡΟΝΙΚΑ',
+    nameEn: 'ELECTRONICS',
+    color: '#3b82f6',
+    sections: [
+      {
+        id: 'navigation_electronics',
+        titleEl: 'Ηλεκτρονικά Ναυσιπλοΐας',
+        titleEn: 'Navigation Electronics',
+        icon: '🧭',
+        items: [
+          { key: 'gps_plotter', el: 'GPS / Plotter', en: 'GPS / Plotter' },
+          { key: 'autopilot', el: 'Αυτόματος Πιλότος', en: 'Autopilot' },
+          { key: 'radar', el: 'Radar', en: 'Radar' },
+          { key: 'ais', el: 'AIS', en: 'AIS' },
+        ]
+      },
+      {
+        id: 'instruments',
+        titleEl: 'Όργανα',
+        titleEn: 'Instruments',
+        icon: '📊',
+        items: [
+          { key: 'wind_instruments', el: 'Ανεμόμετρο', en: 'Wind Instruments' },
+          { key: 'depth_sounder', el: 'Βυθόμετρο', en: 'Depth Sounder' },
+          { key: 'speed_log', el: 'Δρομόμετρο', en: 'Speed Log' },
+          { key: 'compass', el: 'Πυξίδα', en: 'Compass' },
+        ]
+      },
+      {
+        id: 'communication',
+        titleEl: 'Επικοινωνίες',
+        titleEn: 'Communication',
+        icon: '📻',
+        items: [
+          { key: 'vhf_radio', el: 'VHF Radio', en: 'VHF Radio' },
+          { key: 'vhf_handheld', el: 'VHF Χειρός', en: 'Handheld VHF' },
+          { key: 'satphone', el: 'Δορυφορικό Τηλέφωνο', en: 'Satellite Phone' },
+          { key: 'wifi_router', el: 'WiFi Router', en: 'WiFi Router' },
+        ]
+      },
+      {
+        id: 'entertainment',
+        titleEl: 'Ψυχαγωγία',
+        titleEn: 'Entertainment',
+        icon: '🎵',
+        items: [
+          { key: 'tv', el: 'Τηλεόραση', en: 'TV' },
+          { key: 'stereo', el: 'Στερεοφωνικό', en: 'Stereo/Radio' },
+          { key: 'speakers', el: 'Ηχεία', en: 'Speakers' },
+        ]
+      },
+    ]
   }
 };
 
-// Item labels (English / Greek)
-const ITEM_LABELS: { [key: string]: { en: string; el: string } } = {
-  // PAGE 2 - Equipment
-  engine: { en: "Engine", el: "Κινητήρας" },
-  anchor_windlass: { en: "Anchor Windlass", el: "Εργάτης Άγκυρας" },
-  mainsail: { en: "Mainsail", el: "Κύριο Πανί" },
-  genoa: { en: "Genoa", el: "Τζένοα" },
-  autopilot: { en: "Autopilot", el: "Αυτόματος Πιλότος" },
-  gps_plotter: { en: "GPS / Plotter", el: "GPS / Plotter" },
-  electricity: { en: "Electricity", el: "Ηλεκτρικά" },
-  fridge: { en: "Fridge", el: "Ψυγείο" },
-  gas_oven: { en: "Gas Oven", el: "Φούρνος Γκαζιού" },
-  electric_toilet_pump: { en: "Electric Toilet Pump", el: "Αντλία Τουαλέτας" },
-  fresh_water_pump: { en: "Fresh Water Pump", el: "Αντλία Γλυκού Νερού" },
-  bilge_pump: { en: "Bilge Pump", el: "Αντλία Σεντινών" },
-  radio_mp3: { en: "Radio / MP3 Player", el: "Ραδιόφωνο / MP3" },
-  cleanliness: { en: "Cleanliness", el: "Καθαριότητα" },
-  fuel_water: { en: "Fuel / Water Levels", el: "Καύσιμα / Νερό" },
-  fuel_filling: { en: "Fuel Filling", el: "Ανεφοδιασμός Καυσίμων" },
-  bimini_sprayhood: { en: "Bimini / Sprayhood", el: "Bimini / Sprayhood" },
-  bow_thruster: { en: "Bow Thruster", el: "Προωστήρας Πλώρης" },
-  generator: { en: "Generator", el: "Γεννήτρια" },
-  electric_winch: { en: "Electric Winch", el: "Ηλεκτρικό Βίντζι" },
-  winch: { en: "Winch", el: "Βίντζι" },
-  hydraulic_gangway: { en: "Hydraulic Gangway", el: "Υδραυλική Πασαρέλα" },
-  ac: { en: "A/C", el: "Κλιματισμός" },
-  water_maker: { en: "Water Maker", el: "Αφαλάτωση" },
-  // PAGE 2 - Hull
-  fore: { en: "Fore (Bow)", el: "Πλώρη" },
-  aft: { en: "Aft (Stern)", el: "Πρύμνη" },
-  port: { en: "Port Side", el: "Αριστερά" },
-  starboard: { en: "Starboard Side", el: "Δεξιά" },
-  // PAGE 2 - Dinghy
-  dinghy: { en: "Dinghy", el: "Λέμβος" },
-  outboard: { en: "Outboard Engine", el: "Εξωλέμβιος" },
-  fuel_jerrycan: { en: "Fuel Jerrycan", el: "Κανίστρα Καυσίμου" },
-  oars: { en: "Oars", el: "Κουπιά" },
-  sea_tap: { en: "Sea Tap / Valve", el: "Βάνα Θάλασσας" },
-  // PAGE 3 - Safety
-  lifejackets: { en: "Lifejackets", el: "Σωσίβια" },
-  flares: { en: "Flares", el: "Φωτοβολίδες" },
-  first_aid: { en: "First Aid Kit", el: "Φαρμακείο" },
-  fire_extinguisher: { en: "Fire Extinguisher", el: "Πυροσβεστήρας" },
-  liferaft: { en: "Liferaft", el: "Σωστική Σχεδία" },
-  fog_horn: { en: "Fog Horn", el: "Κόρνα Ομίχλης" },
-  toolkit: { en: "Toolkit", el: "Εργαλεία" },
-  // PAGE 3 - Cabin
-  bed_linen: { en: "Bed Linen (all cabins)", el: "Κλινοσκεπάσματα" },
-  pillows_cases: { en: "Pillows & Cases", el: "Μαξιλάρια & Θήκες" },
-  blankets: { en: "Blankets", el: "Κουβέρτες" },
-  bath_towels: { en: "Bath Towels", el: "Πετσέτες Μπάνιου" },
-  tea_towels: { en: "Tea Towels", el: "Πετσέτες Κουζίνας" },
-  wc_mats: { en: "WC Mats", el: "Χαλάκια WC" },
-  hatch_large: { en: "Hatch Large", el: "Hatch Μεγάλα" },
-  hatch_toilet: { en: "Hatch Toilet", el: "Hatch Τουαλέτας" },
-  hatch_cabin: { en: "Hatch Cabin", el: "Hatch Καμπίνας" },
-  toilet_clogging: { en: "Toilet Condition", el: "Κατάσταση Τουαλέτας" },
-  // PAGE 3 - Optional
-  spinnaker: { en: "Spinnaker", el: "Μπαλόνι (Spinnaker)" },
-  snorkeling_gear: { en: "Snorkeling Gear", el: "Εξοπλισμός Snorkeling" },
-  fishing_equipment: { en: "Fishing Equipment", el: "Εξοπλισμός Ψαρέματος" },
-  bbq_grill: { en: "BBQ Grill", el: "Ψησταριά BBQ" },
-  stand_up_paddle: { en: "Stand-up Paddle (SUP)", el: "SUP Board" },
-  kayak: { en: "Kayak", el: "Καγιάκ" },
-  control_gangway: { en: "Gangway Remote", el: "Χειριστήριο Πασαρέλας" },
-  control_tv: { en: "TV Remote", el: "Χειριστήριο TV" },
-  wifi_router: { en: "Wi-Fi Router", el: "Wi-Fi Router" },
-  card_sd_gps: { en: "SD Card (GPS)", el: "Κάρτα SD GPS" },
-  feet_for_saloon: { en: "Saloon Table Feet", el: "Πόδια Σαλονιού" },
-  mattress: { en: "Mattress", el: "Στρώμα" },
-  espresso_machine: { en: "Espresso Machine", el: "Μηχανή Espresso" },
-  ice_maker: { en: "Ice Maker", el: "Παγομηχανή" },
-  sea_scooter: { en: "Sea Scooter", el: "Θαλάσσιο Σκούτερ" },
-  // PAGE 4 - Kitchen
-  electric_fridge: { en: "Electric Fridge", el: "Ηλεκτρικό Ψυγείο" },
-  gas_stove_4_heads: { en: "Gas Stove (4 heads)", el: "Εστία Γκαζιού (4 μάτια)" },
-  dinner_plates: { en: "Dinner Plates", el: "Πιάτα Φαγητού" },
-  soup_plates: { en: "Soup Plates", el: "Πιάτα Σούπας" },
-  glasses_water: { en: "Water Glasses", el: "Ποτήρια Νερού" },
-  glasses_wine: { en: "Wine Glasses", el: "Ποτήρια Κρασιού" },
-  cookware: { en: "Cookware (Pots/Pans)", el: "Μαγειρικά Σκεύη (Κατσαρόλες/Τηγάνια)" },
-  knives: { en: "Knives", el: "Μαχαίρια" },
-  forks: { en: "Forks", el: "Πιρούνια" },
-  spoons: { en: "Spoons", el: "Κουτάλια" },
-  // PAGE 4 - Navigation
-  vhf_dsc: { en: "VHF / DSC Radio", el: "VHF / DSC" },
-  binoculars: { en: "Binoculars", el: "Κιάλια" },
-  charts: { en: "Charts", el: "Ναυτικοί Χάρτες" },
-  // PAGE 4 - Deck
-  spare_anchor: { en: "Spare Anchor", el: "Εφεδρική Άγκυρα" },
-  deck_brush: { en: "Deck Brush", el: "Βούρτσα Καταστρώματος" },
-  gangway: { en: "Gangway", el: "Πασαρέλα" },
-  // PAGE 4 - Front Deck
-  lines_20m: { en: "Lines 20m", el: "Σχοινιά 20m" },
-  lines_50m: { en: "Lines 50m", el: "Σχοινιά 50m" },
-  // PAGE 4 - Dinghy (additional)
-  inflatable_dinghy: { en: "Inflatable Dinghy", el: "Φουσκωτή Βάρκα" },
-  air_pump: { en: "Air Pump", el: "Αντλία Αέρα" },
-  // PAGE 4 - Fenders
-  bow_fenders: { en: "Bow Fenders", el: "Μπαλόνια Πλώρης" },
-  stern_fenders: { en: "Stern Fenders", el: "Μπαλόνια Πρύμνης" },
-  // PAGE 4 - Boathook
-  telescopic_boathook: { en: "Telescopic Boat-hook", el: "Τηλεσκοπικός Γάντζος" },
-};
-
-// Section definitions with their items
-const SECTIONS = [
-  {
-    id: "equipment",
-    titleKey: "equipment",
-    icon: "🔧",
-    items: ["engine", "anchor_windlass", "mainsail", "genoa", "autopilot", "gps_plotter", "electricity", "fridge", "gas_oven", "electric_toilet_pump", "fresh_water_pump", "bilge_pump", "radio_mp3", "cleanliness", "fuel_water", "fuel_filling", "bimini_sprayhood", "bow_thruster", "generator", "electric_winch", "winch", "hydraulic_gangway", "ac", "water_maker"]
-  },
-  {
-    id: "hull",
-    titleKey: "hull",
-    icon: "🚤",
-    items: ["fore", "aft", "port", "starboard"]
-  },
-  {
-    id: "dinghy",
-    titleKey: "dinghy",
-    icon: "🛶",
-    items: ["dinghy", "inflatable_dinghy", "outboard", "fuel_jerrycan", "oars", "air_pump", "sea_tap"]
-  },
-  {
-    id: "safety",
-    titleKey: "safety",
-    icon: "🆘",
-    items: ["lifejackets", "flares", "first_aid", "fire_extinguisher", "liferaft", "fog_horn", "toolkit"]
-  },
-  {
-    id: "cabin",
-    titleKey: "cabin",
-    icon: "🛏️",
-    items: ["bed_linen", "pillows_cases", "blankets", "bath_towels", "tea_towels", "wc_mats", "hatch_large", "hatch_toilet", "hatch_cabin", "toilet_clogging"]
-  },
-  {
-    id: "kitchen",
-    titleKey: "kitchen",
-    icon: "🍳",
-    items: ["electric_fridge", "gas_stove_4_heads", "cookware", "dinner_plates", "soup_plates", "glasses_water", "glasses_wine", "knives", "forks", "spoons"]
-  },
-  {
-    id: "navigation",
-    titleKey: "navigation",
-    icon: "🧭",
-    items: ["gps_plotter", "vhf_dsc", "binoculars", "charts"]
-  },
-  {
-    id: "deck",
-    titleKey: "deck",
-    icon: "⚓",
-    items: ["spare_anchor", "deck_brush", "gangway"]
-  },
-  {
-    id: "frontDeck",
-    titleKey: "frontDeck",
-    icon: "🪢",
-    items: ["lines_20m", "lines_50m"]
-  },
-  {
-    id: "fenders",
-    titleKey: "fenders",
-    icon: "🔵",
-    items: ["bow_fenders", "stern_fenders"]
-  },
-  {
-    id: "boathook",
-    titleKey: "boathook",
-    icon: "🪝",
-    items: ["telescopic_boathook"]
-  },
-  {
-    id: "optional",
-    titleKey: "optional",
-    icon: "✨",
-    items: ["spinnaker", "snorkeling_gear", "fishing_equipment", "bbq_grill", "stand_up_paddle", "kayak", "control_gangway", "control_tv", "wifi_router", "card_sd_gps", "feet_for_saloon", "mattress", "espresso_machine", "ice_maker", "sea_scooter"]
-  }
-];
-
-// Vessel list
+// Vessel list (same as WinterizationCheckin)
 const VESSELS = [
   { id: 1, name: "Maria 1" },
   { id: 2, name: "Maria 2" },
@@ -291,18 +572,20 @@ interface SectionState {
 }
 
 const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
-const CUSTOM_SECTIONS_KEY = 'winterization_custom_sections';
+const CUSTOM_SECTIONS_KEY = 'task_category_custom_sections';
 
 interface CustomSection {
   id: string;
-  titleKey: string;
+  titleEl: string;
+  titleEn: string;
   icon: string;
-  items: string[];
+  items: { key: string; el: string; en: string }[];
 }
 
-export default function WinterizationCheckin() {
+export default function TaskCategoryCheckin() {
   const navigate = useNavigate();
-  const [lang, setLang] = useState<"en" | "el">("en");
+  const { category } = useParams<{ category: string }>();
+  const [lang, setLang] = useState<"en" | "el">("el");
   const [selectedVessel, setSelectedVessel] = useState<number | null>(null);
   const [sections, setSections] = useState<{ [key: string]: SectionState }>({});
   const [customSections, setCustomSections] = useState<{ [key: string]: CustomSection }>({});
@@ -316,7 +599,8 @@ export default function WinterizationCheckin() {
   const isOwnerUser = authService.isOwner();
   const canEdit = !isOwnerUser;
 
-  const t = I18N[lang];
+  // Get current category config
+  const categoryConfig = category ? TASK_CATEGORIES[category] : null;
 
   // Get vessel name by ID
   const getVesselName = (vesselId: number | null): string => {
@@ -325,15 +609,17 @@ export default function WinterizationCheckin() {
     return vessel ? vessel.name.replace(/\s+/g, '_').toLowerCase() : '';
   };
 
-  // Initialize default sections (without vessel-specific data)
+  // Initialize default sections for current category
   const initializeDefaultSections = (): { [key: string]: SectionState } => {
+    if (!categoryConfig) return {};
+
     const initialSections: { [key: string]: SectionState } = {};
-    SECTIONS.forEach(section => {
+    categoryConfig.sections.forEach(section => {
       initialSections[section.id] = {
         expanded: false,
-        items: section.items.map(itemKey => ({
-          id: `default_${section.id}_${itemKey}`,
-          key: itemKey,
+        items: section.items.map(item => ({
+          id: `default_${section.id}_${item.key}`,
+          key: item.key,
           checked: false,
           qty: 1,
           replaceQty: 0,
@@ -345,21 +631,20 @@ export default function WinterizationCheckin() {
     return initialSections;
   };
 
-  // Initialize sections on mount (default items only)
+  // Initialize sections on mount or category change
   useEffect(() => {
     setSections(initializeDefaultSections());
 
     // Load last selected vessel
-    const lastVessel = localStorage.getItem('winterization_last_vessel');
+    const lastVessel = localStorage.getItem(`task_${category}_last_vessel`);
     if (lastVessel) {
       setSelectedVessel(Number(lastVessel));
     }
-  }, []);
+  }, [category]);
 
   // Load vessel-specific data when vessel changes
   useEffect(() => {
-    if (!selectedVessel) {
-      // Reset to defaults if no vessel selected
+    if (!selectedVessel || !category) {
       setSections(initializeDefaultSections());
       setCustomSections({});
       setGeneralNotes('');
@@ -367,15 +652,16 @@ export default function WinterizationCheckin() {
     }
 
     const vesselKey = getVesselName(selectedVessel);
+    const storageKey = `task_${category}_${vesselKey}`;
 
     // Save last selected vessel
-    localStorage.setItem('winterization_last_vessel', String(selectedVessel));
+    localStorage.setItem(`task_${category}_last_vessel`, String(selectedVessel));
 
     // Start with fresh default sections
     const newSections = initializeDefaultSections();
 
-    // Load vessel-specific item data (checked status, qty, comments, replaceQty)
-    const savedData = localStorage.getItem(`winterization_${vesselKey}_data`);
+    // Load vessel-specific data
+    const savedData = localStorage.getItem(`${storageKey}_data`);
     if (savedData) {
       try {
         const data = JSON.parse(savedData);
@@ -399,14 +685,12 @@ export default function WinterizationCheckin() {
               return defaultItem;
             });
 
-            // Restore expanded state
             if (data.sections[sectionId].expanded !== undefined) {
               newSections[sectionId].expanded = data.sections[sectionId].expanded;
             }
           }
         });
 
-        // Load general notes
         if (data.generalNotes) {
           setGeneralNotes(data.generalNotes);
         } else {
@@ -419,13 +703,11 @@ export default function WinterizationCheckin() {
       setGeneralNotes('');
     }
 
-    // Load vessel-specific custom items
-    const savedCustomItems = localStorage.getItem(`winterization_${vesselKey}_custom_items`);
+    // Load custom items
+    const savedCustomItems = localStorage.getItem(`${storageKey}_custom_items`);
     if (savedCustomItems) {
       try {
         const customData = JSON.parse(savedCustomItems);
-
-        // Add custom items to appropriate sections
         Object.keys(customData).forEach(sectionId => {
           if (newSections[sectionId] && Array.isArray(customData[sectionId])) {
             customData[sectionId].forEach((customItem: ChecklistItem) => {
@@ -442,7 +724,7 @@ export default function WinterizationCheckin() {
     }
 
     // Load custom sections
-    const customSectionsData = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`);
+    const customSectionsData = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${category}_${vesselKey}`);
     if (customSectionsData) {
       try {
         const customData = JSON.parse(customSectionsData);
@@ -471,7 +753,7 @@ export default function WinterizationCheckin() {
     }
 
     setSections(newSections);
-  }, [selectedVessel]);
+  }, [selectedVessel, category]);
 
   // Calculate progress
   const sectionValues = Object.values(sections) as SectionState[];
@@ -567,9 +849,9 @@ export default function WinterizationCheckin() {
     }));
   };
 
-  // Add custom item (per-vessel only)
+  // Add custom item
   const addItem = (sectionId: string) => {
-    if (!selectedVessel) {
+    if (!selectedVessel || !category) {
       alert(lang === 'el' ? 'Πρέπει να επιλέξετε σκάφος πρώτα!' : 'Please select a vessel first!');
       return;
     }
@@ -600,9 +882,9 @@ export default function WinterizationCheckin() {
       }
     }));
 
-    // Save custom item to vessel-specific storage immediately
+    // Save custom item immediately
     const vesselKey = getVesselName(selectedVessel);
-    const storageKey = `winterization_${vesselKey}_custom_items`;
+    const storageKey = `task_${category}_${vesselKey}_custom_items`;
     let customItems: { [key: string]: ChecklistItem[] } = {};
 
     const saved = localStorage.getItem(storageKey);
@@ -622,12 +904,11 @@ export default function WinterizationCheckin() {
     localStorage.setItem(storageKey, JSON.stringify(customItems));
   };
 
-  // Remove custom item (per-vessel only)
+  // Remove custom item
   const removeItem = (sectionId: string, itemId: string) => {
-    if (!selectedVessel) return;
+    if (!selectedVessel || !category) return;
     if (!window.confirm(lang === 'el' ? 'Διαγραφή αντικειμένου;' : 'Remove item?')) return;
 
-    // Find the item to get its key for storage removal
     const itemToRemove = sections[sectionId]?.items.find((item: ChecklistItem) => item.id === itemId);
 
     setSections(prev => ({
@@ -638,10 +919,9 @@ export default function WinterizationCheckin() {
       }
     }));
 
-    // Remove from vessel-specific custom items storage
     if (itemToRemove?.isCustom) {
       const vesselKey = getVesselName(selectedVessel);
-      const storageKey = `winterization_${vesselKey}_custom_items`;
+      const storageKey = `task_${category}_${vesselKey}_custom_items`;
       const saved = localStorage.getItem(storageKey);
 
       if (saved) {
@@ -662,11 +942,12 @@ export default function WinterizationCheckin() {
 
   // Add custom section
   const addSection = () => {
-    if (!selectedVessel || !newSectionName.trim()) return;
+    if (!selectedVessel || !category || !newSectionName.trim()) return;
     const sectionId = `custom_${uid()}`;
     const newSection: CustomSection = {
       id: sectionId,
-      titleKey: newSectionName.trim().toUpperCase(),
+      titleEl: newSectionName.trim().toUpperCase(),
+      titleEn: newSectionName.trim().toUpperCase(),
       icon: newSectionIcon,
       items: []
     };
@@ -685,10 +966,10 @@ export default function WinterizationCheckin() {
 
     // Save custom sections to localStorage
     const vesselKey = getVesselName(selectedVessel);
-    const existingCustom = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`);
+    const existingCustom = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${category}_${vesselKey}`);
     const customData = existingCustom ? JSON.parse(existingCustom) : {};
     customData[sectionId] = newSection;
-    localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`, JSON.stringify(customData));
+    localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${category}_${vesselKey}`, JSON.stringify(customData));
 
     setNewSectionName('');
     setNewSectionIcon('📋');
@@ -715,28 +996,28 @@ export default function WinterizationCheckin() {
       });
 
       // Update localStorage
-      if (selectedVessel) {
+      if (selectedVessel && category) {
         const vesselKey = getVesselName(selectedVessel);
-        const existingCustom = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`);
+        const existingCustom = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${category}_${vesselKey}`);
         if (existingCustom) {
           const customData = JSON.parse(existingCustom);
           delete customData[sectionId];
-          localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`, JSON.stringify(customData));
+          localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${category}_${vesselKey}`, JSON.stringify(customData));
         }
       }
     }
   };
 
-  // Save data (vessel-specific)
+  // Save data
   const handleSave = () => {
-    if (!selectedVessel) {
+    if (!selectedVessel || !category) {
       alert(lang === 'el' ? 'Πρέπει να επιλέξετε σκάφος πρώτα!' : 'Please select a vessel first!');
       return;
     }
 
     const vesselKey = getVesselName(selectedVessel);
+    const storageKey = `task_${category}_${vesselKey}`;
 
-    // Prepare sections data (only default items with their checked/qty/comments)
     const sectionsToSave: { [key: string]: { expanded: boolean; items: ChecklistItem[] } } = {};
     Object.keys(sections).forEach(sectionId => {
       sectionsToSave[sectionId] = {
@@ -745,15 +1026,13 @@ export default function WinterizationCheckin() {
       };
     });
 
-    // Save vessel-specific data (default item states + general notes)
     const data = {
       sections: sectionsToSave,
       generalNotes,
       lastSaved: new Date().toISOString()
     };
-    localStorage.setItem(`winterization_${vesselKey}_data`, JSON.stringify(data));
+    localStorage.setItem(`${storageKey}_data`, JSON.stringify(data));
 
-    // Update custom items storage (in case any were modified)
     const customItems: { [key: string]: ChecklistItem[] } = {};
     Object.keys(sections).forEach(sectionId => {
       const sectionCustomItems = sections[sectionId].items.filter((item: ChecklistItem) => item.isCustom);
@@ -761,15 +1040,33 @@ export default function WinterizationCheckin() {
         customItems[sectionId] = sectionCustomItems;
       }
     });
-    localStorage.setItem(`winterization_${vesselKey}_custom_items`, JSON.stringify(customItems));
+    localStorage.setItem(`${storageKey}_custom_items`, JSON.stringify(customItems));
 
     setShowSaveMessage(true);
     setTimeout(() => setShowSaveMessage(false), 3000);
   };
 
   // Get label for item
-  const getLabel = (key: string) => {
-    return ITEM_LABELS[key]?.[lang] || key;
+  const getLabel = (sectionId: string, key: string): string => {
+    if (!categoryConfig) return key;
+    const section = categoryConfig.sections.find(s => s.id === sectionId);
+    if (!section) return key;
+    const item = section.items.find(i => i.key === key);
+    return item ? (lang === 'el' ? item.el : item.en) : key;
+  };
+
+  // Get section title
+  const getSectionTitle = (sectionId: string): string => {
+    if (!categoryConfig) return sectionId;
+    const section = categoryConfig.sections.find(s => s.id === sectionId);
+    return section ? (lang === 'el' ? section.titleEl : section.titleEn) : sectionId;
+  };
+
+  // Get section icon
+  const getSectionIcon = (sectionId: string): string => {
+    if (!categoryConfig) return '📋';
+    const section = categoryConfig.sections.find(s => s.id === sectionId);
+    return section?.icon || '📋';
   };
 
   // Get section completed count
@@ -782,15 +1079,15 @@ export default function WinterizationCheckin() {
 
   // Export to Word document
   const handleExportWord = async () => {
-    if (!selectedVessel) {
+    if (!selectedVessel || !categoryConfig) {
       alert(lang === 'el' ? 'Πρέπει να επιλέξετε σκάφος πρώτα!' : 'Please select a vessel first!');
       return;
     }
 
     const vesselName = VESSELS.find(v => v.id === selectedVessel)?.name || 'Unknown';
+    const categoryName = lang === 'el' ? categoryConfig.nameEl : categoryConfig.nameEn;
     const currentDate = new Date().toLocaleDateString('el-GR');
 
-    // Build document sections
     const docChildren: (Paragraph | Table)[] = [];
 
     // Title
@@ -798,10 +1095,10 @@ export default function WinterizationCheckin() {
       new Paragraph({
         children: [
           new TextRun({
-            text: '❄️ WINTERIZATION CHECK-IN',
+            text: `${categoryConfig.icon} ${categoryName}`,
             bold: true,
             size: 48,
-            color: '0891B2', // teal
+            color: categoryConfig.color.replace('#', ''),
           }),
         ],
         alignment: AlignmentType.CENTER,
@@ -813,10 +1110,10 @@ export default function WinterizationCheckin() {
     docChildren.push(
       new Paragraph({
         children: [
-          new TextRun({ text: 'Σκάφος: ', bold: true, size: 28 }),
+          new TextRun({ text: lang === 'el' ? 'Σκάφος: ' : 'Vessel: ', bold: true, size: 28 }),
           new TextRun({ text: vesselName, size: 28 }),
           new TextRun({ text: '    |    ', size: 28 }),
-          new TextRun({ text: 'Ημερομηνία: ', bold: true, size: 28 }),
+          new TextRun({ text: lang === 'el' ? 'Ημερομηνία: ' : 'Date: ', bold: true, size: 28 }),
           new TextRun({ text: currentDate, size: 28 }),
         ],
         alignment: AlignmentType.CENTER,
@@ -825,21 +1122,12 @@ export default function WinterizationCheckin() {
     );
 
     // Progress Summary
-    const sectionVals = Object.values(sections) as SectionState[];
-    const totalItems = sectionVals.reduce((acc, s) => acc + s.items.length, 0);
-    const completedItems = sectionVals.reduce(
-      (acc, s) => acc + s.items.filter((i: ChecklistItem) => i.checked).length, 0
-    );
-    const replacementItems = sectionVals.reduce(
-      (acc, s) => acc + s.items.filter((i: ChecklistItem) => i.replaceQty > 0).length, 0
-    );
-
     docChildren.push(
       new Paragraph({
         children: [
-          new TextRun({ text: `✅ Ολοκληρώθηκαν: ${completedItems}/${totalItems}`, bold: true, size: 24 }),
+          new TextRun({ text: `${lang === 'el' ? 'Ολοκληρώθηκαν' : 'Completed'}: ${completedItems}/${totalItems}`, bold: true, size: 24 }),
           new TextRun({ text: '    |    ', size: 24 }),
-          new TextRun({ text: `🔴 Αντικαταστάσεις: ${replacementItems}`, bold: true, size: 24, color: 'DC2626' }),
+          new TextRun({ text: `${lang === 'el' ? 'Αντικαταστάσεις' : 'Replacements'}: ${itemsNeedingReplacement}`, bold: true, size: 24, color: 'DC2626' }),
         ],
         alignment: AlignmentType.CENTER,
         spacing: { after: 400 },
@@ -847,13 +1135,12 @@ export default function WinterizationCheckin() {
     );
 
     // Sections
-    SECTIONS.forEach(sectionDef => {
+    categoryConfig.sections.forEach(sectionDef => {
       const sectionState = sections[sectionDef.id];
       if (!sectionState) return;
 
-      const sectionTitle = I18N[lang][sectionDef.titleKey as keyof typeof I18N['en']] || sectionDef.titleKey;
+      const sectionTitle = lang === 'el' ? sectionDef.titleEl : sectionDef.titleEn;
 
-      // Section Header
       docChildren.push(
         new Paragraph({
           children: [
@@ -861,7 +1148,7 @@ export default function WinterizationCheckin() {
               text: `${sectionDef.icon} ${sectionTitle}`,
               bold: true,
               size: 28,
-              color: '0D9488', // teal
+              color: categoryConfig.color.replace('#', ''),
             }),
           ],
           heading: HeadingLevel.HEADING_2,
@@ -869,10 +1156,8 @@ export default function WinterizationCheckin() {
         })
       );
 
-      // Items Table
       const tableRows: TableRow[] = [];
 
-      // Header row
       tableRows.push(
         new TableRow({
           children: [
@@ -900,9 +1185,8 @@ export default function WinterizationCheckin() {
         })
       );
 
-      // Item rows
       sectionState.items.forEach((item: ChecklistItem) => {
-        const itemLabel = item.isCustom ? item.key : getLabel(item.key);
+        const itemLabel = item.isCustom ? item.key : getLabel(sectionDef.id, item.key);
         tableRows.push(
           new TableRow({
             children: [
@@ -966,7 +1250,7 @@ export default function WinterizationCheckin() {
         new Paragraph({
           children: [
             new TextRun({
-              text: lang === 'el' ? '📝 Γενικές Σημειώσεις:' : '📝 General Notes:',
+              text: lang === 'el' ? 'Γενικές Σημειώσεις:' : 'General Notes:',
               bold: true,
               size: 24,
             }),
@@ -982,7 +1266,6 @@ export default function WinterizationCheckin() {
       );
     }
 
-    // Create document
     const doc = new Document({
       sections: [{
         properties: {},
@@ -990,16 +1273,35 @@ export default function WinterizationCheckin() {
       }],
     });
 
-    // Generate and save
     try {
       const blob = await Packer.toBlob(doc);
-      const fileName = `Winterization_${vesselName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.docx`;
+      const fileName = `${categoryName}_${vesselName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.docx`;
       saveAs(blob, fileName);
     } catch (error) {
       console.error('Error generating Word document:', error);
       alert(lang === 'el' ? 'Σφάλμα κατά τη δημιουργία του εγγράφου' : 'Error generating document');
     }
   };
+
+  if (!categoryConfig) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-100 to-red-200">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-xl">
+          <div className="text-6xl mb-4">❌</div>
+          <h1 className="text-2xl font-bold text-red-600 mb-2">
+            {lang === 'el' ? 'Κατηγορία δεν βρέθηκε' : 'Category not found'}
+          </h1>
+          <p className="text-gray-600 mb-4">{category}</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold"
+          >
+            ← {lang === 'el' ? 'Επιστροφή' : 'Go Back'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen text-gray-800" style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}>
@@ -1009,20 +1311,24 @@ export default function WinterizationCheckin() {
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={() => navigate(-1)}
-              className="px-4 py-2 bg-white/90 hover:bg-white text-gray-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm"
+              className="px-4 py-2 bg-white/90 hover:bg-white text-gray-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all hover:scale-105"
             >
-              ← {t.back}
+              ← {lang === 'el' ? 'Πίσω' : 'Back'}
             </button>
             <button
               onClick={() => setLang(lang === "en" ? "el" : "en")}
-              className="px-4 py-2 bg-white/90 hover:bg-white text-blue-700 rounded-lg text-sm font-bold shadow-sm"
+              className="px-4 py-2 bg-white/90 hover:bg-white text-gray-700 rounded-lg text-sm font-bold shadow-sm transition-all hover:scale-105"
             >
               {lang === "en" ? "🇬🇷 EL" : "🇬🇧 EN"}
             </button>
           </div>
 
-          <h1 className="text-2xl font-bold text-blue-800 text-center">❄️ {t.title}</h1>
-          <p className="text-blue-700 text-center mt-1">{t.subtitle}</p>
+          <h1 className="text-2xl font-bold text-blue-800 text-center drop-shadow-md">
+            {categoryConfig.icon} {lang === 'el' ? categoryConfig.nameEl : categoryConfig.nameEn}
+          </h1>
+          <p className="text-blue-700 text-center mt-1">
+            {lang === 'el' ? 'Έλεγχος & Συντήρηση' : 'Inspection & Maintenance'}
+          </p>
         </div>
       </div>
 
@@ -1048,11 +1354,14 @@ export default function WinterizationCheckin() {
 
         {/* Vessel Selection */}
         <div className="rounded-xl p-4 mb-4 border border-blue-300 shadow-md" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
-          <label className="block text-sm font-medium text-gray-800 mb-2">{t.selectVessel}</label>
+          <label className="block text-sm font-medium text-gray-800 mb-2">
+            {lang === 'el' ? 'Επιλέξτε Σκάφος' : 'Select Vessel'}
+          </label>
           <select
             value={selectedVessel || ""}
             onChange={(e) => setSelectedVessel(Number(e.target.value) || null)}
-            className="w-full bg-white/90 border border-blue-300 rounded-lg px-4 py-3 text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-800 focus:ring-2 focus:border-transparent"
+            style={{ focusRing: categoryConfig.color }}
           >
             <option value="">{lang === 'el' ? '-- Επιλέξτε --' : '-- Select --'}</option>
             {VESSELS.map(vessel => (
@@ -1060,7 +1369,7 @@ export default function WinterizationCheckin() {
             ))}
           </select>
           {selectedVessel && (
-            <p className="mt-2 text-xs text-blue-800 flex items-center gap-1">
+            <p className="mt-2 text-xs text-gray-600 flex items-center gap-1">
               💾 {lang === 'el'
                 ? `Τα δεδομένα αποθηκεύονται ξεχωριστά για το ${VESSELS.find(v => v.id === selectedVessel)?.name}`
                 : `Data is saved separately for ${VESSELS.find(v => v.id === selectedVessel)?.name}`
@@ -1072,14 +1381,16 @@ export default function WinterizationCheckin() {
         {/* Progress Bar */}
         <div className="rounded-xl p-4 mb-4 border border-blue-300 shadow-md" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-800">{t.progress}</span>
+            <span className="text-sm font-medium text-gray-800">
+              {lang === 'el' ? 'Πρόοδος' : 'Progress'}
+            </span>
             <span className="text-lg font-bold text-green-700">
-              ✅ {completedItems}/{totalItems} {t.completed} ({percentage}%)
+              ✅ {completedItems}/{totalItems} {lang === 'el' ? 'ολοκληρώθηκαν' : 'completed'} ({percentage}%)
             </span>
           </div>
-          <div className="w-full bg-white/50 rounded-full h-4 mb-3">
+          <div className="w-full bg-gray-200 rounded-full h-4 mb-3">
             <div
-              className="bg-gradient-to-r from-teal-500 to-green-500 h-4 rounded-full transition-all duration-500"
+              className="h-4 rounded-full transition-all duration-500 bg-gradient-to-r from-teal-500 to-green-500"
               style={{ width: `${percentage}%` }}
             />
           </div>
@@ -1101,44 +1412,46 @@ export default function WinterizationCheckin() {
         <div className="flex gap-2 mb-4">
           <button
             onClick={expandAll}
-            className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium shadow-md"
+            className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium shadow-md transition-all hover:scale-105"
           >
-            📂 {t.expandAll}
+            📂 {lang === 'el' ? 'Ανάπτυξη Όλων' : 'Expand All'}
           </button>
           <button
             onClick={collapseAll}
-            className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium shadow-md"
+            className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium shadow-md transition-all hover:scale-105"
           >
-            📁 {t.collapseAll}
+            📁 {lang === 'el' ? 'Σύμπτυξη Όλων' : 'Collapse All'}
           </button>
         </div>
 
         {/* Sections */}
-        {SECTIONS.map(section => {
-          const sectionState = sections[section.id];
+        {categoryConfig.sections.map(sectionDef => {
+          const sectionState = sections[sectionDef.id];
           if (!sectionState) return null;
 
-          const progress = getSectionProgress(section.id);
+          const progress = getSectionProgress(sectionDef.id);
           const isComplete = progress.completed === progress.total && progress.total > 0;
 
           return (
-            <div key={section.id} className="rounded-xl mb-3 border border-blue-300 overflow-hidden shadow-md hover:shadow-xl hover:scale-[1.01] transition-all duration-300" style={{ backgroundColor: 'rgba(144, 202, 249, 0.5)' }}>
+            <div key={sectionDef.id} className="rounded-xl mb-3 border border-blue-300 overflow-hidden shadow-md hover:shadow-xl hover:scale-[1.01] transition-all duration-300" style={{ backgroundColor: 'rgba(144, 202, 249, 0.5)' }}>
               {/* Section Header */}
               <div className="flex items-center" style={{ backgroundColor: isComplete ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100, 181, 246, 0.5)' }}>
                 <button
-                  onClick={() => toggleSection(section.id)}
+                  onClick={() => toggleSection(sectionDef.id)}
                   className={`flex-1 p-4 flex items-center justify-between transition-all duration-300 hover:scale-[1.01] ${
                     isComplete ? 'bg-green-500/30' : 'hover:bg-blue-400/30'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{section.icon}</span>
-                    <span className="font-bold text-lg text-gray-800">{t[section.titleKey as keyof typeof t] || section.titleKey}</span>
+                    <span className="text-2xl">{sectionDef.icon}</span>
+                    <span className="font-bold text-lg text-gray-800">
+                      {lang === 'el' ? sectionDef.titleEl : sectionDef.titleEn}
+                    </span>
                     {isComplete && <span className="text-green-600 text-xl">✓</span>}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                      isComplete ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+                    <span className={`text-sm font-medium px-3 py-1 rounded-full text-white ${
+                      isComplete ? 'bg-green-600' : 'bg-blue-600'
                     }`}>
                       {progress.completed}/{progress.total}
                     </span>
@@ -1150,7 +1463,7 @@ export default function WinterizationCheckin() {
                 {/* Delete Section Button */}
                 {canEdit && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); removeSection(section.id); }}
+                    onClick={(e) => { e.stopPropagation(); removeSection(sectionDef.id); }}
                     className="px-3 py-2 mr-2 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg transition-all"
                     title={lang === 'el' ? 'Διαγραφή κατηγορίας' : 'Delete category'}
                   >
@@ -1184,12 +1497,12 @@ export default function WinterizationCheckin() {
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* OK Checkbox */}
                         <button
-                          onClick={() => canEdit && toggleItem(section.id, item.id)}
+                          onClick={() => canEdit && toggleItem(sectionDef.id, item.id)}
                           disabled={!canEdit}
                           className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 ${
                             item.checked
                               ? 'bg-green-500 border-green-500 text-white'
-                              : 'border-gray-500 hover:border-green-400'
+                              : 'border-gray-400 hover:border-green-400'
                           } ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
                           title={canEdit ? "OK" : (lang === 'el' ? 'Μόνο προβολή' : 'View only')}
                         >
@@ -1200,14 +1513,14 @@ export default function WinterizationCheckin() {
                         <span className={`font-medium min-w-[120px] flex-shrink-0 ${
                           item.replaceQty > 0 ? 'text-red-700' : item.checked ? 'text-green-700' : 'text-gray-800'
                         }`}>
-                          {item.isCustom ? item.key : getLabel(item.key)}
+                          {item.isCustom ? item.key : getLabel(sectionDef.id, item.key)}
                         </span>
 
                         {/* Quantity Controls */}
                         <div className={`flex items-center gap-1 bg-blue-100 rounded-lg px-2 py-1 flex-shrink-0 border border-blue-300 ${!canEdit ? 'opacity-60' : ''}`}>
                           <span className="text-xs text-gray-600 mr-1">🔢</span>
                           <button
-                            onClick={() => canEdit && updateQty(section.id, item.id, -1)}
+                            onClick={() => canEdit && updateQty(sectionDef.id, item.id, -1)}
                             disabled={!canEdit}
                             className={`w-6 h-6 bg-blue-500 hover:bg-blue-600 rounded text-white font-bold text-sm ${!canEdit ? 'cursor-not-allowed' : ''}`}
                           >
@@ -1215,7 +1528,7 @@ export default function WinterizationCheckin() {
                           </button>
                           <span className="w-8 text-center text-gray-800 font-medium">{item.qty}</span>
                           <button
-                            onClick={() => canEdit && updateQty(section.id, item.id, 1)}
+                            onClick={() => canEdit && updateQty(sectionDef.id, item.id, 1)}
                             disabled={!canEdit}
                             className={`w-6 h-6 bg-blue-500 hover:bg-blue-600 rounded text-white font-bold text-sm ${!canEdit ? 'cursor-not-allowed' : ''}`}
                           >
@@ -1227,16 +1540,16 @@ export default function WinterizationCheckin() {
                         <input
                           type="text"
                           value={item.comments}
-                          onChange={(e) => canEdit && updateComments(section.id, item.id, e.target.value)}
+                          onChange={(e) => canEdit && updateComments(sectionDef.id, item.id, e.target.value)}
                           disabled={!canEdit}
-                          placeholder={t.commentsPlaceholder}
+                          placeholder={lang === 'el' ? 'Σχόλια...' : 'Comments...'}
                           className={`flex-1 min-w-[150px] bg-white/90 border border-blue-300 rounded px-2 py-1 text-sm text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
 
                         {/* Delete button for all items */}
                         {canEdit && (
                           <button
-                            onClick={() => removeItem(section.id, item.id)}
+                            onClick={() => removeItem(sectionDef.id, item.id)}
                             className="px-2 py-1 text-red-500 hover:text-red-700 hover:bg-red-100 rounded text-sm flex-shrink-0"
                             title={lang === 'el' ? 'Διαγραφή' : 'Delete'}
                           >
@@ -1248,12 +1561,12 @@ export default function WinterizationCheckin() {
                       {/* LINE 2: Replace Button + Replace Qty */}
                       <div className={`flex items-center gap-2 mt-2 ml-10 ${!canEdit ? 'opacity-60' : ''}`}>
                         <button
-                          onClick={() => canEdit && (item.replaceQty === 0 ? updateReplaceQty(section.id, item.id, 1) : updateReplaceQty(section.id, item.id, -item.replaceQty))}
+                          onClick={() => canEdit && (item.replaceQty === 0 ? updateReplaceQty(sectionDef.id, item.id, 1) : updateReplaceQty(sectionDef.id, item.id, -item.replaceQty))}
                           disabled={!canEdit}
                           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
                             item.replaceQty > 0
                               ? 'bg-red-600 hover:bg-red-700 text-white'
-                              : 'bg-white hover:bg-red-600 text-gray-700 hover:text-white border border-blue-300 hover:border-red-600'
+                              : 'bg-white hover:bg-red-600 text-gray-700 hover:text-white border border-gray-300 hover:border-red-600'
                           } ${!canEdit ? 'cursor-not-allowed' : ''}`}
                         >
                           🔴 {lang === 'el' ? 'Αντικατάσταση' : 'Replace'}
@@ -1264,7 +1577,7 @@ export default function WinterizationCheckin() {
                           item.replaceQty > 0 ? 'bg-red-100 border-red-400' : 'bg-blue-100 border-blue-300'
                         }`}>
                           <button
-                            onClick={() => canEdit && updateReplaceQty(section.id, item.id, -1)}
+                            onClick={() => canEdit && updateReplaceQty(sectionDef.id, item.id, -1)}
                             disabled={!canEdit}
                             className={`w-6 h-6 bg-blue-500 hover:bg-blue-600 rounded text-white font-bold text-sm ${!canEdit ? 'cursor-not-allowed' : ''}`}
                           >
@@ -1276,7 +1589,7 @@ export default function WinterizationCheckin() {
                             {item.replaceQty}
                           </span>
                           <button
-                            onClick={() => canEdit && updateReplaceQty(section.id, item.id, 1)}
+                            onClick={() => canEdit && updateReplaceQty(sectionDef.id, item.id, 1)}
                             disabled={!canEdit}
                             className={`w-6 h-6 bg-blue-500 hover:bg-blue-600 rounded text-white font-bold text-sm ${!canEdit ? 'cursor-not-allowed' : ''}`}
                           >
@@ -1293,10 +1606,10 @@ export default function WinterizationCheckin() {
                     </div>
                   ))}
 
-                  {/* Add Item Button - Hidden for owners */}
+                  {/* Add Item Button */}
                   {canEdit && (
                     <button
-                      onClick={() => addItem(section.id)}
+                      onClick={() => addItem(sectionDef.id)}
                       className={`w-full mt-2 p-3 border-2 border-dashed rounded-lg transition-colors flex items-center justify-center gap-2 ${
                         selectedVessel
                           ? 'border-blue-500 text-blue-700 hover:text-blue-800 hover:border-blue-600 hover:bg-blue-200/50'
@@ -1306,7 +1619,7 @@ export default function WinterizationCheckin() {
                       <span className="text-xl">➕</span>
                       <span className="font-medium">
                         {selectedVessel
-                          ? `${t.addItem} (${VESSELS.find(v => v.id === selectedVessel)?.name})`
+                          ? `${lang === 'el' ? 'Προσθήκη' : 'Add Item'} (${VESSELS.find(v => v.id === selectedVessel)?.name})`
                           : lang === 'el' ? 'Επιλέξτε σκάφος πρώτα' : 'Select vessel first'
                         }
                       </span>
@@ -1338,12 +1651,14 @@ export default function WinterizationCheckin() {
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{customSection.icon}</span>
-                    <span className="font-bold text-lg text-gray-800">{customSection.titleKey}</span>
+                    <span className="font-bold text-lg text-gray-800">
+                      {lang === 'el' ? customSection.titleEl : customSection.titleEn}
+                    </span>
                     {isComplete && <span className="text-green-600 text-xl">✓</span>}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                      isComplete ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+                    <span className={`text-sm font-medium px-3 py-1 rounded-full text-white ${
+                      isComplete ? 'bg-green-600' : 'bg-blue-600'
                     }`}>
                       {progress.completed}/{progress.total}
                     </span>
@@ -1370,18 +1685,10 @@ export default function WinterizationCheckin() {
                     <div
                       key={item.id}
                       className={`p-3 rounded-lg mb-2 transition-all duration-300 border hover:shadow-lg hover:scale-[1.01] ${
-                        item.replaceQty > 0
-                          ? 'border-red-500'
-                          : item.checked
-                            ? 'border-green-500'
-                            : 'border-blue-300'
+                        item.replaceQty > 0 ? 'border-red-500' : item.checked ? 'border-green-500' : 'border-blue-300'
                       }`}
                       style={{
-                        backgroundColor: item.replaceQty > 0
-                          ? 'rgba(254, 202, 202, 0.5)'
-                          : item.checked
-                            ? 'rgba(187, 247, 208, 0.5)'
-                            : 'rgba(255, 255, 255, 0.7)'
+                        backgroundColor: item.replaceQty > 0 ? 'rgba(254, 202, 202, 0.5)' : item.checked ? 'rgba(187, 247, 208, 0.5)' : 'rgba(255, 255, 255, 0.7)'
                       }}
                     >
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1389,9 +1696,7 @@ export default function WinterizationCheckin() {
                           onClick={() => canEdit && toggleItem(customSection.id, item.id)}
                           disabled={!canEdit}
                           className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 ${
-                            item.checked
-                              ? 'bg-green-500 border-green-500 text-white'
-                              : 'border-gray-500 hover:border-green-400'
+                            item.checked ? 'bg-green-500 border-green-500 text-white' : 'border-gray-500 hover:border-green-400'
                           } ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
                         >
                           {item.checked ? '✓' : ''}
@@ -1406,7 +1711,7 @@ export default function WinterizationCheckin() {
                           value={item.comments}
                           onChange={(e) => canEdit && updateComments(customSection.id, item.id, e.target.value)}
                           disabled={!canEdit}
-                          placeholder={t.commentsPlaceholder}
+                          placeholder={lang === 'el' ? 'Σχόλια...' : 'Comments...'}
                           className={`flex-1 min-w-[150px] bg-white/90 border border-blue-300 rounded px-2 py-1 text-sm text-gray-800 placeholder-gray-500 ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                         {canEdit && (
@@ -1424,13 +1729,11 @@ export default function WinterizationCheckin() {
                     <button
                       onClick={() => addItem(customSection.id)}
                       className={`w-full mt-2 p-3 border-2 border-dashed rounded-lg transition-colors flex items-center justify-center gap-2 ${
-                        selectedVessel
-                          ? 'border-blue-500 text-blue-700 hover:bg-blue-100'
-                          : 'border-gray-400 text-gray-500 cursor-not-allowed'
+                        selectedVessel ? 'border-blue-500 text-blue-700 hover:bg-blue-100' : 'border-gray-400 text-gray-500 cursor-not-allowed'
                       }`}
                     >
                       <span className="text-xl">➕</span>
-                      <span className="font-medium">{t.addItem}</span>
+                      <span className="font-medium">{lang === 'el' ? 'Προσθήκη' : 'Add Item'}</span>
                     </button>
                   )}
                 </div>
@@ -1516,26 +1819,24 @@ export default function WinterizationCheckin() {
             value={generalNotes}
             onChange={(e) => canEdit && setGeneralNotes(e.target.value)}
             disabled={!canEdit}
-            placeholder={t.commentsPlaceholder}
+            placeholder={lang === 'el' ? 'Προσθέστε σημειώσεις...' : 'Add notes...'}
             className={`w-full bg-white/90 border border-blue-300 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[120px] ${!canEdit ? 'opacity-60 cursor-not-allowed' : ''}`}
           />
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-3 mb-8">
-          {/* Save Button - Hidden for owners */}
           {canEdit && (
             <button
               onClick={handleSave}
-              className="flex-1 px-6 py-4 bg-teal-600 hover:bg-teal-700 rounded-xl text-lg font-bold transition-colors"
+              className="flex-1 px-6 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-lg font-bold transition-all hover:scale-105 shadow-lg"
             >
-              💾 {t.save}
+              💾 {lang === 'el' ? 'Αποθήκευση' : 'Save'}
             </button>
           )}
-          {/* Word Export Button */}
           <button
             onClick={handleExportWord}
-            className={`${canEdit ? 'flex-1' : 'w-full'} px-6 py-4 bg-blue-600 hover:bg-blue-700 rounded-xl text-lg font-bold transition-colors`}
+            className={`${canEdit ? 'flex-1' : 'w-full'} px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-lg font-bold transition-all hover:scale-105 shadow-lg`}
           >
             📄 {lang === 'el' ? 'Εξαγωγή Word' : 'Export Word'}
           </button>
@@ -1544,7 +1845,7 @@ export default function WinterizationCheckin() {
         {/* Save Message Toast */}
         {showSaveMessage && (
           <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-xl shadow-lg font-bold animate-pulse">
-            ✅ {t.saved}
+            ✅ {lang === 'el' ? 'Αποθηκεύτηκε επιτυχώς!' : 'Saved successfully!'}
           </div>
         )}
       </div>

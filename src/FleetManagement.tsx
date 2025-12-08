@@ -790,16 +790,6 @@ const sendCharterEmail = async (charter, boat, action) => {
   }
 };
 
-const TASK_DEFINITIONS = [
-  "ΜΗΧ", "ΓΕΝΝΗ", "ΑΞΟΝ", "ΒΑΝΕΣ", "BOW", "ΜΙΖΑ", "ALT", "ΕΡΓΑΤ", "ΕΡΓΑTΗΣ", 
-  "ΒΑΤ/", "WINCH", "MAIN", "GEN", "ΒΙΜ", "SPRΑΥ", "LAZY", "WC", "HOLD", 
-  "ΚΟΥ", "ΨΥ", "WATER/MAKER", "A/C", "ΤΙΜΟ", "O/B", "TEND", "LIFE", "ΠΥΡ/", 
-  "ΕPIRB", "ΞΑΡ", "ΚΟΛΟ", "ΦΩΤΑ", "ΦΩΤΑ ", "ΗΛΕΚ/", "ΑΝΛΤΙΕΣ", "MΕΝΤΕ", 
-  "HUTC", "ΒΟW", "LOUND", "ΒΕΡΝI", "ΔΙΑΚ", "ΠΑΝΙ", "ΣΕΝΤ", "GEL", "MOYΡ", 
-  "CLEAN", "INOX", "TEAK", "LOCK", "INVEN", "CLEAN.1", "FUEL", 
-  "ΦΩΤΟΒΟΛΙΔΕΣ", "ΚΑΠΝΟΓΟΝΑ", "ΚΑΠΝΟΓΟΝΑ ΘΑΛΑΣ."
-];
-
 // 🔥 FIX 2: Function to determine initial page based on user type
 const getInitialPage = (state: any): string => {
   if (state?.userType === 'OWNER' && state?.boatId) {
@@ -2938,40 +2928,40 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="p-2 bg-gray-800 border-b border-gray-700">
+    <div className="h-full flex flex-col" style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}>
+      <div className="p-2 border-b border-sky-300" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
         {/* 🔥 FIX: Legend colors - YELLOW (#FBBF24), GREEN (#10B981), RED */}
         <div className="flex flex-wrap justify-center gap-4 text-xs">
           <div className="flex items-center gap-1">
             <div className="w-4 h-4 rounded bg-yellow-400"></div>
-            <span className="text-yellow-400">Option</span>
+            <span className="text-yellow-600 font-semibold">Option</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-4 h-4 rounded bg-green-500"></div>
-            <span className="text-green-400">Confirmed</span>
+            <span className="text-green-600 font-semibold">Confirmed</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-4 h-4 rounded bg-red-500"></div>
-            <span className="text-red-400">Canceled</span>
+            <span className="text-red-600 font-semibold">Canceled</span>
           </div>
         </div>
       </div>
 
-      <div className="flex justify-between items-center p-2 bg-gray-800 border-b border-gray-700">
-        <button onClick={() => changeMonth(-1)} className="text-teal-400 p-2 hover:bg-gray-700 rounded transition-colors text-2xl">{icons.chevronLeft}</button>
-        <h2 className="text-2xl font-bold text-teal-400 capitalize">{monthName} {year}</h2>
-        <button onClick={() => changeMonth(1)} className="text-teal-400 p-2 hover:bg-gray-700 rounded transition-colors text-2xl">{icons.chevronRight}</button>
+      <div className="flex justify-between items-center p-2 border-b border-sky-300" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
+        <button onClick={() => changeMonth(-1)} className="text-blue-800 p-2 hover:bg-blue-300/50 rounded transition-colors text-2xl">{icons.chevronLeft}</button>
+        <h2 className="text-2xl font-bold text-blue-900 capitalize">{monthName} {year}</h2>
+        <button onClick={() => changeMonth(1)} className="text-blue-800 p-2 hover:bg-blue-300/50 rounded transition-colors text-2xl">{icons.chevronRight}</button>
       </div>
 
       <div className="flex-grow overflow-auto">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-gray-800">
-              <th className="sticky left-0 bg-gray-800 p-3 border border-gray-700 text-left text-teal-400 text-base min-w-[100px]">Σκάφος</th>
+            <tr style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
+              <th className="sticky left-0 p-3 border border-sky-300 text-left text-blue-900 text-base min-w-[100px] font-bold" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>Σκάφος</th>
               {weeks.map((week, index) => (
-                <th key={index} className="p-2 border border-gray-700 text-sm text-gray-300 min-w-[120px]">
+                <th key={index} className="p-2 border border-sky-300 text-sm text-blue-800 min-w-[120px]">
                   <div className="font-bold">ΕΒΔ. {index + 1}</div>
-                  <div className="text-xs text-gray-400">{formatDate(week.start)} - {formatDate(week.end)}</div>
+                  <div className="text-xs text-blue-700">{formatDate(week.start)} - {formatDate(week.end)}</div>
                 </th>
               ))}
             </tr>
@@ -2982,9 +2972,9 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
               const charters = boatData?.charters || [];
 
               return (
-                <tr key={boatId} className="hover:bg-gray-800">
+                <tr key={boatId} className="hover:bg-sky-100">
                   {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
-                  <td className="sticky left-0 bg-gray-900 p-3 border border-gray-700 font-bold text-teal-400 text-base">{getBoatName(boatId)}</td>
+                  <td className="sticky left-0 bg-sky-50 p-3 border border-sky-300 font-bold text-blue-800 text-base">{getBoatName(boatId)}</td>
                   
                   {weeks.map((week, index) => {
                     // 🔥 FIX 29: Charter displays ONLY in the week where check-in date falls (no spanning)
@@ -2997,13 +2987,13 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
                       // Charter appears ONLY in the week where its START DATE falls
                       return charterStart.getTime() >= weekStart.getTime() && charterStart.getTime() < weekEnd.getTime();
                     });
-                    const style = charter ? getStatusStyle(charter.status) : { bg: 'bg-gray-900', text: 'text-gray-700', status: 'text-gray-600' };
+                    const style = charter ? getStatusStyle(charter.status) : { bg: 'bg-sky-50', text: 'text-sky-400', status: 'text-sky-400' };
                     
                     // 🔥 FIXED: Payment status με ΚΕΙΜΕΝΟ
                     const paymentInfo = charter ? getPaymentStatusInfo(charter.paymentStatus) : null;
                     
                     return (
-                      <td key={index} className={`p-2 border border-gray-700 text-center ${style.bg} relative`}>
+                      <td key={index} className={`p-2 border border-sky-300 text-center ${style.bg} relative`}>
                         {charter ? (
                           <div className={style.text}>
                             {/* 🔥 Red light - μόνο για ΑΝΕΞΟΦΛΗΤΟ, αναβοσβήνει */}
@@ -3019,7 +3009,7 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
                             <div className={`text-xs ${style.status}`}>{charter.status?.toUpperCase()}</div>
                           </div>
                         ) : (
-                          <span className="text-gray-700">-</span>
+                          <span className="text-sky-300">-</span>
                         )}
                       </td>
                     );
@@ -4379,7 +4369,7 @@ function DetailsPage({ boat, category, navigate, showMessage }) {
     if (loading) return <FullScreenLoader />;
     switch (category) {
       case 'ΕΡΓΑΣΙΕΣ':
-        return <TaskPage boat={boat} items={items} showMessage={showMessage} saveItems={saveItems} />;
+        return <TaskPage boat={boat} showMessage={showMessage} />;
       case 'ΝΑΥΛΑ':
         return <CharterPage items={items} boat={boat} showMessage={showMessage} saveItems={saveItems} />;
       case 'ΦΩΤΟ & ΒΙΝΤΕΟ':
@@ -4434,15 +4424,119 @@ function MediaPage({ items, boatId, showMessage }) {
 // PART 4/4: Tasks + Charters + Financials + Messages + Email + FleetBookingPlan
 // =====================================================
 
-function TaskPage({ boat, items, showMessage, saveItems }) {
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newTaskDesc, setNewTaskDesc] = useState('');
+// Expandable Task Categories Types
+interface TaskCategoryItem {
+  id: string;
+  name: string;
+  status: 'OK' | '#' | '?';
+  comment: string;
+  lastUpdatedBy: string | null;
+  lastUpdatedAt: string | null;
+}
+
+interface TaskCategory {
+  id: string;
+  name: string;
+  shortName: string;
+  icon: string;
+  color: string;
+  expanded: boolean;
+  items: TaskCategoryItem[];
+}
+
+// Default task category definitions - Light Blue gradient styling
+const DEFAULT_TASK_CATEGORIES: TaskCategory[] = [
+  {
+    id: 'engine',
+    name: 'ΜΗΧΑΝΗ',
+    shortName: 'Engine',
+    icon: '⚙️',
+    color: 'from-sky-400 to-cyan-400',
+    expanded: false,
+    items: [
+      { id: 'eng_1', name: 'Έλεγχος λαδιού', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'eng_2', name: 'Φίλτρο καυσίμου', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'eng_3', name: 'Ψυκτικό υγρό', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'eng_4', name: 'Ιμάντες', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'eng_5', name: 'Αντλία νερού', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null }
+    ]
+  },
+  {
+    id: 'generator',
+    name: 'ΓΕΝΝΗΤΡΙΑ',
+    shortName: 'Generator',
+    icon: '🔌',
+    color: 'from-cyan-400 to-sky-500',
+    expanded: false,
+    items: [
+      { id: 'gen_1', name: 'Λειτουργία', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'gen_2', name: 'Λάδι γεννήτριας', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'gen_3', name: 'Φίλτρο αέρα', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'gen_4', name: 'Ώρες λειτουργίας', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null }
+    ]
+  },
+  {
+    id: 'shaft',
+    name: 'ΑΞΟΝΑΣ ΠΡΟΠΕΛΑ',
+    shortName: 'Shaft',
+    icon: '🔩',
+    color: 'from-sky-500 to-blue-400',
+    expanded: false,
+    items: [
+      { id: 'shaft_1', name: 'Τσιμούχα', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'shaft_2', name: 'Ανόδια', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'shaft_3', name: 'Προπέλα', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'shaft_4', name: 'Ευθυγράμμιση', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null }
+    ]
+  },
+  {
+    id: 'seavalves',
+    name: 'ΒΑΝΕΣ ΘΑΛΑΣΣΗΣ',
+    shortName: 'Sea Valves',
+    icon: '🚿',
+    color: 'from-blue-400 to-sky-400',
+    expanded: false,
+    items: [
+      { id: 'valve_1', name: 'Βάνα κινητήρα', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'valve_2', name: 'Βάνα γεννήτριας', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'valve_3', name: 'Βάνα WC', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'valve_4', name: 'Βάνα νεροχύτη', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'valve_5', name: 'Βάνες air condition', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null }
+    ]
+  },
+  {
+    id: 'electrical',
+    name: 'ΗΛΕΚΤΡΟΛΟΓΙΚΑ',
+    shortName: 'Electrical',
+    icon: '⚡',
+    color: 'from-sky-400 to-cyan-400',
+    expanded: false,
+    items: [
+      { id: 'elec_1', name: 'Καρβουνάκια εργάτη άγκυρας', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'elec_2', name: 'Μίζα μηχανής', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'elec_3', name: 'Blower (εξαερισμός)', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'elec_4', name: 'Φώτα ναυσιπλοΐας', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'elec_5', name: 'Φώτα σαλονιού', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null },
+      { id: 'elec_6', name: 'Φώτα καμπινών', status: '#', comment: '', lastUpdatedBy: null, lastUpdatedAt: null }
+    ]
+  }
+];
+
+function TaskPage({ boat, showMessage }) {
   const [winterizationData, setWinterizationData] = useState<{
     completed: number;
     total: number;
     replacements: number;
     lastSaved: string | null;
   } | null>(null);
+
+  // Expandable task categories state
+  const [taskCategories, setTaskCategories] = useState<TaskCategory[]>([]);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showAddItemToCategory, setShowAddItemToCategory] = useState<string | null>(null);
+  const [newItemName, setNewItemName] = useState('');
+
   const reactNavigate = useNavigate();
 
   const isOwnerUser = authService.isOwner();
@@ -4512,81 +4606,161 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
     }
   }, [boat?.name]);
 
+  // Load expandable task categories from localStorage
   useEffect(() => {
-    if (items.length === 0 && canManageTasks) {
-      const initialTasks = TASK_DEFINITIONS.map(desc => ({
-        id: uid(),
-        description: desc,
-        status: '#',
-        comment: '',
-        lastUpdatedBy: null,
-        lastUpdatedAt: null
-      }));
-      saveItems(initialTasks);
-    }
-  }, [items.length, canManageTasks, saveItems]);
-
-  const toggleTaskStatus = (taskId) => {
-    if (!canManageTasks) {
-      showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
-      return;
-    }
-    
-    const statuses = ['OK', '#', '?'];
-    const updated = items.map((item) => {
-      if (item.id === taskId) {
-        const currentIndex = statuses.indexOf(item.status);
-        const nextStatus = statuses[(currentIndex + 1) % statuses.length];
-        authService.logActivity('update_task_status', `${boat.id}/${item.description}/${nextStatus}`);
-        return { ...item, status: nextStatus, lastUpdatedBy: authService.getCurrentUser()?.name, lastUpdatedAt: new Date().toISOString() };
+    if (!boat?.name) return;
+    const vesselKey = boat.name.replace(/\s+/g, '_').toLowerCase();
+    const savedCategories = localStorage.getItem(`task_categories_${vesselKey}`);
+    if (savedCategories) {
+      try {
+        const parsed = JSON.parse(savedCategories);
+        // Merge with default categories to add any new ones
+        const mergedCategories = [...parsed];
+        DEFAULT_TASK_CATEGORIES.forEach(defaultCat => {
+          const exists = parsed.some((cat: any) => cat.id === defaultCat.id);
+          if (!exists) {
+            // Add new category that doesn't exist in saved data
+            mergedCategories.push(JSON.parse(JSON.stringify(defaultCat)));
+          }
+        });
+        setTaskCategories(mergedCategories);
+      } catch (e) {
+        console.error('Error loading task categories:', e);
+        setTaskCategories(JSON.parse(JSON.stringify(DEFAULT_TASK_CATEGORIES)));
       }
-      return item;
-    });
-    saveItems(updated);
+    } else {
+      setTaskCategories(JSON.parse(JSON.stringify(DEFAULT_TASK_CATEGORIES)));
+    }
+  }, [boat?.name]);
+
+  // Save task categories to localStorage whenever they change
+  useEffect(() => {
+    if (!boat?.name || taskCategories.length === 0) return;
+    const vesselKey = boat.name.replace(/\s+/g, '_').toLowerCase();
+    localStorage.setItem(`task_categories_${vesselKey}`, JSON.stringify(taskCategories));
+  }, [taskCategories, boat?.name]);
+
+  // Toggle category expansion
+  const toggleCategoryExpand = (categoryId: string) => {
+    setTaskCategories(prev => prev.map(cat =>
+      cat.id === categoryId ? { ...cat, expanded: !cat.expanded } : cat
+    ));
   };
 
-  const updateTaskComment = (taskId, comment) => {
+  // Toggle item status within a category
+  const toggleCategoryItemStatus = (categoryId: string, itemId: string) => {
     if (!canManageTasks) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
     }
-    
-    const updated = items.map((item) => {
-      if (item.id === taskId) {
-        authService.logActivity('update_task_comment', `${boat.id}/${item.description}`);
-        return { ...item, comment, lastUpdatedBy: authService.getCurrentUser()?.name, lastUpdatedAt: new Date().toISOString() };
+    const statuses: Array<'OK' | '#' | '?'> = ['OK', '#', '?'];
+    setTaskCategories(prev => prev.map(cat => {
+      if (cat.id === categoryId) {
+        return {
+          ...cat,
+          items: cat.items.map(item => {
+            if (item.id === itemId) {
+              const currentIndex = statuses.indexOf(item.status);
+              const nextStatus = statuses[(currentIndex + 1) % statuses.length];
+              return {
+                ...item,
+                status: nextStatus,
+                lastUpdatedBy: authService.getCurrentUser()?.name || null,
+                lastUpdatedAt: new Date().toISOString()
+              };
+            }
+            return item;
+          })
+        };
       }
-      return item;
-    });
-    saveItems(updated);
+      return cat;
+    }));
   };
 
-  const handleAddTask = () => {
-    if (!canManageTasks) {
-      showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
-      return;
-    }
-    
-    if (!newTaskDesc.trim()) return;
-    
-    const newTask = { id: uid(), description: newTaskDesc.trim(), status: '#', comment: '', lastUpdatedBy: authService.getCurrentUser()?.name, lastUpdatedAt: new Date().toISOString() };
-    saveItems([...items, newTask]);
-    authService.logActivity('add_task', `${boat.id}/${newTaskDesc.trim()}`);
-    setNewTaskDesc('');
-    setShowAddForm(false);
-    showMessage('✅ Η εργασία προστέθηκε.', 'success');
+  // Update item comment within a category
+  const updateCategoryItemComment = (categoryId: string, itemId: string, comment: string) => {
+    if (!canManageTasks) return;
+    setTaskCategories(prev => prev.map(cat => {
+      if (cat.id === categoryId) {
+        return {
+          ...cat,
+          items: cat.items.map(item => {
+            if (item.id === itemId) {
+              return {
+                ...item,
+                comment,
+                lastUpdatedBy: authService.getCurrentUser()?.name || null,
+                lastUpdatedAt: new Date().toISOString()
+              };
+            }
+            return item;
+          })
+        };
+      }
+      return cat;
+    }));
   };
 
-  const handleDeleteTask = (taskId) => {
-    if (!canManageTasks) {
-      showMessage('❌ View Only - Δεν έχετε δικαίωμα διαγραφής', 'error');
-      return;
+  // Add new item to a category
+  const addItemToCategory = (categoryId: string) => {
+    if (!canManageTasks || !newItemName.trim()) return;
+    const newItem: TaskCategoryItem = {
+      id: `item_${Date.now()}`,
+      name: newItemName.trim(),
+      status: '#',
+      comment: '',
+      lastUpdatedBy: authService.getCurrentUser()?.name || null,
+      lastUpdatedAt: new Date().toISOString()
+    };
+    setTaskCategories(prev => prev.map(cat =>
+      cat.id === categoryId ? { ...cat, items: [...cat.items, newItem] } : cat
+    ));
+    setNewItemName('');
+    setShowAddItemToCategory(null);
+    showMessage('✅ Το είδος προστέθηκε.', 'success');
+  };
+
+  // Delete item from a category
+  const deleteItemFromCategory = (categoryId: string, itemId: string) => {
+    if (!canManageTasks) return;
+    setTaskCategories(prev => prev.map(cat =>
+      cat.id === categoryId ? { ...cat, items: cat.items.filter(item => item.id !== itemId) } : cat
+    ));
+  };
+
+  // Add new category
+  const addNewCategory = () => {
+    if (!canManageTasks || !newCategoryName.trim()) return;
+    const newCat: TaskCategory = {
+      id: `cat_${Date.now()}`,
+      name: newCategoryName.trim().toUpperCase(),
+      shortName: newCategoryName.trim().substring(0, 4).toUpperCase(),
+      icon: '📋',
+      color: 'from-sky-400 to-cyan-400',
+      expanded: false,
+      items: []
+    };
+    setTaskCategories(prev => [...prev, newCat]);
+    setNewCategoryName('');
+    setShowAddCategory(false);
+    showMessage('✅ Η κατηγορία προστέθηκε.', 'success');
+  };
+
+  // Delete category
+  const deleteCategory = (categoryId: string) => {
+    if (!canManageTasks) return;
+    if (window.confirm('Διαγραφή κατηγορίας και όλων των εργασιών της;')) {
+      setTaskCategories(prev => prev.filter(cat => cat.id !== categoryId));
+      showMessage('✅ Η κατηγορία διαγράφηκε.', 'success');
     }
-    
-    const task = items.find(t => t.id === taskId);
-    saveItems(items.filter((item) => item.id !== taskId));
-    authService.logActivity('delete_task', `${boat.id}/${task?.description}`);
-    showMessage('✅ Η εργασία διαγράφηκε.', 'success');
+  };
+
+  // Get category stats
+  const getCategoryStats = (category: TaskCategory) => {
+    const total = category.items.length;
+    const completed = category.items.filter(i => i.status === 'OK').length;
+    const repair = category.items.filter(i => i.status === '?').length;
+    return { total, completed, repair };
   };
 
   const renderStatusIcon = (status) => {
@@ -4601,13 +4775,6 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
     }
   };
 
-  const stats = {
-    total: items.length,
-    completed: items.filter(t => t.status === 'OK').length,
-    pending: items.filter(t => t.status === '#').length,
-    repair: items.filter(t => t.status === '?').length
-  };
-
   return (
     <div>
       {isOwnerUser && (
@@ -4618,25 +4785,6 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
           </div>
         </div>
       )}
-
-      <div className="mb-4 grid grid-cols-4 gap-2 text-center">
-        <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
-          <div className="text-2xl font-bold text-white">{stats.total}</div>
-          <div className="text-xs text-gray-400">Total</div>
-        </div>
-        <div className="bg-green-900 p-3 rounded-lg border border-green-700">
-          <div className="text-2xl font-bold text-green-400">{stats.completed}</div>
-          <div className="text-xs text-green-300">OK</div>
-        </div>
-        <div className="bg-red-900 p-3 rounded-lg border border-red-700">
-          <div className="text-2xl font-bold text-red-400">{stats.pending}</div>
-          <div className="text-xs text-red-300">Pending</div>
-        </div>
-        <div className="bg-orange-900 p-3 rounded-lg border border-orange-700">
-          <div className="text-2xl font-bold text-orange-400">{stats.repair}</div>
-          <div className="text-xs text-orange-300">Repair</div>
-        </div>
-      </div>
 
       {/* ❄️ Winterization Summary Card */}
       {winterizationData && (
@@ -4659,14 +4807,14 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
             }
             reactNavigate('/winterization');
           }}
-          className="w-full mb-4 p-4 bg-gradient-to-r from-cyan-900 to-blue-900 rounded-xl border border-cyan-600 hover:border-cyan-400 transition-all hover:shadow-lg hover:shadow-cyan-500/20 text-left"
+          className="w-full mb-4 p-4 bg-gradient-to-r from-sky-400 to-cyan-400 rounded-xl border border-sky-300 hover:border-white transition-all duration-300 hover:shadow-xl hover:shadow-sky-400/40 hover:scale-[1.02] text-left"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-3xl">❄️</span>
               <div>
-                <h4 className="font-bold text-cyan-300 text-lg">Χειμωνιάσμα</h4>
-                <p className="text-xs text-cyan-400/70">Winterization Check-in</p>
+                <h4 className="font-bold text-white text-lg">INVENTORY WINTER</h4>
+                <p className="text-xs text-sky-100">Χειμερινές Εργασίες</p>
               </div>
             </div>
             <div className="text-right">
@@ -4695,56 +4843,232 @@ function TaskPage({ boat, items, showMessage, saveItems }) {
         </button>
       )}
 
-      <div className="mb-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
-        <h3 className="text-sm font-bold text-gray-300 mb-2">Επεξήγηση Χρωμάτων:</h3>
-        <div className="flex items-center gap-4 text-xs">
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-green-500"></div><span>OK (Έγινε)</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-red-500"></div><span># (Δεν έγινε)</span></div>
-          <div className="flex items-center gap-2"><div className="w-4 h-4 rounded-full bg-orange-500"></div><span>? (Επισκευή)</span></div>
-        </div>
-      </div>
-
-      {canManageTasks && (
-        <div className="mb-4">
-          <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center justify-center w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 border border-gray-700">
-            {icons.plus} <span className="ml-2">{showAddForm ? 'Ακύρωση' : 'Προσθήκη Νέας Εργασίας'}</span>
-          </button>
-          {showAddForm && (
-            <div className="mt-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
-              <input type="text" value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} placeholder="Περιγραφή νέας εργασίας" className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 mb-2 focus:border-teal-500 focus:outline-none" />
-              <button onClick={handleAddTask} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg">Αποθήκευση</button>
-            </div>
+      {/* 🔧 Expandable Task Categories - Light Blue Theme */}
+      <div className="mb-4 space-y-2">
+        <div className="flex items-center justify-between mb-2 p-2 rounded-lg" style={{ background: 'rgba(144, 202, 249, 0.3)' }}>
+          <h3 className="text-sm font-bold text-gray-800">Κατηγορίες Εργασιών</h3>
+          {canManageTasks && (
+            <button
+              onClick={() => setShowAddCategory(true)}
+              className="text-xs px-3 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded-lg transition-colors font-medium shadow-sm"
+            >
+              + Κατηγορία
+            </button>
           )}
         </div>
-      )}
 
-      <div className="space-y-2">
-        {items.map(task => (
-          <div key={task.id} className="bg-gray-800 p-3 rounded-lg border border-gray-700">
-            <div className="flex items-center justify-between">
-              <button onClick={() => toggleTaskStatus(task.id)} className={`flex-grow text-left flex items-center gap-3 ${canManageTasks ? 'cursor-pointer hover:bg-gray-700' : 'cursor-default'} p-2 rounded transition-colors`} disabled={!canManageTasks}>
-                {renderStatusIcon(task.status)}
-                <span className="text-gray-300">{task.description}</span>
+        {/* Add Category Modal */}
+        {showAddCategory && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="p-5 rounded-xl border border-sky-300 w-80 shadow-xl" style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}>
+              <h4 className="font-bold text-gray-800 mb-3 text-lg">Νέα Κατηγορία</h4>
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Όνομα κατηγορίας..."
+                className="w-full px-3 py-2 bg-white text-gray-800 rounded-lg border border-sky-300 mb-3 focus:ring-2 focus:ring-sky-400 focus:outline-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowAddCategory(false); setNewCategoryName(''); }}
+                  className="flex-1 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg font-medium"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  onClick={addNewCategory}
+                  className="flex-1 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-lg font-medium"
+                >
+                  Προσθήκη
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Item to Category Modal */}
+        {showAddItemToCategory && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="p-5 rounded-xl border border-sky-300 w-80 shadow-xl" style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}>
+              <h4 className="font-bold text-gray-800 mb-3 text-lg">Νέο Είδος</h4>
+              <input
+                type="text"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder="Όνομα είδους..."
+                className="w-full px-3 py-2 bg-white text-gray-800 rounded-lg border border-sky-300 mb-3 focus:ring-2 focus:ring-sky-400 focus:outline-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowAddItemToCategory(null); setNewItemName(''); }}
+                  className="flex-1 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg font-medium"
+                >
+                  Ακύρωση
+                </button>
+                <button
+                  onClick={() => addItemToCategory(showAddItemToCategory)}
+                  className="flex-1 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium"
+                >
+                  Προσθήκη
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Expandable Task Category Cards */}
+        {taskCategories.map(category => {
+          const catStats = getCategoryStats(category);
+          return (
+            <div key={category.id} className="rounded-xl border border-sky-300 overflow-hidden shadow-md hover:shadow-xl hover:scale-[1.01] transition-all duration-300">
+              {/* Category Header */}
+              <button
+                onClick={() => toggleCategoryExpand(category.id)}
+                className={`w-full p-3 bg-gradient-to-r ${category.color} text-left flex items-center justify-between hover:opacity-90 hover:scale-[1.01] transition-all duration-300 border-b border-sky-300`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{category.icon}</span>
+                  <div>
+                    <h4 className="font-bold text-white drop-shadow-sm">{category.name}</h4>
+                    <p className="text-xs text-sky-100">{category.shortName}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-100 text-sm font-medium">✅ {catStats.completed}/{catStats.total}</span>
+                    </div>
+                    {catStats.repair > 0 && (
+                      <span className="text-orange-200 text-xs">🔧 {catStats.repair} επισκευή</span>
+                    )}
+                  </div>
+                  <span className="text-white text-lg drop-shadow-sm">{category.expanded ? '▼' : '▶'}</span>
+                </div>
               </button>
-              {canManageTasks && (
-                <button onClick={() => handleDeleteTask(task.id)} className="text-red-500 hover:text-red-400 p-1 ml-2 hover:bg-red-900 rounded transition-colors">{icons.x}</button>
+
+              {/* Category Items (Expanded) */}
+              {category.expanded && (
+                <div className="p-3 space-y-2" style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}>
+                  {category.items.map(item => (
+                    <div key={item.id} className="p-2 rounded-lg border border-sky-300 shadow-sm hover:shadow-lg hover:scale-[1.01] transition-all duration-300" style={{ background: 'rgba(255, 255, 255, 0.7)' }}>
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => toggleCategoryItemStatus(category.id, item.id)}
+                          className={`flex-grow text-left flex items-center gap-2 ${canManageTasks ? 'cursor-pointer hover:bg-sky-100' : 'cursor-default'} p-1 rounded transition-colors`}
+                          disabled={!canManageTasks}
+                        >
+                          {renderStatusIcon(item.status)}
+                          <span className="text-gray-800 text-sm font-medium">{item.name}</span>
+                        </button>
+                        {canManageTasks && (
+                          <button
+                            onClick={() => deleteItemFromCategory(category.id, item.id)}
+                            className="text-red-600 hover:text-red-500 p-1 hover:bg-red-100 rounded transition-colors text-xs"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      {item.status === '?' && (
+                        <div className="mt-2 pt-2 border-t border-sky-200">
+                          <textarea
+                            value={item.comment || ''}
+                            onChange={(e) => updateCategoryItemComment(category.id, item.id, e.target.value)}
+                            placeholder="Σχόλια επισκευής..."
+                            className="w-full px-2 py-1 bg-white text-gray-800 rounded border border-sky-300 text-xs focus:ring-2 focus:ring-sky-400 focus:outline-none"
+                            rows={2}
+                            disabled={!canManageTasks}
+                          />
+                        </div>
+                      )}
+                      {item.lastUpdatedBy && (
+                        <div className="mt-1 text-xs text-gray-600">
+                          👤 {item.lastUpdatedBy} • {new Date(item.lastUpdatedAt!).toLocaleDateString('el-GR')}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Add Item Button */}
+                  {canManageTasks && (
+                    <button
+                      onClick={() => setShowAddItemToCategory(category.id)}
+                      className="w-full py-2 bg-white/80 hover:bg-white text-sky-700 border border-sky-300 rounded-lg text-sm transition-colors font-medium"
+                    >
+                      + Προσθήκη Είδους
+                    </button>
+                  )}
+
+                  {/* Delete Category Button */}
+                  {canManageTasks && (
+                    <button
+                      onClick={() => deleteCategory(category.id)}
+                      className="w-full py-2 bg-red-100 hover:bg-red-200 text-red-600 border border-red-300 rounded-lg text-xs transition-colors"
+                    >
+                      🗑️ Διαγραφή Κατηγορίας
+                    </button>
+                  )}
+                </div>
               )}
             </div>
-            
-            {task.status === '?' && (
-              <div className="mt-3 pt-3 border-t border-gray-700">
-                <textarea value={task.comment || ''} onChange={(e) => updateTaskComment(task.id, e.target.value)} placeholder={canManageTasks ? "Σχόλια για επισκευή..." : "No comments"} className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 text-sm focus:border-orange-500 focus:outline-none" rows={2} disabled={!canManageTasks} />
-              </div>
-            )}
-            
-            {task.lastUpdatedBy && (
-              <div className="mt-2 pt-2 border-t border-gray-700 text-xs text-gray-500 flex items-center gap-2">
-                <span>👤 {task.lastUpdatedBy}</span><span>•</span><span>📅 {new Date(task.lastUpdatedAt).toLocaleString('el-GR')}</span>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {/* 📦 Winter Maintenance Buttons - ΕΡΓΑΣΙΕΣ Section */}
+      <div className="mb-4 space-y-2">
+        <div className="p-2 rounded-lg mb-3" style={{ background: 'rgba(144, 202, 249, 0.3)' }}>
+          <h3 className="text-sm font-bold text-gray-800">🔧 Εργαλεία Χειμερινής Συντήρησης</h3>
+        </div>
+        <div className="grid grid-cols-1 gap-2">
+            {/* Inventory Button */}
+            <button
+              onClick={() => reactNavigate('/winter-inventory')}
+              className="w-full p-3 bg-gradient-to-r from-sky-400 to-cyan-400 rounded-xl border border-sky-300 hover:border-white transition-all duration-300 hover:shadow-xl hover:shadow-sky-400/40 hover:scale-[1.02] text-left flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📦</span>
+                <div>
+                  <h5 className="font-bold text-white">Χειμερινές Εργασίες</h5>
+                  <p className="text-xs text-sky-100">Κατάσταση εξοπλισμού όλων των σκαφών</p>
+                </div>
+              </div>
+              <span className="text-white">→</span>
+            </button>
+
+            {/* TakeOver Button */}
+            <button
+              onClick={() => reactNavigate('/winter-takeover')}
+              className="w-full p-3 bg-gradient-to-r from-sky-400 to-cyan-400 rounded-xl border border-sky-300 hover:border-white transition-all duration-300 hover:shadow-xl hover:shadow-sky-400/40 hover:scale-[1.02] text-left flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📋</span>
+                <div>
+                  <h5 className="font-bold text-white">Take Over</h5>
+                  <p className="text-xs text-sky-100">Παρακολούθηση παραλαβών σκαφών</p>
+                </div>
+              </div>
+              <span className="text-white">→</span>
+            </button>
+
+            {/* Safety Equipment Button */}
+            <button
+              onClick={() => reactNavigate('/winter-safety')}
+              className="w-full p-3 bg-gradient-to-r from-sky-400 to-cyan-400 rounded-xl border border-sky-300 hover:border-white transition-all duration-300 hover:shadow-xl hover:shadow-sky-400/40 hover:scale-[1.02] text-left flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🩹</span>
+                <div>
+                  <h5 className="font-bold text-white">Safety Equipment</h5>
+                  <p className="text-xs text-sky-100">Φαρμακείο & Πυροτεχνικά με ημερομηνίες λήξης</p>
+                </div>
+              </div>
+              <span className="text-white">→</span>
+            </button>
+        </div>
+      </div>
+
     </div>
   );
 }
@@ -6997,10 +7321,10 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
   // Μόνο αν ΔΕΝ είναι ADMIN, OWNER ή TECHNICAL -> Access Denied
   if (!authService.isAdmin() && !authService.isOwner() && !authService.isTechnical()) {
     return (
-      <div className="flex flex-col h-full bg-gray-900">
+      <div className="flex flex-col h-full" style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}>
         <Header title="Fleet Booking Plan" onBack={() => navigate('adminDashboard')} />
         <div className="flex-grow flex items-center justify-center p-8">
-          <div className="text-center"><div className="text-8xl mb-6">🔒</div><h2 className="text-3xl font-bold text-red-400 mb-4">Access Denied</h2><p className="text-gray-400 mb-6">Only Administrators can view Fleet Booking Plan.</p></div>
+          <div className="text-center"><div className="text-8xl mb-6">🔒</div><h2 className="text-3xl font-bold text-red-500 mb-4">Access Denied</h2><p className="text-blue-700 mb-6">Only Administrators can view Fleet Booking Plan.</p></div>
         </div>
       </div>
     );
@@ -7058,64 +7382,64 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
   const formatDate = (date) => date.toLocaleDateString('el-GR', { day: '2-digit', month: '2-digit' });
 
   if (loading) return (
-    <div className="flex flex-col h-screen bg-gray-900">
+    <div className="flex flex-col h-screen" style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}>
       <Header title="Fleet Booking Plan" onBack={() => navigate('adminDashboard')} />
       <FullScreenLoader />
     </div>
   );
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-gray-900 fixed inset-0 z-50">
-      <div className="bg-gray-800 p-2 flex items-center justify-between border-b border-gray-700">
-        <button onClick={() => navigate('adminDashboard')} className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg">{icons.chevronLeft}</button>
-        <h1 className="text-lg font-bold text-white">Fleet Booking Plan</h1>
+    <div className="flex flex-col h-screen w-screen fixed inset-0 z-50" style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}>
+      <div className="p-2 flex items-center justify-between border-b border-sky-300" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
+        <button onClick={() => navigate('adminDashboard')} className="text-blue-800 p-2 hover:bg-blue-300/50 rounded-lg">{icons.chevronLeft}</button>
+        <h1 className="text-lg font-bold text-blue-900">Fleet Booking Plan</h1>
         <div className="w-10"></div>
       </div>
 
       {isTechnicalUser && (
-        <div className="p-2 bg-purple-900 border-b border-purple-700 text-center">
-          <div className="flex items-center justify-center gap-2 text-purple-200 text-sm">
+        <div className="p-2 border-b border-sky-300 text-center" style={{ background: 'linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%)' }}>
+          <div className="flex items-center justify-center gap-2 text-blue-800 text-sm">
             {icons.eye}
             <span>Technical View - Μόνο ημερομηνίες & status</span>
           </div>
         </div>
       )}
-      
-      <div className="flex justify-between items-center p-2 bg-gray-800 border-b border-gray-700">
-        <button onClick={() => changeMonth(-1)} className="text-teal-400 p-2 hover:bg-gray-700 rounded transition-colors text-2xl">{icons.chevronLeft}</button>
-        <h2 className="text-2xl font-bold text-teal-400 capitalize">{monthName} {year}</h2>
-        <button onClick={() => changeMonth(1)} className="text-teal-400 p-2 hover:bg-gray-700 rounded transition-colors text-2xl">{icons.chevronRight}</button>
+
+      <div className="flex justify-between items-center p-2 border-b border-sky-300" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
+        <button onClick={() => changeMonth(-1)} className="text-blue-800 p-2 hover:bg-blue-300/50 rounded transition-colors text-2xl">{icons.chevronLeft}</button>
+        <h2 className="text-2xl font-bold text-blue-900 capitalize">{monthName} {year}</h2>
+        <button onClick={() => changeMonth(1)} className="text-blue-800 p-2 hover:bg-blue-300/50 rounded transition-colors text-2xl">{icons.chevronRight}</button>
       </div>
 
-      <div className="p-2 bg-gray-800 border-b border-gray-700">
+      <div className="p-2 border-b border-sky-300" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
         <div className="flex flex-wrap justify-center gap-4 text-xs">
-          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-yellow-400"></div><span className="text-yellow-400">Option</span></div>
-          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-green-500"></div><span className="text-green-400">Confirmed</span></div>
-          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-red-500"></div><span className="text-red-400">Canceled</span></div>
+          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-yellow-400"></div><span className="text-yellow-600 font-semibold">Option</span></div>
+          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-green-500"></div><span className="text-green-600 font-semibold">Confirmed</span></div>
+          <div className="flex items-center gap-1"><div className="w-4 h-4 rounded bg-red-500"></div><span className="text-red-600 font-semibold">Canceled</span></div>
         </div>
       </div>
 
       {/* Search Box */}
-      <div className="p-2 bg-gray-900 border-b border-gray-700">
+      <div className="p-2 border-b border-sky-300 bg-sky-50">
         <div className="relative max-w-md mx-auto">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="🔍 Αναζήτηση σκάφους (όνομα, τύπος, μοντέλο...)"
-            className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+            className="w-full px-4 py-2 bg-white text-blue-900 rounded-lg border border-sky-300 focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 hover:text-blue-800"
             >
               ✕
             </button>
           )}
         </div>
         {searchTerm && (
-          <div className="text-center text-xs text-gray-400 mt-1">
+          <div className="text-center text-xs text-blue-600 mt-1">
             Βρέθηκαν {filteredBoats.length} από {allBoats.length} σκάφη
           </div>
         )}
@@ -7124,21 +7448,21 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
       <div className="flex-grow overflow-auto p-2">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-gray-800">
-              <th className="sticky left-0 bg-gray-800 p-3 border border-gray-700 text-left text-teal-400 text-base min-w-[100px]">Σκάφος</th>
+            <tr style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
+              <th className="sticky left-0 p-3 border border-sky-300 text-left text-blue-900 text-base min-w-[100px] font-bold" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>Σκάφος</th>
               {weeks.map((week, index) => (
-                <th key={index} className="p-2 border border-gray-700 text-sm text-gray-300 min-w-[120px]">
+                <th key={index} className="p-2 border border-sky-300 text-sm text-blue-800 min-w-[120px]">
                   <div className="font-bold">ΕΒΔ. {index + 1}</div>
-                  <div className="text-xs text-gray-400">{formatDate(week.start)} - {formatDate(week.end)}</div>
+                  <div className="text-xs text-blue-700">{formatDate(week.start)} - {formatDate(week.end)}</div>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filteredBoats.map((boat) => (
-              <tr key={boat.id} className="hover:bg-gray-800">
+              <tr key={boat.id} className="hover:bg-sky-100">
                 {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
-                <td className="sticky left-0 bg-gray-900 hover:bg-gray-800 p-3 border border-gray-700 font-bold text-teal-400 text-base">{boat.name}</td>
+                <td className="sticky left-0 bg-sky-50 hover:bg-sky-100 p-3 border border-sky-300 font-bold text-blue-800 text-base">{boat.name}</td>
                 
                 {weeks.map((week, index) => {
                     // 🔥 FIX 29: Charter displays ONLY in the week where check-in date falls (no spanning)
@@ -7153,9 +7477,9 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
                     const isBooked = !!booking;
                     const status = booking?.status || 'Pending';
                     
-                    let bgColor = 'bg-gray-900 hover:bg-gray-800';
-                    let textColor = 'text-gray-600';
-                    let statusColor = 'text-gray-400';
+                    let bgColor = 'bg-sky-50 hover:bg-sky-100';
+                    let textColor = 'text-sky-400';
+                    let statusColor = 'text-sky-400';
                     
                     if (isBooked) {
                       switch(status) {
@@ -7184,7 +7508,7 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
                     const paymentInfo = isBooked ? getPaymentStatusInfo(booking.paymentStatus) : null;
                     
                     return (
-                       <td key={index} className={`p-2 border border-gray-700 text-center ${bgColor} relative`}>
+                       <td key={index} className={`p-2 border border-sky-300 text-center ${bgColor} relative`}>
                          {isBooked ? (
                            <div className={textColor}>
                              {/* 🔥 Red light - μόνο αν βλέπει οικονομικά και είναι ΑΝΕΞΟΦΛΗΤΟ */}
@@ -7202,7 +7526,7 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
                              <p className={`text-xs ${statusColor}`}>{status.toUpperCase()}</p>
                            </div>
                          ) : (
-                           <span className="text-gray-700">-</span>
+                           <span className="text-sky-300">-</span>
                          )}
                        </td>
                     )

@@ -18,6 +18,10 @@ import AdminPanel from './AdminPanel'; // 🆕 NEW
 import TechnicalSupportChat from './TechnicalSupportChat'; // 🆕 Technical Support Chat
 import TechnicalManagerDashboard from './TechnicalManagerDashboard'; // 🆕 Technical Manager Dashboard
 import WinterizationCheckin from './WinterizationCheckin'; // 🆕 Winterization Check-in
+import WinterMaintenanceInventory from './WinterMaintenanceInventory'; // 🆕 Winter Maintenance Inventory
+import WinterTakeOver from './WinterTakeOver'; // 🆕 Winter Take Over Tracking
+import WinterSafetyEquipment from './WinterSafetyEquipment'; // 🆕 Winter Safety Equipment with Expiry Tracking
+import TaskCategoryCheckin from './TaskCategoryCheckin'; // 🆕 Task Category Check-in Pages
 
 // 🆕 NEW: Import auth service
 import { initializeAuth } from './authService';
@@ -435,6 +439,18 @@ function App() {
 
             {/* 🆕 NEW: Winterization Check-in */}
             <Route path="/winterization" element={<WinterizationCheckin />} />
+
+            {/* 🆕 NEW: Winter Maintenance Inventory */}
+            <Route path="/winter-inventory" element={<WinterMaintenanceInventory />} />
+
+            {/* 🆕 NEW: Winter Take Over Tracking */}
+            <Route path="/winter-takeover" element={<WinterTakeOver />} />
+
+            {/* 🆕 NEW: Winter Safety Equipment with Expiry Tracking */}
+            <Route path="/winter-safety" element={<WinterSafetyEquipment />} />
+
+            {/* 🆕 NEW: Task Category Check-in Pages */}
+            <Route path="/tasks/:category" element={<TaskCategoryCheckin />} />
 
             {/* Charter Agreement & Documents Page */}
             <Route path="/charter-agreement" element={<CharterAgreementPage />} />

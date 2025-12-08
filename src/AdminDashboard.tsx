@@ -95,6 +95,19 @@ export default function AdminDashboard({
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   // 📝 Track Page 1 bookings per boat for highlighting
   const [page1BookingsByBoat, setPage1BookingsByBoat] = useState<{[boatId: string]: {count: number, firstBooking: any}}>({});
+  // 🔧 Expandable tasks menu state
+  const [tasksMenuExpanded, setTasksMenuExpanded] = useState(false);
+
+  // Task categories for navigation (all same light blue color)
+  const taskCategories = [
+    { key: 'engine', icon: '⚙️', name: 'ΜΗΧΑΝΗ' },
+    { key: 'generator', icon: '⚡', name: 'ΓΕΝΝΗΤΡΙΑ' },
+    { key: 'shaft', icon: '🔧', name: 'ΑΞΟΝΑΣ' },
+    { key: 'valves', icon: '🚿', name: 'ΒΑΝΕΣ ΘΑΛΑΣΣΗΣ' },
+    { key: 'electrical', icon: '💡', name: 'ΗΛΕΚΤΡΟΛΟΓΙΚΑ' },
+    { key: 'desalination', icon: '💧', name: 'ΑΦΑΛΑΤΩΣΗ' },
+    { key: 'documents', icon: '📄', name: 'ΕΓΓΡΑΦΑ' }
+  ];
   const user = authService.getCurrentUser();
   const reactNavigate = useNavigate();
 
@@ -458,57 +471,119 @@ export default function AdminDashboard({
 
         {/* Main Content - 3 columns */}
         <div className="flex-grow flex overflow-hidden">
-          {/* Left Buttons */}
-          <div className="w-28 sm:w-32 bg-white/80 backdrop-blur-xl border-r border-blue-200 flex flex-col items-center py-3 gap-3 px-2">
+          {/* Left Buttons - BIGGER */}
+          <div className="w-36 sm:w-44 bg-white/80 backdrop-blur-xl border-r border-blue-200 flex flex-col items-center py-4 gap-4 px-3 overflow-y-auto">
             <button
               onClick={() => {
                 authService.logActivity('view_fleet_booking_plan');
                 navigate('fleetBookingPlan');
               }}
-              className="w-full h-10 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+              className="w-full h-14 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
               title="Booking Plan"
             >
               {icons.bookingSheet}
-              <span className="text-xs font-medium">Plan</span>
+              <span className="text-sm font-bold">Plan</span>
             </button>
 
             {authService.canManageCodes() && (
               <button
                 onClick={() => setShowEmployeeManagement(true)}
-                className="w-full h-10 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                className="w-full h-14 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
                 title="Διαχείριση Υπαλλήλων"
               >
                 {icons.shield}
-                <span className="text-xs font-medium">Users</span>
+                <span className="text-sm font-bold">Users</span>
               </button>
             )}
 
             {authService.canManageFleet() && (
               <button
                 onClick={() => setShowAddBoat(true)}
-                className="w-full h-10 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                className="w-full h-14 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
                 title="Προσθήκη Σκάφους"
               >
                 {icons.plus}
-                <span className="text-xs font-medium">+Boat</span>
+                <span className="text-sm font-bold">+Boat</span>
               </button>
             )}
 
-            {/* 🆕 Winterization Check-in Button */}
+            {/* 🔧 Expandable Tasks Menu */}
             {authService.canManageTasks() && (
-              <button
-                onClick={() => reactNavigate('/winterization')}
-                className="w-full h-10 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
-                title="Winterization Check-in"
-              >
-                <span className="text-lg">❄️</span>
-                <span className="text-xs font-medium">Winter</span>
-              </button>
+              <div className="w-full">
+                {/* Main Toggle Button */}
+                <button
+                  onClick={() => setTasksMenuExpanded(!tasksMenuExpanded)}
+                  className="w-full h-14 bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-500 hover:to-cyan-500 rounded-xl flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                  title="Εργασίες Σκαφών"
+                >
+                  <span className="text-xl">🔧</span>
+                  <span className="text-sm font-bold">ΕΡΓΑΣΙΕΣ</span>
+                  <span className={`text-sm transition-transform duration-300 ${tasksMenuExpanded ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+
+                {/* Expandable Menu Items with Scroll */}
+                <div className={`transition-all duration-300 ease-in-out ${tasksMenuExpanded ? 'max-h-[60vh] opacity-100 mt-2 overflow-y-auto' : 'max-h-0 opacity-0 overflow-hidden'}`}>
+                  <div className="space-y-2 pl-2 border-l-2 border-sky-300 pr-1 pb-2">
+                    {/* Winter Check-in */}
+                    <button
+                      onClick={() => reactNavigate('/winterization')}
+                      className="w-full h-10 rounded-lg flex items-center gap-2 px-3 text-slate-700 transition-all duration-300 hover:scale-[1.02] hover:shadow-md text-left"
+                      style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}
+                    >
+                      <span className="text-lg">❄️</span>
+                      <span className="text-xs font-semibold">Winter Check-in</span>
+                    </button>
+                    {/* Inventory */}
+                    <button
+                      onClick={() => reactNavigate('/winter-inventory')}
+                      className="w-full h-10 rounded-lg flex items-center gap-2 px-3 text-slate-700 transition-all duration-300 hover:scale-[1.02] hover:shadow-md text-left"
+                      style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}
+                    >
+                      <span className="text-lg">📦</span>
+                      <span className="text-xs font-semibold">Χειμερινές Εργασίες</span>
+                    </button>
+                    {/* TakeOver */}
+                    <button
+                      onClick={() => reactNavigate('/winter-takeover')}
+                      className="w-full h-10 rounded-lg flex items-center gap-2 px-3 text-slate-700 transition-all duration-300 hover:scale-[1.02] hover:shadow-md text-left"
+                      style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}
+                    >
+                      <span className="text-lg">📋</span>
+                      <span className="text-xs font-semibold">Take Over</span>
+                    </button>
+                    {/* Safety */}
+                    <button
+                      onClick={() => reactNavigate('/winter-safety')}
+                      className="w-full h-10 rounded-lg flex items-center gap-2 px-3 text-slate-700 transition-all duration-300 hover:scale-[1.02] hover:shadow-md text-left"
+                      style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}
+                    >
+                      <span className="text-lg">🩹</span>
+                      <span className="text-xs font-semibold">Safety Equipment</span>
+                    </button>
+                    {/* Divider */}
+                    <div className="border-t border-sky-200 my-2"></div>
+
+                    {/* Task Categories - Navigate to Pages (all same light blue) */}
+                    {taskCategories.map((category) => (
+                      <button
+                        key={category.key}
+                        onClick={() => reactNavigate(`/tasks/${category.key}`)}
+                        className="w-full h-10 rounded-lg flex items-center gap-2 px-3 text-slate-700 transition-all duration-300 hover:scale-[1.02] hover:shadow-md text-left"
+                        style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}
+                      >
+                        <span className="text-lg">{category.icon}</span>
+                        <span className="text-xs font-semibold">{category.name}</span>
+                        <span className="ml-auto text-xs text-slate-500">→</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Center - Boats List */}
-          <div className="flex-grow overflow-y-auto p-3 flex flex-col">
+          {/* Center - Boats List (more compact) */}
+          <div className="flex-grow overflow-y-auto p-3 flex flex-col max-w-4xl mx-auto">
             {/* Search Box */}
             <div className="mb-3">
               <div className="relative">
@@ -589,36 +664,36 @@ export default function AdminDashboard({
             </div>
           </div>
 
-          {/* Right Buttons */}
-          <div className="w-28 sm:w-32 bg-white/80 backdrop-blur-xl border-l border-blue-200 flex flex-col items-center py-3 gap-3 px-2">
+          {/* Right Buttons - BIGGER */}
+          <div className="w-36 sm:w-44 bg-white/80 backdrop-blur-xl border-l border-blue-200 flex flex-col items-center py-4 gap-4 px-3">
             <button
               onClick={() => setShowChatManagement(true)}
-              className="w-full h-10 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+              className="w-full h-14 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
               title="Chat Management"
             >
-              💬
-              <span className="text-xs font-medium">Chats</span>
+              <span className="text-xl">💬</span>
+              <span className="text-sm font-bold">Chats</span>
             </button>
 
             {authService.canClearData() && (
               <button
                 onClick={() => setShowDataManagement(true)}
-                className="w-full h-10 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                className="w-full h-14 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
                 title="Διαγραφή Δεδομένων"
               >
                 {icons.x}
-                <span className="text-xs font-medium">Delete</span>
+                <span className="text-sm font-bold">Delete</span>
               </button>
             )}
 
             {authService.canManageCodes() && (
               <button
                 onClick={() => setShowActivityLog(true)}
-                className="w-full h-10 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                className="w-full h-14 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
                 title="Activity Log"
               >
                 {icons.fileText}
-                <span className="text-xs font-medium">Log</span>
+                <span className="text-sm font-bold">Log</span>
               </button>
             )}
           </div>
