@@ -472,38 +472,38 @@ export default function AdminDashboard({
         {/* Main Content - 3 columns */}
         <div className="flex-grow flex overflow-hidden">
           {/* Left Buttons - BIGGER */}
-          <div className="w-36 sm:w-44 bg-white/80 backdrop-blur-xl border-r border-blue-200 flex flex-col items-center py-4 gap-4 px-3 overflow-y-auto">
+          <div className="w-40 sm:w-48 bg-white/80 backdrop-blur-xl border-r border-blue-200 flex flex-col items-center py-4 gap-4 px-3 overflow-y-auto">
             <button
               onClick={() => {
                 authService.logActivity('view_fleet_booking_plan');
                 navigate('fleetBookingPlan');
               }}
-              className="w-full h-14 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+              className="w-full h-16 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
               title="Booking Plan"
             >
               {icons.bookingSheet}
-              <span className="text-sm font-bold">Plan</span>
+              <span className="text-base font-bold">Plan</span>
             </button>
 
             {authService.canManageCodes() && (
               <button
                 onClick={() => setShowEmployeeManagement(true)}
-                className="w-full h-14 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                className="w-full h-16 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
                 title="Διαχείριση Υπαλλήλων"
               >
                 {icons.shield}
-                <span className="text-sm font-bold">Users</span>
+                <span className="text-base font-bold">Users</span>
               </button>
             )}
 
             {authService.canManageFleet() && (
               <button
                 onClick={() => setShowAddBoat(true)}
-                className="w-full h-14 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                className="w-full h-16 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
                 title="Προσθήκη Σκάφους"
               >
                 {icons.plus}
-                <span className="text-sm font-bold">+Boat</span>
+                <span className="text-base font-bold">+Boat</span>
               </button>
             )}
 
@@ -513,11 +513,11 @@ export default function AdminDashboard({
                 {/* Main Toggle Button */}
                 <button
                   onClick={() => setTasksMenuExpanded(!tasksMenuExpanded)}
-                  className="w-full h-14 bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-500 hover:to-cyan-500 rounded-xl flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                  className="w-full h-16 bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-500 hover:to-cyan-500 rounded-xl flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02]"
                   title="Εργασίες Σκαφών"
                 >
                   <span className="text-xl">🔧</span>
-                  <span className="text-sm font-bold">ΕΡΓΑΣΙΕΣ</span>
+                  <span className="text-base font-bold">ΕΡΓΑΣΙΕΣ</span>
                   <span className={`text-sm transition-transform duration-300 ${tasksMenuExpanded ? 'rotate-180' : ''}`}>▼</span>
                 </button>
 
@@ -665,35 +665,35 @@ export default function AdminDashboard({
           </div>
 
           {/* Right Buttons - BIGGER */}
-          <div className="w-36 sm:w-44 bg-white/80 backdrop-blur-xl border-l border-blue-200 flex flex-col items-center py-4 gap-4 px-3">
+          <div className="w-40 sm:w-48 bg-white/80 backdrop-blur-xl border-l border-blue-200 flex flex-col items-center py-4 gap-4 px-3">
             <button
               onClick={() => setShowChatManagement(true)}
-              className="w-full h-14 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+              className="w-full h-16 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
               title="Chat Management"
             >
               <span className="text-xl">💬</span>
-              <span className="text-sm font-bold">Chats</span>
+              <span className="text-base font-bold">Chats</span>
             </button>
 
             {authService.canClearData() && (
               <button
                 onClick={() => setShowDataManagement(true)}
-                className="w-full h-14 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                className="w-full h-16 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
                 title="Διαγραφή Δεδομένων"
               >
                 {icons.x}
-                <span className="text-sm font-bold">Delete</span>
+                <span className="text-base font-bold">Delete</span>
               </button>
             )}
 
             {authService.canManageCodes() && (
               <button
                 onClick={() => setShowActivityLog(true)}
-                className="w-full h-14 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                className="w-full h-16 bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
                 title="Activity Log"
               >
                 {icons.fileText}
-                <span className="text-sm font-bold">Log</span>
+                <span className="text-base font-bold">Log</span>
               </button>
             )}
           </div>

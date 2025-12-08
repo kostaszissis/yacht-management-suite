@@ -102,8 +102,8 @@ const DEFAULT_EMPLOYEE_CODES: EmployeeCode[] = [
     enabled: true
   },
   {
-    code: 'TEC003!MARINA',
-    name: 'Marina',
+    code: 'TEC003!MARINIA',
+    name: 'Marinia',
     role: 'TECHNICAL',
     canEdit: true,
     canDelete: false,
