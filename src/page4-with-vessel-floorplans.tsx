@@ -121,17 +121,19 @@ const VESSELS = [
   { id: 'bavaria-c42-valesia', name: 'Bavaria c42 Cruiser-VALESIA', category: 'monohull' }
 ];
 
-// Floorplan images - using full server URL for all environments
+// Floorplan images - using relative path for all environments
 // Images must be uploaded to: /var/www/html/images/floorplans/ on the server
+const IMAGE_BASE_URL = '/images/floorplans';
+
 const VESSEL_FLOORPLANS: Record<string, string> = {
-  'bob': 'https://yachtmanagementsuite.com/images/floorplans/lagoon-42.webp',
-  'perla': 'https://yachtmanagementsuite.com/images/floorplans/lagoon-46.png',
-  'infinity': 'https://yachtmanagementsuite.com/images/floorplans/bali-4-2-infinity.png',
-  'maria 1': 'https://yachtmanagementsuite.com/images/floorplans/jeanneau-449.png',
-  'maria 2': 'https://yachtmanagementsuite.com/images/floorplans/jeanneau-54.png',
-  'bar bar': 'https://yachtmanagementsuite.com/images/floorplans/beneteau-oceanis-46-new.png',
-  'kalispera': 'https://yachtmanagementsuite.com/images/floorplans/bavaria-c42-cruiser-kalispera.png',
-  'valesia': 'https://yachtmanagementsuite.com/images/floorplans/bavaria-c42-cruiser-valesia.png'
+  'bob': `${IMAGE_BASE_URL}/lagoon-42.webp`,
+  'perla': `${IMAGE_BASE_URL}/lagoon-46.png`,
+  'infinity': `${IMAGE_BASE_URL}/bali-4-2-infinity.png`,
+  'maria 1': `${IMAGE_BASE_URL}/jeanneau-449.png`,
+  'maria 2': `${IMAGE_BASE_URL}/jeanneau-54.png`,
+  'bar bar': `${IMAGE_BASE_URL}/beneteau-oceanis-46-new.png`,
+  'kalispera': `${IMAGE_BASE_URL}/bavaria-c42-cruiser-kalispera.png`,
+  'valesia': `${IMAGE_BASE_URL}/bavaria-c42-cruiser-valesia.png`
 };
 
 // Map various vessel name formats to simple lowercase names
