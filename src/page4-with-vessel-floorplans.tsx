@@ -123,45 +123,46 @@ const VESSELS = [
 
 // Floorplan images - using full server URL for all environments
 // Images must be uploaded to: /var/www/html/images/floorplans/ on the server
-const IMAGE_BASE_URL = 'https://yachtmanagementsuite.com/images/floorplans';
-
 const VESSEL_FLOORPLANS: Record<string, string> = {
-  // BOB - Lagoon 42
-  'lagoon-42-bob': `${IMAGE_BASE_URL}/lagoon-42.webp`,
-  // PERLA - Lagoon 46
-  'lagoon-46-perla': `${IMAGE_BASE_URL}/lagoon-46.png`,
-  // INFINITY - Bali 4.2
-  'bali-42-infinity': `${IMAGE_BASE_URL}/bali-4-2-infinity.png`,
-  // MARIA 1 - Jeanneau Sun Odyssey 449
-  'jeanneau-so-449-maria1': `${IMAGE_BASE_URL}/jeanneau-449.png`,
-  // MARIA 2 - Jeanneau yacht 54
-  'jeanneau-yacht-54-maria2': `${IMAGE_BASE_URL}/jeanneau-54.png`,
-  // BAR BAR - Beneteau Oceanis 46.1
-  'beneteau-oceanis-46-1-bar-bar': `${IMAGE_BASE_URL}/beneteau-oceanis-46-new.png`,
-  // KALISPERA - Bavaria c42 Cruiser
-  'bavaria-c42-kalispera': `${IMAGE_BASE_URL}/bavaria-c42-cruiser-kalispera.png`,
-  // VALESIA - Bavaria c42 Cruiser
-  'bavaria-c42-valesia': `${IMAGE_BASE_URL}/bavaria-c42-cruiser-valesia.png`
+  'bob': 'https://yachtmanagementsuite.com/images/floorplans/lagoon-42.webp',
+  'perla': 'https://yachtmanagementsuite.com/images/floorplans/lagoon-46.png',
+  'infinity': 'https://yachtmanagementsuite.com/images/floorplans/bali-4-2-infinity.png',
+  'maria 1': 'https://yachtmanagementsuite.com/images/floorplans/jeanneau-449.png',
+  'maria 2': 'https://yachtmanagementsuite.com/images/floorplans/jeanneau-54.png',
+  'bar bar': 'https://yachtmanagementsuite.com/images/floorplans/beneteau-oceanis-46-new.png',
+  'kalispera': 'https://yachtmanagementsuite.com/images/floorplans/bavaria-c42-cruiser-kalispera.png',
+  'valesia': 'https://yachtmanagementsuite.com/images/floorplans/bavaria-c42-cruiser-valesia.png'
 };
 
-// Map boat nicknames to vessel IDs for reliable matching
-const BOAT_NAME_TO_VESSEL_ID: Record<string, string> = {
-  'bob': 'lagoon-42-bob',
-  'perla': 'lagoon-46-perla',
-  'infinity': 'bali-42-infinity',
-  'maria1': 'jeanneau-so-449-maria1',
-  'maria 1': 'jeanneau-so-449-maria1',
-  'maria2': 'jeanneau-yacht-54-maria2',
-  'maria 2': 'jeanneau-yacht-54-maria2',
-  'bar-bar': 'beneteau-oceanis-46-1-bar-bar',
-  'bar bar': 'beneteau-oceanis-46-1-bar-bar',
-  'barbar': 'beneteau-oceanis-46-1-bar-bar',
-  'kalispera': 'bavaria-c42-kalispera',
-  'valesia': 'bavaria-c42-valesia'
+// Map various vessel name formats to simple lowercase names
+const VESSEL_NAME_ALIASES: Record<string, string> = {
+  'bob': 'bob',
+  'lagoon-42-bob': 'bob',
+  'lagoon 42': 'bob',
+  'perla': 'perla',
+  'lagoon-46-perla': 'perla',
+  'lagoon 46': 'perla',
+  'infinity': 'infinity',
+  'bali-42-infinity': 'infinity',
+  'bali 4.2': 'infinity',
+  'maria1': 'maria 1',
+  'maria 1': 'maria 1',
+  'jeanneau-so-449-maria1': 'maria 1',
+  'maria2': 'maria 2',
+  'maria 2': 'maria 2',
+  'jeanneau-yacht-54-maria2': 'maria 2',
+  'bar-bar': 'bar bar',
+  'bar bar': 'bar bar',
+  'barbar': 'bar bar',
+  'beneteau-oceanis-46-1-bar-bar': 'bar bar',
+  'kalispera': 'kalispera',
+  'bavaria-c42-kalispera': 'kalispera',
+  'valesia': 'valesia',
+  'bavaria-c42-valesia': 'valesia'
 };
 
 const VESSEL_HOTSPOTS = {
-  'lagoon-42-bob': [
+  'bob': [
     { id: "hs_kitchen", x: 0.4535, y: 0.5945, title: "KITCHEN", category: "items" },
     { id: "hs_nav", x: 0.5421, y: 0.6283, title: "NAVIGATION", category: "navItems" },
     { id: "hs_safety", x: 0.5491, y: 0.5582, title: "SAFETY", category: "safetyItems" },
@@ -172,7 +173,7 @@ const VESSEL_HOTSPOTS = {
     { id: "hs_fenders", x: 0.4702, y: 0.1176, title: "FENDERS", category: "fendersItems" },
     { id: "hs_boathook", x: 0.3070, y: 0.2466, title: "BOAT-HOOK", category: "boathookItems" }
   ],
-  'lagoon-46-perla': [
+  'perla': [
     { id: "hs_kitchen", x: 0.4338, y: 0.4225, title: "KITCHEN", category: "items" },
     { id: "hs_nav", x: 0.5359, y: 0.4063, title: "NAVIGATION", category: "navItems" },
     { id: "hs_safety", x: 0.5277, y: 0.5828, title: "SAFETY", category: "safetyItems" },
@@ -183,7 +184,7 @@ const VESSEL_HOTSPOTS = {
     { id: "hs_fenders", x: 0.4410, y: 0.0672, title: "FENDERS", category: "fendersItems" },
     { id: "hs_boathook", x: 0.2889, y: 0.2035, title: "BOAT-HOOK", category: "boathookItems" }
   ],
-  'bali-42-infinity': [
+  'infinity': [
     { id: "hs_kitchen", x: 0.5553, y: 0.5426, title: "KITCHEN", category: "items" },
     { id: "hs_nav", x: 0.5650, y: 0.6989, title: "NAVIGATION", category: "navItems" },
     { id: "hs_safety", x: 0.3629, y: 0.6930, title: "SAFETY", category: "safetyItems" },
@@ -194,7 +195,7 @@ const VESSEL_HOTSPOTS = {
     { id: "hs_fenders", x: 0.4779, y: 0.2438, title: "FENDERS", category: "fendersItems" },
     { id: "hs_boathook", x: 0.4123, y: 0.3063, title: "BOAT-HOOK", category: "boathookItems" }
   ],
-  'jeanneau-so-449-maria1': [
+  'maria 1': [
     { id: "hs_kitchen", x: 0.3718, y: 0.8627, title: "KITCHEN", category: "items" },
     { id: "hs_nav", x: 0.4760, y: 0.7257, title: "NAVIGATION", category: "navItems" },
     { id: "hs_safety", x: 0.5343, y: 0.8412, title: "SAFETY", category: "safetyItems" },
@@ -204,7 +205,7 @@ const VESSEL_HOTSPOTS = {
     { id: "hs_fenders", x: 0.4447, y: 0.4036, title: "FENDERS", category: "fendersItems" },
     { id: "hs_boathook", x: 0.3926, y: 0.2398, title: "BOAT-HOOK", category: "boathookItems" }
   ],
-  'jeanneau-yacht-54-maria2': [
+  'maria 2': [
     { id: "hs_kitchen", x: 0.511393, y: 0.285991, title: "KITCHEN", category: "items" },
     { id: "hs_nav", x: 0.40931, y: 0.429192, title: "NAVIGATION", category: "navItems" },
     { id: "hs_safety", x: 0.53431, y: 0.403785, title: "SAFETY", category: "safetyItems" },
@@ -215,7 +216,7 @@ const VESSEL_HOTSPOTS = {
     { id: "hs_fenders", x: 0.45306, y: 0.66016, title: "FENDERS", category: "fendersItems" },
     { id: "hs_boathook", x: 0.387405, y: 0.813892, title: "BOAT-HOOK", category: "boathookItems" }
   ],
-  'beneteau-oceanis-46-1-bar-bar': [
+  'bar bar': [
     { id: "hs_kitchen", x: 0.4500, y: 0.5990, title: "KITCHEN", category: "items" },
     { id: "hs_nav", x: 0.3786, y: 0.8444, title: "NAVIGATION", category: "navItems" },
     { id: "hs_safety", x: 0.5025, y: 0.7677, title: "SAFETY", category: "safetyItems" },
@@ -226,7 +227,7 @@ const VESSEL_HOTSPOTS = {
     { id: "hs_fenders", x: 0.3500, y: 0.0156, title: "FENDERS", category: "fendersItems" },
     { id: "hs_boathook", x: 0.3700, y: 0.2400, title: "BOAT-HOOK", category: "boathookItems" }
   ],
-  'bavaria-c42-kalispera': [
+  'kalispera': [
     { id: "hs_kitchen", x: 0.3788, y: 0.5919, title: "KITCHEN", category: "items" },
     { id: "hs_nav", x: 0.4337, y: 0.6070, title: "NAVIGATION", category: "navItems" },
     { id: "hs_safety", x: 0.4870, y: 0.7080, title: "SAFETY", category: "safetyItems" },
@@ -236,7 +237,7 @@ const VESSEL_HOTSPOTS = {
     { id: "hs_fenders", x: 0.4062, y: 0.0715, title: "FENDERS", category: "fendersItems" },
     { id: "hs_boathook", x: 0.3361, y: 0.2534, title: "BOAT-HOOK", category: "boathookItems" }
   ],
-  'bavaria-c42-valesia': [
+  'valesia': [
     { id: "hs_kitchen", x: 0.3879, y: 0.6020, title: "KITCHEN", category: "items" },
     { id: "hs_nav", x: 0.4489, y: 0.6247, title: "NAVIGATION", category: "navItems" },
     { id: "hs_safety", x: 0.4977, y: 0.7131, title: "SAFETY", category: "safetyItems" },
@@ -249,7 +250,7 @@ const VESSEL_HOTSPOTS = {
 };
 
 const getHotspotsForVessel = (vesselId) => {
-  return VESSEL_HOTSPOTS[vesselId] || VESSEL_HOTSPOTS['lagoon-42-bob'];
+  return VESSEL_HOTSPOTS[vesselId] || VESSEL_HOTSPOTS['bob'];
 };
 
 export default function Page4({ onNavigate }) {
@@ -292,7 +293,7 @@ export default function Page4({ onNavigate }) {
   const [pendingFlashItemId, setPendingFlashItemId] = useState(null);
   const [zoomUrl, setZoomUrl] = useState(null);
   
-  const [selectedVessel, setSelectedVessel] = useState('lagoon-42-bob');
+  const [selectedVessel, setSelectedVessel] = useState('bob');
   const [activeSection, setActiveSection] = useState(null);
   const [hoveredHotspot, setHoveredHotspot] = useState(null);
   const [imageError, setImageError] = useState(false);
@@ -357,42 +358,34 @@ export default function Page4({ onNavigate }) {
 
         if (rawVesselName) {
           const vesselLower = rawVesselName.toLowerCase();
-          let vesselId: string | null = null;
+          let vesselKey: string | null = null;
 
-          // Step 1: Try exact match by boat nickname (most reliable)
-          for (const [nickname, id] of Object.entries(BOAT_NAME_TO_VESSEL_ID)) {
-            if (vesselLower.includes(nickname)) {
-              vesselId = id;
-              console.log('📍 Matched by nickname:', nickname, '→', id);
-              break;
-            }
+          // Step 1: Try direct match in aliases
+          if (VESSEL_NAME_ALIASES[vesselLower]) {
+            vesselKey = VESSEL_NAME_ALIASES[vesselLower];
+            console.log('📍 Direct alias match:', vesselLower, '→', vesselKey);
           }
 
-          // Step 2: Try converted vessel ID match
-          if (!vesselId) {
-            const convertedId = vesselLower
-              .replace(/\s+/g, '-')
-              .replace(/[()]/g, '')
-              .replace(/\./g, '-')
-              .replace('4-2', '42')
-              .replace('sun-odyssey', 'so')
-              .replace('cruiser-', '');
-
-            if (VESSEL_FLOORPLANS[convertedId]) {
-              vesselId = convertedId;
-              console.log('📍 Matched by converted ID:', convertedId);
+          // Step 2: Try partial match by boat nickname
+          if (!vesselKey) {
+            for (const [alias, key] of Object.entries(VESSEL_NAME_ALIASES)) {
+              if (vesselLower.includes(alias)) {
+                vesselKey = key;
+                console.log('📍 Partial match:', alias, '→', vesselKey);
+                break;
+              }
             }
           }
 
           // Step 3: Fallback to default
-          if (!vesselId) {
+          if (!vesselKey) {
             console.warn('⚠️ No floorplan found for vessel:', rawVesselName, '- using default');
-            vesselId = 'lagoon-42-bob';
+            vesselKey = 'bob';
           }
 
-          console.log('📍 Final vessel ID:', vesselId);
-          console.log('📍 Floorplan URL:', VESSEL_FLOORPLANS[vesselId]);
-          setSelectedVessel(vesselId);
+          console.log('📍 Final vessel key:', vesselKey);
+          console.log('📍 Floorplan URL:', VESSEL_FLOORPLANS[vesselKey]);
+          setSelectedVessel(vesselKey);
         }
         
         loadDataForMode(currentBooking, savedMode);
