@@ -617,6 +617,28 @@ export default function Page1() {
   // 🔥 NEW: Validation error states
   const [bookingCodeError, setBookingCodeError] = useState('');
   const [doubleBookingError, setDoubleBookingError] = useState('');
+
+  // 🔥 Helper: Find category for a vessel name from fleet
+  const findCategoryForVessel = (vesselName: string, fleetData: any) => {
+    if (!vesselName || !fleetData) return null;
+    const vesselLower = vesselName.toLowerCase();
+
+    for (const [category, vessels] of Object.entries(fleetData)) {
+      if (Array.isArray(vessels)) {
+        for (const v of vessels) {
+          // Check if vessel name matches (case-insensitive)
+          if (v.toLowerCase() === vesselLower ||
+              vesselLower.includes(v.toLowerCase()) ||
+              v.toLowerCase().includes(vesselLower)) {
+            console.log('📍 Found category for vessel:', vesselName, '→', category);
+            return { category, vesselName: v }; // Return exact vessel name from fleet
+          }
+        }
+      }
+    }
+    return null;
+  };
+
 // 🔥 AUTO-LOAD booking from HomePage
   useEffect(() => {
     if (location.state?.bookingCode) {
@@ -627,7 +649,18 @@ export default function Page1() {
         const data = await loadBookingData(bookingCode);
         if (data) {
           setCurrentBookingNumber(bookingCode);
-          const formData = { ...data, status: data.status || 'Draft' };
+          let formData = { ...data, status: data.status || 'Draft' };
+
+          // 🔥 AUTO-POPULATE: Find category for vessel if missing
+          if (formData.vesselName && !formData.vesselCategory) {
+            const match = findCategoryForVessel(formData.vesselName, fleet);
+            if (match) {
+              formData.vesselCategory = match.category;
+              formData.vesselName = match.vesselName;
+              console.log('📍 Auto-populated category from HomePage:', match.category);
+            }
+          }
+
           setForm(formData);  // 🔥 Default to Draft
           setLastSavedForm(JSON.stringify(formData));  // 🔥 Mark as saved
           setHasUnsavedChanges(false);
@@ -636,7 +669,8 @@ export default function Page1() {
       };
       loadData();
     }
-  }, [location.state]);
+  }, [location.state, fleet]);
+
   // 🔥 CRITICAL FIX: Load data when booking number or mode changes
   useEffect(() => {
     console.log('🔄 Loading data for booking:', currentBookingNumber);
@@ -646,7 +680,34 @@ export default function Page1() {
         const data = await loadBookingData(currentBookingNumber);
         if (data) {
           console.log('✅ Data loaded successfully');
-          const formData = { ...data, status: data.status || 'Draft' };
+          let formData = { ...data, status: data.status || 'Draft' };
+
+          // 🔥 AUTO-POPULATE: If vesselName exists but category is missing/wrong, find the correct category
+          if (formData.vesselName && !formData.vesselCategory) {
+            const match = findCategoryForVessel(formData.vesselName, fleet);
+            if (match) {
+              formData.vesselCategory = match.category;
+              formData.vesselName = match.vesselName; // Use exact name from fleet
+              console.log('📍 Auto-populated category:', match.category, 'for vessel:', match.vesselName);
+            }
+          }
+          // Also check if category exists but vessel isn't in that category's list
+          else if (formData.vesselName && formData.vesselCategory) {
+            const categoryVessels = fleet?.[formData.vesselCategory] || [];
+            const vesselInCategory = categoryVessels.some(
+              (v: string) => v.toLowerCase() === formData.vesselName.toLowerCase()
+            );
+            if (!vesselInCategory) {
+              // Vessel not in specified category, try to find correct category
+              const match = findCategoryForVessel(formData.vesselName, fleet);
+              if (match) {
+                formData.vesselCategory = match.category;
+                formData.vesselName = match.vesselName;
+                console.log('📍 Corrected category:', match.category, 'for vessel:', match.vesselName);
+              }
+            }
+          }
+
           setForm(formData);  // 🔥 Default to Draft
           setLastSavedForm(JSON.stringify(formData));  // 🔥 Mark as saved
           setHasUnsavedChanges(false);
@@ -657,7 +718,7 @@ export default function Page1() {
       };
       loadData();
     }
-  }, [currentBookingNumber]);
+  }, [currentBookingNumber, fleet]);
   
   useEffect(() => {
     const handleOnline = () => {
