@@ -56,62 +56,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// Database connection - adjust credentials for your server
+// Database connection - PostgreSQL
 $host = 'localhost';
-$dbname = 'yacht_management';
-$username = 'your_username';
-$password = 'your_password';
+$dbname = 'yachtdb';
+$username = 'yachtadmin';
+$password = 'YachtDB2024!';
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
+    $pdo = new PDO("pgsql:host=$host;dbname=$dbname", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Database connection failed']);
+    echo json_encode(['success' => false, 'error' => 'Database connection failed: ' . $e->getMessage()]);
     exit();
 }
 
-// Auto-create tables if they don't exist
+// Auto-create tables if they don't exist (PostgreSQL syntax)
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS chats (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         chat_id VARCHAR(100) UNIQUE NOT NULL,
         booking_code VARCHAR(100) NOT NULL,
         vessel_name VARCHAR(255) DEFAULT NULL,
         customer_name VARCHAR(255) DEFAULT NULL,
-        category ENUM('TECHNICAL', 'FINANCIAL', 'BOOKING') NOT NULL DEFAULT 'BOOKING',
-        status ENUM('ACTIVE', 'CLOSED') DEFAULT 'ACTIVE',
-        is_visitor TINYINT(1) DEFAULT 0,
+        category VARCHAR(20) NOT NULL DEFAULT 'BOOKING' CHECK (category IN ('TECHNICAL', 'FINANCIAL', 'BOOKING')),
+        status VARCHAR(10) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'CLOSED')),
+        is_visitor SMALLINT DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        INDEX idx_booking_code (booking_code),
-        INDEX idx_category (category),
-        INDEX idx_status (status),
-        INDEX idx_is_visitor (is_visitor)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    // Create indexes separately for PostgreSQL
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_chats_booking_code ON chats(booking_code)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_chats_category ON chats(category)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_chats_status ON chats(status)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_chats_is_visitor ON chats(is_visitor)");
 
     $pdo->exec("CREATE TABLE IF NOT EXISTS chat_messages (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         chat_id VARCHAR(100) NOT NULL,
         booking_code VARCHAR(100) NOT NULL,
         vessel_name VARCHAR(255) DEFAULT NULL,
         customer_name VARCHAR(255) DEFAULT NULL,
         sender_id VARCHAR(100) NOT NULL,
         sender_name VARCHAR(255) NOT NULL,
-        sender_role ENUM('CUSTOMER', 'TECHNICAL', 'FINANCIAL', 'BOOKING', 'ADMIN') NOT NULL,
-        recipient_role ENUM('TECHNICAL', 'FINANCIAL', 'BOOKING', 'ADMIN') NOT NULL,
-        category ENUM('TECHNICAL', 'FINANCIAL', 'BOOKING') NOT NULL,
+        sender_role VARCHAR(20) NOT NULL CHECK (sender_role IN ('CUSTOMER', 'TECHNICAL', 'FINANCIAL', 'BOOKING', 'ADMIN')),
+        recipient_role VARCHAR(20) NOT NULL CHECK (recipient_role IN ('TECHNICAL', 'FINANCIAL', 'BOOKING', 'ADMIN')),
+        category VARCHAR(20) NOT NULL CHECK (category IN ('TECHNICAL', 'FINANCIAL', 'BOOKING')),
         message TEXT NOT NULL,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        read_status TINYINT(1) DEFAULT 0,
-        is_visitor TINYINT(1) DEFAULT 0,
-        INDEX idx_chat_id (chat_id),
-        INDEX idx_booking_code (booking_code),
-        INDEX idx_recipient_role (recipient_role),
-        INDEX idx_category (category),
-        INDEX idx_read_status (read_status),
-        INDEX idx_timestamp (timestamp)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        read_status SMALLINT DEFAULT 0,
+        is_visitor SMALLINT DEFAULT 0
+    )");
+
+    // Create indexes separately for PostgreSQL
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON chat_messages(chat_id)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_booking_code ON chat_messages(booking_code)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_recipient_role ON chat_messages(recipient_role)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_category ON chat_messages(category)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_read_status ON chat_messages(read_status)");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON chat_messages(timestamp)");
 } catch(PDOException $e) {
     // Tables already exist or creation failed - continue anyway
 }
