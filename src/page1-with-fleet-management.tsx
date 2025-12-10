@@ -1569,10 +1569,35 @@ export default function Page1() {
     </div>
   );
 
-  // 🔥 NEW: Get bookings with memoization (using sync versions for useMemo)
-  // bookingsRefreshTrigger forces re-fetch when bookings are deleted from Admin Dashboard
-  const allBookings = useMemo(() => getAllBookingsSync(), [currentBookingNumber, bookingsRefreshTrigger]);
-  const todayCheckouts = useMemo(() => getTodayCheckoutsSync(), [currentBookingNumber, bookingsRefreshTrigger]);
+  // 🔥 NEW: State for bookings loaded from database API
+  const [allBookings, setAllBookings] = useState<any[]>([]);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+
+  // 🔥 Load bookings from database API (not localStorage)
+  useEffect(() => {
+    const loadBookingsFromAPI = async () => {
+      setIsLoadingBookings(true);
+      try {
+        // Use the async version that calls /api/bookings.php
+        const bookings = await getAllBookings();
+        console.log('✅ Page 1: Loaded', bookings.length, 'bookings from API');
+        setAllBookings(Array.isArray(bookings) ? bookings : []);
+      } catch (error) {
+        console.error('❌ Page 1: Error loading bookings from API:', error);
+        setAllBookings([]);
+      } finally {
+        setIsLoadingBookings(false);
+      }
+    };
+
+    loadBookingsFromAPI();
+  }, [currentBookingNumber, bookingsRefreshTrigger]); // Re-fetch when booking changes or refresh triggered
+
+  // 🔥 Compute today's checkouts from API-loaded bookings
+  const todayCheckouts = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    return allBookings.filter(booking => booking?.checkOutDate === today);
+  }, [allBookings]);
 
   // 🔥 NEW: Determine which bookings to show (ensure it's always an array)
   const displayedBookings = Array.isArray(showAllBookings ? allBookings : todayCheckouts)
