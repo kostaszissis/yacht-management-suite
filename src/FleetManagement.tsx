@@ -2062,7 +2062,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
     setStep(2);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     const employee = authService.getEmployeeByCode(adminCode);
     if (!employee || employee.role !== 'ADMIN') {
       setError('❌ Λάθος κωδικός Admin! Η διαγραφή ακυρώθηκε.');
@@ -2070,29 +2070,73 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
     }
 
     let deletedCount = 0;
+    const apiErrors: string[] = [];
 
-    dataTypes.forEach(dataType => {
+    // Helper function to delete from database API
+    const deleteFromDatabase = async (type: string): Promise<number> => {
+      try {
+        const response = await fetch('/api/delete-all.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type })
+        });
+        const result = await response.json();
+        if (result.success) {
+          console.log(`✅ Database delete (${type}):`, result);
+          return result.deleted_count || 0;
+        } else {
+          console.error(`❌ Database delete (${type}) failed:`, result.error);
+          apiErrors.push(`${type}: ${result.error}`);
+          return 0;
+        }
+      } catch (error) {
+        console.error(`❌ Database delete (${type}) error:`, error);
+        apiErrors.push(`${type}: Network error`);
+        return 0;
+      }
+    };
+
+    // Process each data type
+    for (const dataType of dataTypes) {
       const item = selectedItems[dataType.key];
-      if (!item.enabled) return;
+      if (!item.enabled) continue;
 
       if (dataType.key === 'activityLogs') {
         authService.clearActivityLogs();
         deletedCount++;
-        return;
+        continue;
       }
 
+      // Delete from localStorage
       const boatsToDelete = item.mode === 'all' ? boats : boats.filter(b => item.boats.includes(b.id));
-      
+
       boatsToDelete.forEach(boat => {
         const storageKey = `fleet_${boat.id}_${dataType.storageKey}`;
         localStorage.removeItem(storageKey);
         deletedCount++;
       });
-    });
+
+      // Delete from database API (only for types that have database tables)
+      if (item.mode === 'all') {
+        if (dataType.key === 'charters') {
+          // Delete ALL bookings from database
+          const dbCount = await deleteFromDatabase('bookings');
+          deletedCount += dbCount;
+        } else if (dataType.key === 'messages') {
+          // Delete ALL chats and messages from database
+          const dbCount = await deleteFromDatabase('chats');
+          deletedCount += dbCount;
+        }
+      }
+    }
 
     authService.logActivity('clear_data', `Deleted ${deletedCount} data items`);
-    
-    globalShowMessage(`✅ Διαγράφηκαν ${deletedCount} στοιχεία δεδομένων!`, 'success');
+
+    if (apiErrors.length > 0) {
+      globalShowMessage(`⚠️ Διαγράφηκαν ${deletedCount} στοιχεία (με σφάλματα: ${apiErrors.join(', ')})`, 'warning');
+    } else {
+      globalShowMessage(`✅ Διαγράφηκαν ${deletedCount} στοιχεία δεδομένων!`, 'success');
+    }
     onDataCleared();
     onClose();
   };
