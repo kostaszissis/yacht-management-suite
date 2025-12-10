@@ -1258,16 +1258,19 @@ export default function Page4({ onNavigate }) {
           </div>
         )}
 
-        <SignatureBox 
-          brand={brand}
-          lang={lang}
-          onSignChange={setSignatureImage}
-          onImageChange={setSignatureImage}
-          initialImage={signatureImage}
-          currentBookingNumber={currentBookingNumber}
-          mode={mode}
-          pageNumber={4}
-        />
+        {/* Signature box - only show on main map view, not inside hotspot popups */}
+        {!activeSection && (
+          <SignatureBox
+            brand={brand}
+            lang={lang}
+            onSignChange={setSignatureImage}
+            onImageChange={setSignatureImage}
+            initialImage={signatureImage}
+            currentBookingNumber={currentBookingNumber}
+            mode={mode}
+            pageNumber={4}
+          />
+        )}
 
         <ActionButtons 
           onPrevious={handlePrevious}
