@@ -1,13 +1,28 @@
 <?php
 /**
- * PAGE 4 API - Vessel Inspection
- * Handles: hull/deck/interior conditions, engine hours, fuel/water/battery levels, damage reports, photos
+ * PAGE 4 API - Vessel Floorplan & Inspection
+ * Handles: floorplan hotspot items with checkbox states, photos, and inspection data
  */
 
 require_once __DIR__ . '/db_connect.php';
 
+// Auto-create page4_checklist table if it doesn't exist
+function ensurePage4ChecklistTable($pdo) {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS page4_checklist (
+        id SERIAL PRIMARY KEY,
+        booking_number VARCHAR(100) NOT NULL,
+        mode VARCHAR(10) DEFAULT 'in',
+        checklist_data TEXT,
+        last_saved TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(booking_number, mode)
+    )");
+    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_page4_checklist_bn ON page4_checklist(booking_number)");
+}
+
 try {
     $pdo = getDbConnection();
+    ensurePage4ChecklistTable($pdo);
+
     $method = $_SERVER['REQUEST_METHOD'];
     $input = getJsonInput();
     $bookingNumber = getBookingNumber($input);
@@ -18,28 +33,41 @@ try {
                 errorResponse('booking_number is required', 400);
             }
 
-            $stmt = $pdo->prepare("
-                SELECT * FROM page4_inspection
-                WHERE booking_number = :bn
+            // Get mode from query parameter
+            $mode = $_GET['mode'] ?? 'in';
+
+            // Get checklist data from new table
+            $checklistStmt = $pdo->prepare("
+                SELECT checklist_data, mode, last_saved FROM page4_checklist
+                WHERE booking_number = :bn AND mode = :mode
             ");
-            $stmt->execute(['bn' => $bookingNumber]);
-            $data = $stmt->fetch();
+            $checklistStmt->execute(['bn' => $bookingNumber, 'mode' => $mode]);
+            $checklistRow = $checklistStmt->fetch();
 
-            if ($data) {
-                // Parse JSON fields
-                $result = convertKeysToCamel($data);
-                $result['damagesFound'] = json_decode($data['damages_found'], true);
-                $result['photos'] = json_decode($data['photos'], true);
-                $result['floorplanAnnotations'] = json_decode($data['floorplan_annotations'], true);
-
+            if ($checklistRow && $checklistRow['checklist_data']) {
                 successResponse([
-                    'inspectionData' => $result
+                    'checklistData' => json_decode($checklistRow['checklist_data'], true),
+                    'mode' => $checklistRow['mode'],
+                    'lastSaved' => $checklistRow['last_saved']
                 ]);
             } else {
-                successResponse([
-                    'inspectionData' => null,
-                    'message' => 'No data found for this booking'
-                ]);
+                // Fallback: try old page4_inspection table
+                $stmt = $pdo->prepare("SELECT * FROM page4_inspection WHERE booking_number = :bn");
+                $stmt->execute(['bn' => $bookingNumber]);
+                $data = $stmt->fetch();
+
+                if ($data) {
+                    $result = convertKeysToCamel($data);
+                    $result['damagesFound'] = json_decode($data['damages_found'], true);
+                    $result['photos'] = json_decode($data['photos'], true);
+                    $result['floorplanAnnotations'] = json_decode($data['floorplan_annotations'], true);
+                    successResponse(['inspectionData' => $result]);
+                } else {
+                    successResponse([
+                        'checklistData' => null,
+                        'message' => 'No data found for this booking'
+                    ]);
+                }
             }
             break;
 
@@ -51,7 +79,32 @@ try {
             // Ensure booking exists in main table
             ensureBookingExists($pdo, $bookingNumber);
 
-            // Check if record already exists
+            // Check if this is the new checklistData format
+            $checklistData = $input['checklistData'] ?? $input['checklist_data'] ?? null;
+            $mode = $input['mode'] ?? 'in';
+
+            if ($checklistData) {
+                // Save to new checklist table with upsert
+                $stmt = $pdo->prepare("
+                    INSERT INTO page4_checklist (booking_number, mode, checklist_data, last_saved)
+                    VALUES (:bn, :mode, :data, NOW())
+                    ON CONFLICT (booking_number, mode)
+                    DO UPDATE SET checklist_data = :data, last_saved = NOW()
+                ");
+                $stmt->execute([
+                    'bn' => $bookingNumber,
+                    'mode' => $mode,
+                    'data' => json_encode($checklistData)
+                ]);
+
+                successResponse([
+                    'booking_number' => $bookingNumber,
+                    'mode' => $mode
+                ], 'Page 4 checklist data saved successfully');
+                break;
+            }
+
+            // Fallback: old format - save to page4_inspection table
             $checkStmt = $pdo->prepare("SELECT id FROM page4_inspection WHERE booking_number = :bn");
             $checkStmt->execute(['bn' => $bookingNumber]);
 
@@ -59,7 +112,6 @@ try {
                 errorResponse('Record already exists. Use PUT to update.', 409);
             }
 
-            // Insert new record
             $stmt = $pdo->prepare("
                 INSERT INTO page4_inspection (
                     booking_number, inspection_type,
@@ -108,86 +160,67 @@ try {
             // Ensure booking exists
             ensureBookingExists($pdo, $bookingNumber);
 
-            // Check if record exists
+            // Check if this is the new checklistData format
+            $checklistData = $input['checklistData'] ?? $input['checklist_data'] ?? null;
+            $mode = $input['mode'] ?? 'in';
+
+            if ($checklistData) {
+                // Save to new checklist table with upsert
+                $stmt = $pdo->prepare("
+                    INSERT INTO page4_checklist (booking_number, mode, checklist_data, last_saved)
+                    VALUES (:bn, :mode, :data, NOW())
+                    ON CONFLICT (booking_number, mode)
+                    DO UPDATE SET checklist_data = :data, last_saved = NOW()
+                ");
+                $stmt->execute([
+                    'bn' => $bookingNumber,
+                    'mode' => $mode,
+                    'data' => json_encode($checklistData)
+                ]);
+
+                successResponse([
+                    'booking_number' => $bookingNumber,
+                    'mode' => $mode
+                ], 'Page 4 checklist data updated successfully');
+                break;
+            }
+
+            // Fallback: old format - page4_inspection table
             $checkStmt = $pdo->prepare("SELECT id FROM page4_inspection WHERE booking_number = :bn");
             $checkStmt->execute(['bn' => $bookingNumber]);
 
             if (!$checkStmt->fetch()) {
-                // Create new record if doesn't exist (upsert behavior)
                 $stmt = $pdo->prepare("
                     INSERT INTO page4_inspection (
                         booking_number, inspection_type,
-                        hull_condition, deck_condition, interior_condition,
-                        engine_hours, fuel_level, water_level, battery_level,
-                        damages_found, photos, floorplan_annotations,
-                        inspector_name, inspector_signature, inspection_date, notes
+                        damages_found, photos, floorplan_annotations, notes
                     ) VALUES (
                         :booking_number, :inspection_type,
-                        :hull_condition, :deck_condition, :interior_condition,
-                        :engine_hours, :fuel_level, :water_level, :battery_level,
-                        :damages_found, :photos, :floorplan_annotations,
-                        :inspector_name, :inspector_signature, :inspection_date, :notes
+                        :damages_found, :photos, :floorplan_annotations, :notes
                     )
                 ");
-
                 $stmt->execute([
                     'booking_number' => $bookingNumber,
-                    'inspection_type' => $input['inspectionType'] ?? $input['inspection_type'] ?? 'check_in',
-                    'hull_condition' => $input['hullCondition'] ?? $input['hull_condition'] ?? null,
-                    'deck_condition' => $input['deckCondition'] ?? $input['deck_condition'] ?? null,
-                    'interior_condition' => $input['interiorCondition'] ?? $input['interior_condition'] ?? null,
-                    'engine_hours' => $input['engineHours'] ?? $input['engine_hours'] ?? null,
-                    'fuel_level' => $input['fuelLevel'] ?? $input['fuel_level'] ?? null,
-                    'water_level' => $input['waterLevel'] ?? $input['water_level'] ?? null,
-                    'battery_level' => $input['batteryLevel'] ?? $input['battery_level'] ?? null,
-                    'damages_found' => json_encode($input['damagesFound'] ?? $input['damages_found'] ?? []),
+                    'inspection_type' => $input['inspectionType'] ?? 'check_in',
+                    'damages_found' => json_encode($input['damagesFound'] ?? []),
                     'photos' => json_encode($input['photos'] ?? []),
-                    'floorplan_annotations' => json_encode($input['floorplanAnnotations'] ?? $input['floorplan_annotations'] ?? []),
-                    'inspector_name' => $input['inspectorName'] ?? $input['inspector_name'] ?? null,
-                    'inspector_signature' => $input['inspectorSignature'] ?? $input['inspector_signature'] ?? null,
-                    'inspection_date' => $input['inspectionDate'] ?? $input['inspection_date'] ?? date('c'),
+                    'floorplan_annotations' => json_encode($input['floorplanAnnotations'] ?? []),
                     'notes' => $input['notes'] ?? null
                 ]);
             } else {
-                // Update existing record
                 $stmt = $pdo->prepare("
                     UPDATE page4_inspection SET
-                        inspection_type = COALESCE(:inspection_type, inspection_type),
-                        hull_condition = COALESCE(:hull_condition, hull_condition),
-                        deck_condition = COALESCE(:deck_condition, deck_condition),
-                        interior_condition = COALESCE(:interior_condition, interior_condition),
-                        engine_hours = COALESCE(:engine_hours, engine_hours),
-                        fuel_level = COALESCE(:fuel_level, fuel_level),
-                        water_level = COALESCE(:water_level, water_level),
-                        battery_level = COALESCE(:battery_level, battery_level),
                         damages_found = COALESCE(:damages_found, damages_found),
                         photos = COALESCE(:photos, photos),
                         floorplan_annotations = COALESCE(:floorplan_annotations, floorplan_annotations),
-                        inspector_name = COALESCE(:inspector_name, inspector_name),
-                        inspector_signature = COALESCE(:inspector_signature, inspector_signature),
-                        inspection_date = COALESCE(:inspection_date, inspection_date),
                         notes = COALESCE(:notes, notes)
                     WHERE booking_number = :booking_number
                 ");
-
                 $stmt->execute([
                     'booking_number' => $bookingNumber,
-                    'inspection_type' => $input['inspectionType'] ?? $input['inspection_type'] ?? null,
-                    'hull_condition' => $input['hullCondition'] ?? $input['hull_condition'] ?? null,
-                    'deck_condition' => $input['deckCondition'] ?? $input['deck_condition'] ?? null,
-                    'interior_condition' => $input['interiorCondition'] ?? $input['interior_condition'] ?? null,
-                    'engine_hours' => $input['engineHours'] ?? $input['engine_hours'] ?? null,
-                    'fuel_level' => $input['fuelLevel'] ?? $input['fuel_level'] ?? null,
-                    'water_level' => $input['waterLevel'] ?? $input['water_level'] ?? null,
-                    'battery_level' => $input['batteryLevel'] ?? $input['battery_level'] ?? null,
-                    'damages_found' => isset($input['damagesFound']) || isset($input['damages_found'])
-                        ? json_encode($input['damagesFound'] ?? $input['damages_found']) : null,
+                    'damages_found' => isset($input['damagesFound']) ? json_encode($input['damagesFound']) : null,
                     'photos' => isset($input['photos']) ? json_encode($input['photos']) : null,
-                    'floorplan_annotations' => isset($input['floorplanAnnotations']) || isset($input['floorplan_annotations'])
-                        ? json_encode($input['floorplanAnnotations'] ?? $input['floorplan_annotations']) : null,
-                    'inspector_name' => $input['inspectorName'] ?? $input['inspector_name'] ?? null,
-                    'inspector_signature' => $input['inspectorSignature'] ?? $input['inspector_signature'] ?? null,
-                    'inspection_date' => $input['inspectionDate'] ?? $input['inspection_date'] ?? null,
+                    'floorplan_annotations' => isset($input['floorplanAnnotations']) ? json_encode($input['floorplanAnnotations']) : null,
                     'notes' => $input['notes'] ?? null
                 ]);
             }

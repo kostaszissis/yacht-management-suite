@@ -1562,11 +1562,16 @@ export async function savePage2Data(
  * Hybrid: Load Page 2 data from API, fallback to localStorage
  */
 export async function getPage2DataHybrid(bookingNumber: string, mode: 'in' | 'out'): Promise<any | null> {
-  // Try API first
+  // Try API first with mode parameter
   try {
-    const apiData = await getPage2Data(bookingNumber);
-    if (apiData) {
-      return apiData;
+    const response = await fetch(`${PAGE2_API_URL}?booking_number=${encodeURIComponent(bookingNumber)}&mode=${mode}`);
+    if (response.ok) {
+      const result = await response.json();
+      // Extract checklistData from API response
+      if (result.success && result.checklistData) {
+        console.log('✅ Page 2 data loaded from API');
+        return result.checklistData;
+      }
     }
   } catch (error) {
     console.warn('⚠️ Page 2 API failed, trying localStorage...', error);
@@ -1617,10 +1622,14 @@ export async function savePage2DataHybrid(
     console.warn('⚠️ localStorage save error:', e);
   }
 
-  // Try to save to API
+  // Try to save to API - wrap ALL data in checklistData for generic storage
   try {
-    const crewList = data.crewList || data.crew || [];
-    const result = await savePage2Data(bookingNumber, crewList);
+    const apiData = {
+      checklistData: data,  // Store entire page data as JSON
+      mode: mode,
+      lastSaved: new Date().toISOString()
+    };
+    const result = await savePage2Data(bookingNumber, apiData as any);
     if (result.success) {
       // Mark as synced
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
@@ -1629,6 +1638,7 @@ export async function savePage2DataHybrid(
         localStorage.setItem('bookings', JSON.stringify(bookings));
       }
       synced = true;
+      console.log('✅ Page 2 synced to API');
     }
   } catch (error) {
     console.warn('⚠️ API sync failed, will retry later:', error);
@@ -1727,11 +1737,16 @@ export async function savePage3Data(
  * Hybrid: Load Page 3 data from API, fallback to localStorage
  */
 export async function getPage3DataHybrid(bookingNumber: string, mode: 'in' | 'out'): Promise<any | null> {
-  // Try API first
+  // Try API first with mode parameter
   try {
-    const apiData = await getPage3Data(bookingNumber);
-    if (apiData) {
-      return apiData;
+    const response = await fetch(`${PAGE3_API_URL}?booking_number=${encodeURIComponent(bookingNumber)}&mode=${mode}`);
+    if (response.ok) {
+      const result = await response.json();
+      // Extract checklistData from API response
+      if (result.success && result.checklistData) {
+        console.log('✅ Page 3 data loaded from API');
+        return result.checklistData;
+      }
     }
   } catch (error) {
     console.warn('⚠️ Page 3 API failed, trying localStorage...', error);
@@ -1782,9 +1797,14 @@ export async function savePage3DataHybrid(
     console.warn('⚠️ localStorage save error:', e);
   }
 
-  // Try to save to API
+  // Try to save to API - wrap ALL data in checklistData for generic storage
   try {
-    const result = await savePage3Data(bookingNumber, data);
+    const apiData = {
+      checklistData: data,  // Store entire page data as JSON
+      mode: mode,
+      lastSaved: new Date().toISOString()
+    };
+    const result = await savePage3Data(bookingNumber, apiData);
     if (result.success) {
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
       if (bookings[bookingNumber]) {
@@ -1792,6 +1812,7 @@ export async function savePage3DataHybrid(
         localStorage.setItem('bookings', JSON.stringify(bookings));
       }
       synced = true;
+      console.log('✅ Page 3 synced to API');
     }
   } catch (error) {
     console.warn('⚠️ API sync failed, will retry later:', error);
@@ -1896,11 +1917,16 @@ export async function savePage4Data(
  * Hybrid: Load Page 4 data from API, fallback to localStorage
  */
 export async function getPage4DataHybrid(bookingNumber: string, mode: 'in' | 'out'): Promise<any | null> {
-  // Try API first
+  // Try API first with mode parameter
   try {
-    const apiData = await getPage4Data(bookingNumber);
-    if (apiData) {
-      return apiData;
+    const response = await fetch(`${PAGE4_API_URL}?booking_number=${encodeURIComponent(bookingNumber)}&mode=${mode}`);
+    if (response.ok) {
+      const result = await response.json();
+      // Extract checklistData from API response
+      if (result.success && result.checklistData) {
+        console.log('✅ Page 4 data loaded from API');
+        return result.checklistData;
+      }
     }
   } catch (error) {
     console.warn('⚠️ Page 4 API failed, trying localStorage...', error);
@@ -1951,9 +1977,14 @@ export async function savePage4DataHybrid(
     console.warn('⚠️ localStorage save error:', e);
   }
 
-  // Try to save to API
+  // Try to save to API - wrap ALL data in checklistData for generic storage
   try {
-    const result = await savePage4Data(bookingNumber, data);
+    const apiData = {
+      checklistData: data,  // Store entire page data as JSON
+      mode: mode,
+      lastSaved: new Date().toISOString()
+    };
+    const result = await savePage4Data(bookingNumber, apiData as any);
     if (result.success) {
       const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
       if (bookings[bookingNumber]) {
@@ -1961,6 +1992,7 @@ export async function savePage4DataHybrid(
         localStorage.setItem('bookings', JSON.stringify(bookings));
       }
       synced = true;
+      console.log('✅ Page 4 synced to API');
     }
   } catch (error) {
     console.warn('⚠️ API sync failed, will retry later:', error);
