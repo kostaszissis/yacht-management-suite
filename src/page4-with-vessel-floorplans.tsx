@@ -433,15 +433,15 @@ export default function Page4({ onNavigate }) {
     }
 
     if (data) {
-      setItems(data.items || initItems(KITCHEN_KEYS));
-      setNavItems(data.navItems || initItems(NAV_KEYS));
-      setSafetyItems(data.safetyItems || initItems(SAFETY_KEYS));
-      setGenItems(data.genItems || initItems(GEN_KEYS));
-      setDeckItems(data.deckItems || initItems(DECK_KEYS));
-      setFdeckItems(data.fdeckItems || initItems(FDECK_KEYS));
-      setDinghyItems(data.dinghyItems || initItems(DINGHY_KEYS));
-      setFendersItems(data.fendersItems || initItems(FENDERS_KEYS));
-      setBoathookItems(data.boathookItems || initItems(BOATHOOK_KEYS));
+      setItems(data.items?.length ? data.items : initItems(KITCHEN_KEYS));
+      setNavItems(data.navItems?.length ? data.navItems : initItems(NAV_KEYS));
+      setSafetyItems(data.safetyItems?.length ? data.safetyItems : initItems(SAFETY_KEYS));
+      setGenItems(data.genItems?.length ? data.genItems : initItems(GEN_KEYS));
+      setDeckItems(data.deckItems?.length ? data.deckItems : initItems(DECK_KEYS));
+      setFdeckItems(data.fdeckItems?.length ? data.fdeckItems : initItems(FDECK_KEYS));
+      setDinghyItems(data.dinghyItems?.length ? data.dinghyItems : initItems(DINGHY_KEYS));
+      setFendersItems(data.fendersItems?.length ? data.fendersItems : initItems(FENDERS_KEYS));
+      setBoathookItems(data.boathookItems?.length ? data.boathookItems : initItems(BOATHOOK_KEYS));
       setNotes(data.notes || "");
       setSignatureImage(data.signatureImage || "");
     } else {
@@ -1180,101 +1180,98 @@ export default function Page4({ onNavigate }) {
           </div>
         )}
 
-        {/* Notes, Media Gallery, and Signature - only show on main map view, NOT in hotspot popups */}
-        {!activeSection && (
-          <>
-            <div className="mt-6 border-2 rounded-xl p-4" style={{ borderColor: brand.blue }}>
-              <label className="block font-semibold" style={{ color: brand.black }}>{t.note}</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="mt-2 w-full border rounded p-3 min-h-[180px] bg-white"
-                placeholder={t.notePH}
-                style={{ borderColor: brand.black, color: brand.black }}
-              />
-            </div>
+        <div className="mt-6 border-2 rounded-xl p-4" style={{ borderColor: brand.blue }}>
+          <label className="block font-semibold" style={{ color: brand.black }}>{t.note}</label>
+          <textarea 
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="mt-2 w-full border rounded p-3 min-h-[180px] bg-white" 
+            placeholder={t.notePH} 
+            style={{ borderColor: brand.black, color: brand.black }} 
+          />
+        </div>
 
-            {allMedia.length > 0 ? (
-              <div className="mt-6 border-2 rounded-xl p-4" style={{ borderColor: brand.blue }}>
-                <label className="block font-semibold mb-3" style={{ color: brand.black }}>
-                  {t.picsTitle}
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                  {allMedia.map((media) => (
-                    <div key={media.id} className="relative border-2 rounded-lg overflow-hidden" style={{ borderColor: brand.black }}>
-                      <img
-                        src={media.url}
-                        alt={getLabel(media.itemKey, lang)}
-                        className="w-full h-24 object-cover cursor-pointer"
-                        onClick={() => setZoomUrl(media.url)}
-                      />
-                      <div className="absolute top-1 right-1 flex gap-1">
-                        <button
-                          onClick={() => setZoomUrl(media.url)}
-                          className="bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
-                        >
-                          🔍
-                        </button>
-                        <button
-                          onClick={() => {
-                            // Find the correct section and item
-                            const sectionMappings = [
-                              { section: 'items', data: items },
-                              { section: 'navItems', data: navItems },
-                              { section: 'safetyItems', data: safetyItems },
-                              { section: 'genItems', data: genItems },
-                              { section: 'deckItems', data: deckItems },
-                              { section: 'fdeckItems', data: fdeckItems },
-                              { section: 'dinghyItems', data: dinghyItems },
-                              { section: 'fendersItems', data: fendersItems },
-                              { section: 'boathookItems', data: boathookItems }
-                            ];
-
-                            for (const { section, data } of sectionMappings) {
-                              const item = data.find(it => it.key === media.itemKey);
-                              if (item) {
-                                removeMedia(section, item.id, media.id);
-                                break;
-                              }
-                            }
-                          }}
-                          className="bg-white rounded-full p-1 shadow-md hover:bg-red-100"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs px-2 py-1 truncate">
-                        {getLabel(media.itemKey, lang)}
-                      </div>
-                    </div>
-                  ))}
+        {allMedia.length > 0 ? (
+          <div className="mt-6 border-2 rounded-xl p-4" style={{ borderColor: brand.blue }}>
+            <label className="block font-semibold mb-3" style={{ color: brand.black }}>
+              {t.picsTitle}
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {allMedia.map((media) => (
+                <div key={media.id} className="relative border-2 rounded-lg overflow-hidden" style={{ borderColor: brand.black }}>
+                  <img 
+                    src={media.url} 
+                    alt={getLabel(media.itemKey, lang)}
+                    className="w-full h-24 object-cover cursor-pointer"
+                    onClick={() => setZoomUrl(media.url)}
+                  />
+                  <div className="absolute top-1 right-1 flex gap-1">
+                    <button 
+                      onClick={() => setZoomUrl(media.url)}
+                      className="bg-white rounded-full p-1 shadow-md hover:bg-gray-100"
+                    >
+                      🔍
+                    </button>
+                    <button 
+                      onClick={() => {
+                        // Find the correct section and item
+                        const sectionMappings = [
+                          { section: 'items', data: items },
+                          { section: 'navItems', data: navItems },
+                          { section: 'safetyItems', data: safetyItems },
+                          { section: 'genItems', data: genItems },
+                          { section: 'deckItems', data: deckItems },
+                          { section: 'fdeckItems', data: fdeckItems },
+                          { section: 'dinghyItems', data: dinghyItems },
+                          { section: 'fendersItems', data: fendersItems },
+                          { section: 'boathookItems', data: boathookItems }
+                        ];
+                        
+                        for (const { section, data } of sectionMappings) {
+                          const item = data.find(it => it.key === media.itemKey);
+                          if (item) {
+                            removeMedia(section, item.id, media.id);
+                            break;
+                          }
+                        }
+                      }}
+                      className="bg-white rounded-full p-1 shadow-md hover:bg-red-100"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-xs px-2 py-1 truncate">
+                    {getLabel(media.itemKey, lang)}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="mt-6 border-2 rounded-xl p-4 text-center" style={{ borderColor: brand.blue }}>
-                <label className="block font-semibold mb-2" style={{ color: brand.black }}>
-                  {t.picsTitle}
-                </label>
-                <p className="text-gray-400 text-sm">
-                  {lang === 'el' ? 'Δεν έχουν προστεθεί φωτογραφίες ακόμα.' : 'No photos added yet.'}
-                </p>
-              </div>
-            )}
-
-            <SignatureBox
-              brand={brand}
-              lang={lang}
-              onSignChange={setSignatureImage}
-              onImageChange={setSignatureImage}
-              initialImage={signatureImage}
-              currentBookingNumber={currentBookingNumber}
-              mode={mode}
-              pageNumber={4}
-            />
-          </>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 border-2 rounded-xl p-4 text-center" style={{ borderColor: brand.blue }}>
+            <label className="block font-semibold mb-2" style={{ color: brand.black }}>
+              {t.picsTitle}
+            </label>
+            <p className="text-gray-400 text-sm">
+              {lang === 'el' ? 'Δεν έχουν προστεθεί φωτογραφίες ακόμα.' : 'No photos added yet.'}
+            </p>
+          </div>
         )}
 
-        <ActionButtons
+        {!activeSection && (
+          <SignatureBox
+            brand={brand}
+            lang={lang}
+            onSignChange={setSignatureImage}
+            onImageChange={setSignatureImage}
+            initialImage={signatureImage}
+            currentBookingNumber={currentBookingNumber}
+            mode={mode}
+            pageNumber={4}
+          />
+        )}
+
+        <ActionButtons 
           onPrevious={handlePrevious}
           onSave={handleSave}
           onClear={handleClearForm}
