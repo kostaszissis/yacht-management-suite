@@ -539,18 +539,20 @@ export async function getBookingsByVesselHybrid(vesselId: number | string): Prom
 
     console.log(`✅ Loaded ${apiCharters.length} charters from API for vessel ${vesselId}`);
 
-    // Merge API data with localStorage (API takes priority for same booking code)
-    const mergedCharters = mergeCharters(apiCharters, localCharters);
+    // 🔥 FIX: API is SOURCE OF TRUTH - always use API data when API succeeds
+    // This ensures deleted data doesn't reappear from localStorage
+    localStorage.setItem(primaryKey, JSON.stringify(apiCharters));
+    console.log(`💾 Saved ${apiCharters.length} charters to ${primaryKey} (API is source of truth)`);
 
-    // 🔥 FIX: Only update localStorage if we have data (don't overwrite with empty)
-    if (mergedCharters.length > 0 || localCharters.length === 0) {
-      localStorage.setItem(primaryKey, JSON.stringify(mergedCharters));
-      console.log(`💾 Saved ${mergedCharters.length} charters to ${primaryKey}`);
-    } else {
-      console.log(`⚠️ Skipping localStorage save - would overwrite ${localCharters.length} local charters with empty API result`);
-    }
+    // 🔥 Also clear any other localStorage keys for this vessel to prevent duplicates
+    keysToCheck.forEach(key => {
+      if (key !== primaryKey) {
+        localStorage.removeItem(key);
+        console.log(`🧹 Cleared old localStorage key: ${key}`);
+      }
+    });
 
-    return mergedCharters;
+    return apiCharters;
   } catch (error) {
     console.warn(`⚠️ API failed for vessel ${vesselId}, using localStorage fallback:`, error);
     return localCharters;
@@ -587,22 +589,21 @@ export async function getAllBookingsHybrid(): Promise<{ [vesselId: string]: any[
       }
     }
 
-    // Merge with localStorage for each vessel
+    // 🔥 FIX: API is SOURCE OF TRUTH - clear localStorage and save API data
+    // This ensures deleted data doesn't reappear from localStorage
     const allLocalStorageKeys = Object.keys(localStorage).filter(k => k.startsWith('fleet_') && k.endsWith('_ΝΑΥΛΑ'));
+
+    // Clear all localStorage keys for vessels
     for (const key of allLocalStorageKeys) {
-      const vesselIdMatch = key.match(/fleet_(.+)_ΝΑΥΛΑ/);
-      if (vesselIdMatch) {
-        const vesselId = vesselIdMatch[1];
-        try {
-          const localCharters = JSON.parse(localStorage.getItem(key) || '[]');
-          const apiCharters = result[vesselId] || [];
-          result[vesselId] = mergeCharters(apiCharters, localCharters);
-          // Update localStorage
-          localStorage.setItem(key, JSON.stringify(result[vesselId]));
-        } catch (e) {
-          console.warn(`Error merging for ${key}:`, e);
-        }
-      }
+      localStorage.removeItem(key);
+      console.log(`🧹 Cleared localStorage key: ${key}`);
+    }
+
+    // Save API data to localStorage for each vessel
+    for (const vesselId of Object.keys(result)) {
+      const key = `fleet_${vesselId}_ΝΑΥΛΑ`;
+      localStorage.setItem(key, JSON.stringify(result[vesselId]));
+      console.log(`💾 Saved ${result[vesselId].length} charters to ${key}`);
     }
 
     return result;
