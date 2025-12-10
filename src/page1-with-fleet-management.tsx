@@ -519,7 +519,31 @@ export default function Page1() {
   // EMPLOYEE_CODES removed - now using authService
 
   const [currentEmployee, setCurrentEmployee] = useState(null);
-  
+
+  // 🔥 NEW: Refresh trigger for when bookings are deleted from Admin Dashboard
+  const [bookingsRefreshTrigger, setBookingsRefreshTrigger] = useState(() => {
+    return localStorage.getItem('bookings_refresh_trigger') || '0';
+  });
+
+  // 🔥 Listen for bookings deletion from Admin Dashboard
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'bookings_refresh_trigger' && e.newValue) {
+        console.log('🔄 Bookings refresh triggered from Admin Dashboard');
+        setBookingsRefreshTrigger(e.newValue);
+        // Also clear current booking if it was deleted
+        const currentBooking = localStorage.getItem('currentBooking');
+        if (!currentBooking) {
+          setCurrentBookingNumber('');
+          setForm(prev => ({ ...prev, bookingNumber: '' }));
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const bookingRef = useRef(null);
   const vesselRef = useRef(null);
   const checkInRef = useRef(null);
@@ -1546,8 +1570,9 @@ export default function Page1() {
   );
 
   // 🔥 NEW: Get bookings with memoization (using sync versions for useMemo)
-  const allBookings = useMemo(() => getAllBookingsSync(), [currentBookingNumber]);
-  const todayCheckouts = useMemo(() => getTodayCheckoutsSync(), [currentBookingNumber]);
+  // bookingsRefreshTrigger forces re-fetch when bookings are deleted from Admin Dashboard
+  const allBookings = useMemo(() => getAllBookingsSync(), [currentBookingNumber, bookingsRefreshTrigger]);
+  const todayCheckouts = useMemo(() => getTodayCheckoutsSync(), [currentBookingNumber, bookingsRefreshTrigger]);
 
   // 🔥 NEW: Determine which bookings to show (ensure it's always an array)
   const displayedBookings = Array.isArray(showAllBookings ? allBookings : todayCheckouts)

@@ -2132,6 +2132,23 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
 
     authService.logActivity('clear_data', `Deleted ${deletedCount} data items`);
 
+    // 🔥 Set refresh trigger so other pages (like Page 1) know to reload data
+    const refreshTimestamp = Date.now().toString();
+    localStorage.setItem('bookings_refresh_trigger', refreshTimestamp);
+
+    // 🔥 Also clear the main 'bookings' localStorage if charters were deleted
+    if (selectedItems.charters?.enabled && selectedItems.charters?.mode === 'all') {
+      localStorage.removeItem('bookings');
+      localStorage.removeItem('currentBooking');
+      console.log('🧹 Cleared main bookings localStorage');
+    }
+
+    // 🔥 Dispatch storage event manually for same-tab listeners
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'bookings_refresh_trigger',
+      newValue: refreshTimestamp
+    }));
+
     if (apiErrors.length > 0) {
       globalShowMessage(`⚠️ Διαγράφηκαν ${deletedCount} στοιχεία (με σφάλματα: ${apiErrors.join(', ')})`, 'warning');
     } else {
