@@ -1281,39 +1281,6 @@ export default function Page1() {
     alert(lang === 'el' ? 'Το προσχέδιο αποθηκεύτηκε!' : 'Draft saved!');
   };
 
-  // 🔥 NEW: Send booking data to Charter Management (Fleet Management)
-  const handleSendToCharterManagement = () => {
-    if (!validateAndScroll()) return;
-
-    // Save booking first
-    const dataToSave = { ...form, mode };
-    saveBookingData(currentBookingNumber || form.bookingNumber, dataToSave);
-
-    // 🔥 Mark as saved - clear unsaved changes flag
-    setLastSavedForm(JSON.stringify(form));
-    setHasUnsavedChanges(false);
-
-    // Navigate to Fleet Management with pre-filled charter data
-    navigate('/fleet-management', {
-      state: {
-        userType: 'COMPANY',
-        isAdmin: true,
-        prefillCharter: {
-          charterCode: form.bookingNumber,
-          vesselName: form.vesselName,
-          startDate: form.checkInDate,
-          endDate: form.checkOutDate,
-          skipperName: `${form.skipperFirstName} ${form.skipperLastName}`.trim(),
-          skipperEmail: form.skipperEmail,
-          skipperPhone: `${form.phoneCountryCode}${form.skipperPhone}`,
-          skipperAddress: form.skipperAddress,
-        }
-      }
-    });
-
-    console.log('📤 Sending booking data to Charter Management');
-  };
-
   const handleClearForm = () => {
     if (window.confirm(lang === 'el' ? 'Είστε σίγουροι ότι θέλετε να διαγράψετε όλα τα πεδία;' : 'Are you sure you want to clear all fields?')) {
       setForm({
@@ -2233,14 +2200,6 @@ export default function Page1() {
                   onClick={handleSaveDraft}
                   className="px-5 py-2.5 rounded text-sm font-medium bg-gray-600 text-white hover:bg-gray-700">
                   {t.saveDraft}
-                </button>
-                {/* 🔥 NEW: Send to Charter Management */}
-                <button
-                  type="button"
-                  onClick={handleSendToCharterManagement}
-                  className="px-5 py-2.5 rounded text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-2"
-                  title={lang === 'el' ? 'Δημιουργία ναύλου στο Booking Management' : 'Create charter in Booking Management'}>
-                  📋 {lang === 'el' ? 'Ναύλος' : 'Charter'}
                 </button>
                 <button
                   type="button"
