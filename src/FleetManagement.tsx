@@ -1980,6 +1980,7 @@ function EmployeeManagementModal({ onClose }) {
 function DataManagementModal({ onClose, boats, onDataCleared }) {
   const [selectedItems, setSelectedItems] = useState({
     charters: { enabled: false, mode: 'all', boats: [] },
+    page1Charters: { enabled: false, mode: 'all', bookings: [] }, // 🔥 NEW: Page 1 bookings
     invoices: { enabled: false, mode: 'all', boats: [] },
     tasks: { enabled: false, mode: 'all', boats: [] },
     messages: { enabled: false, mode: 'all', boats: [] },
@@ -1992,8 +1993,34 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
   const [error, setError] = useState('');
   const [expandedItem, setExpandedItem] = useState(null);
 
+  // 🔥 NEW: State for fetched bookings from API
+  const [apiBookings, setApiBookings] = useState<any[]>([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
+
+  // 🔥 NEW: Fetch bookings from API when page1Charters is expanded
+  const fetchBookingsFromAPI = async () => {
+    setLoadingBookings(true);
+    try {
+      const response = await fetch('/api/bookings.php');
+      const data = await response.json();
+      if (data.success && data.bookings) {
+        const bookingsList = Array.isArray(data.bookings) ? data.bookings : Object.values(data.bookings);
+        setApiBookings(bookingsList);
+        console.log('✅ Fetched', bookingsList.length, 'bookings from API');
+      } else {
+        setApiBookings([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching bookings:', error);
+      setApiBookings([]);
+    } finally {
+      setLoadingBookings(false);
+    }
+  };
+
   const dataTypes = [
-    { key: 'charters', label: 'Ναύλοι', icon: '⚓', storageKey: 'ΝΑΥΛΑ', hasBoats: true },
+    { key: 'charters', label: 'Ναύλοι (localStorage)', icon: '⚓', storageKey: 'ΝΑΥΛΑ', hasBoats: true },
+    { key: 'page1Charters', label: 'Ναύλοι Page 1 (Database)', icon: '📝', hasBoats: false, hasBookings: true }, // 🔥 NEW
     { key: 'invoices', label: 'Τιμολόγια/Έξοδα', icon: '📄', storageKey: 'ΤΙΜΟΛΟΓΙΑ', hasBoats: true },
     { key: 'tasks', label: 'Εργασίες', icon: '📋', storageKey: 'ΕΡΓΑΣΙΕΣ', hasBoats: true },
     { key: 'messages', label: 'Μηνύματα', icon: '💬', storageKey: 'messages', hasBoats: true },
@@ -2040,13 +2067,47 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
     });
   };
 
+  // 🔥 NEW: Toggle individual booking selection for page1Charters
+  const toggleBookingSelection = (bookingCode: string) => {
+    setSelectedItems(prev => {
+      const currentBookings = prev.page1Charters.bookings || [];
+      const newBookings = currentBookings.includes(bookingCode)
+        ? currentBookings.filter(code => code !== bookingCode)
+        : [...currentBookings, bookingCode];
+      return {
+        ...prev,
+        page1Charters: { ...prev.page1Charters, bookings: newBookings }
+      };
+    });
+  };
+
+  // 🔥 NEW: Select/deselect all bookings
+  const selectAllBookings = () => {
+    setSelectedItems(prev => {
+      const currentBookings = prev.page1Charters.bookings || [];
+      const newBookings = currentBookings.length === apiBookings.length
+        ? []
+        : apiBookings.map(b => b.code || b.bookingCode || b.id);
+      return {
+        ...prev,
+        page1Charters: { ...prev.page1Charters, bookings: newBookings }
+      };
+    });
+  };
+
   const getSelectedCount = () => {
     return Object.values(selectedItems).filter(item => item.enabled).length;
   };
 
   const isValidSelection = () => {
     for (const [key, value] of Object.entries(selectedItems)) {
-      if (value.enabled && value.mode === 'selective' && value.boats?.length === 0) {
+      const item = value as any;
+      // 🔥 Handle page1Charters separately (uses bookings instead of boats)
+      if (key === 'page1Charters') {
+        if (item.enabled && item.mode === 'selective' && (!item.bookings || item.bookings.length === 0)) {
+          return false;
+        }
+      } else if (item.enabled && item.mode === 'selective' && item.boats?.length === 0) {
         return false;
       }
     }
@@ -2107,6 +2168,53 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
         continue;
       }
 
+      // 🔥 NEW: Handle page1Charters separately (deletes from database)
+      if (dataType.key === 'page1Charters') {
+        const page1Item = selectedItems.page1Charters;
+
+        if (page1Item.mode === 'all') {
+          // Delete ALL bookings from database
+          const dbCount = await deleteFromDatabase('bookings');
+          deletedCount += dbCount;
+          // Clear Page 1 localStorage
+          localStorage.removeItem('bookings');
+          localStorage.removeItem('currentBooking');
+          console.log('🧹 Cleared all Page 1 bookings from database and localStorage');
+        } else if (page1Item.mode === 'selective' && page1Item.bookings?.length > 0) {
+          // Delete selected bookings one by one
+          for (const bookingCode of page1Item.bookings) {
+            try {
+              const response = await fetch(`/api/bookings.php?booking_number=${encodeURIComponent(bookingCode)}`, {
+                method: 'DELETE'
+              });
+              const result = await response.json();
+              if (result.success) {
+                console.log(`✅ Deleted booking: ${bookingCode}`);
+                deletedCount++;
+                // Also remove from localStorage 'bookings' object
+                const bookingsStr = localStorage.getItem('bookings');
+                if (bookingsStr) {
+                  const bookings = JSON.parse(bookingsStr);
+                  delete bookings[bookingCode];
+                  localStorage.setItem('bookings', JSON.stringify(bookings));
+                }
+              } else {
+                console.error(`❌ Failed to delete ${bookingCode}:`, result.error);
+                apiErrors.push(`${bookingCode}: ${result.error}`);
+              }
+            } catch (error) {
+              console.error(`❌ Error deleting ${bookingCode}:`, error);
+              apiErrors.push(`${bookingCode}: Network error`);
+            }
+          }
+          console.log(`🧹 Deleted ${page1Item.bookings.length} selected bookings`);
+        }
+        continue;
+      }
+
+      // Skip page1Charters in regular processing (handled above)
+      if (!dataType.storageKey) continue;
+
       // Delete from localStorage
       const boatsToDelete = item.mode === 'all' ? boats : boats.filter(b => item.boats.includes(b.id));
 
@@ -2163,9 +2271,17 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
     dataTypes.forEach(dataType => {
       const item = selectedItems[dataType.key];
       if (!item.enabled) return;
-      
+
       if (dataType.key === 'activityLogs') {
         summary.push({ icon: dataType.icon, label: dataType.label, detail: 'Όλα' });
+      } else if (dataType.key === 'page1Charters') {
+        // Handle page1Charters separately (uses bookings)
+        if (item.mode === 'all') {
+          summary.push({ icon: dataType.icon, label: dataType.label, detail: 'Όλες οι κρατήσεις' });
+        } else {
+          const count = selectedItems.page1Charters.bookings?.length || 0;
+          summary.push({ icon: dataType.icon, label: dataType.label, detail: `${count} κρατήσεις` });
+        }
       } else if (item.mode === 'all') {
         summary.push({ icon: dataType.icon, label: dataType.label, detail: 'Όλα τα σκάφη' });
       } else {
@@ -2278,6 +2394,100 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                               </div>
                               {item.boats.length === 0 && (
                                 <p className="text-xs text-red-400 mt-2">⚠️ Επιλέξτε τουλάχιστον ένα σκάφος</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 🔥 NEW: Options for page1Charters (uses bookings instead of boats) */}
+                      {item.enabled && dataType.hasBookings && (
+                        <div className="px-3 pb-3 border-t border-red-700">
+                          <div className="flex gap-2 mt-3">
+                            <button
+                              onClick={() => setMode(dataType.key, 'all')}
+                              className={`flex-1 py-2 px-3 rounded text-sm font-bold ${
+                                item.mode === 'all'
+                                  ? 'bg-red-600 text-white'
+                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              }`}
+                            >
+                              ΟΛΑ
+                            </button>
+                            <button
+                              onClick={() => {
+                                setMode(dataType.key, 'selective');
+                                if (apiBookings.length === 0) {
+                                  fetchBookingsFromAPI();
+                                }
+                              }}
+                              className={`flex-1 py-2 px-3 rounded text-sm font-bold ${
+                                item.mode === 'selective'
+                                  ? 'bg-orange-600 text-white'
+                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                              }`}
+                            >
+                              ΕΠΙΛΕΚΤΙΚΑ
+                            </button>
+                          </div>
+
+                          {/* Booking selection */}
+                          {item.mode === 'selective' && (
+                            <div className="mt-3 p-2 bg-gray-800 rounded-lg max-h-60 overflow-y-auto">
+                              {loadingBookings ? (
+                                <div className="text-center py-4">
+                                  <span className="text-gray-400">⏳ Φόρτωση κρατήσεων...</span>
+                                </div>
+                              ) : apiBookings.length === 0 ? (
+                                <div className="text-center py-4">
+                                  <span className="text-gray-400">Δεν υπάρχουν κρατήσεις</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex justify-between items-center mb-2">
+                                    <span className="text-xs text-gray-400">
+                                      Επιλέξτε κρατήσεις ({selectedItems.page1Charters.bookings?.length || 0}/{apiBookings.length}):
+                                    </span>
+                                    <button
+                                      onClick={selectAllBookings}
+                                      className="text-xs text-teal-400 hover:text-teal-300"
+                                    >
+                                      {selectedItems.page1Charters.bookings?.length === apiBookings.length ? 'Κανένα' : 'Όλα'}
+                                    </button>
+                                  </div>
+                                  <div className="space-y-1">
+                                    {apiBookings.map(booking => {
+                                      const bookingCode = booking.code || booking.bookingCode || booking.booking_number || booking.id;
+                                      const isSelected = selectedItems.page1Charters.bookings?.includes(bookingCode);
+                                      return (
+                                        <button
+                                          key={bookingCode}
+                                          onClick={() => toggleBookingSelection(bookingCode)}
+                                          className={`w-full p-2 rounded text-left text-xs ${
+                                            isSelected
+                                              ? 'bg-orange-600 text-white'
+                                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                          }`}
+                                        >
+                                          <div className="flex justify-between items-center">
+                                            <span className="font-bold">{bookingCode}</span>
+                                            <span className={isSelected ? 'text-white' : 'text-gray-400'}>
+                                              {isSelected ? '✓' : ''}
+                                            </span>
+                                          </div>
+                                          <div className="text-xs opacity-75 mt-1">
+                                            {booking.vesselName || booking.vessel_name || booking.vessel || '-'} | {
+                                              booking.startDate || booking.start_date || booking.checkInDate || '-'
+                                            }
+                                          </div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </>
+                              )}
+                              {item.mode === 'selective' && selectedItems.page1Charters.bookings?.length === 0 && !loadingBookings && apiBookings.length > 0 && (
+                                <p className="text-xs text-red-400 mt-2">⚠️ Επιλέξτε τουλάχιστον μία κράτηση</p>
                               )}
                             </div>
                           )}
