@@ -476,7 +476,7 @@ export default function Page1() {
   const location = useLocation();
   
   const context = useContext(DataContext);
-  const { data: contextData, updateData } = context || {};
+  const { data: contextData, updateData, globalBookings, isRefreshing: globalIsRefreshing, refreshBookings } = context || {};
   
   const [currentBookingNumber, setCurrentBookingNumber] = useState(() => {
     return localStorage.getItem('currentBooking') || '';
@@ -1569,29 +1569,27 @@ export default function Page1() {
     </div>
   );
 
-  // 🔥 NEW: State for bookings loaded from database API
-  const [allBookings, setAllBookings] = useState<any[]>([]);
-  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  // 🔥 UPDATED: Use global bookings from App.tsx context (auto-refreshes every 3 minutes)
+  const allBookings = globalBookings || [];
+  const isLoadingBookings = globalIsRefreshing || false;
 
-  // 🔥 Load bookings from database API (not localStorage)
+  // 🔥 Listen for global refresh events (triggered by App.tsx auto-refresh)
   useEffect(() => {
-    const loadBookingsFromAPI = async () => {
-      setIsLoadingBookings(true);
-      try {
-        // Use the async version that calls /api/bookings.php
-        const bookings = await getAllBookings();
-        console.log('✅ Page 1: Loaded', bookings.length, 'bookings from API');
-        setAllBookings(Array.isArray(bookings) ? bookings : []);
-      } catch (error) {
-        console.error('❌ Page 1: Error loading bookings from API:', error);
-        setAllBookings([]);
-      } finally {
-        setIsLoadingBookings(false);
-      }
+    const handleGlobalRefresh = (e: CustomEvent) => {
+      console.log('🔄 Page 1: Received global bookings refresh', e.detail?.bookings?.length, 'bookings');
     };
 
-    loadBookingsFromAPI();
-  }, [currentBookingNumber, bookingsRefreshTrigger]); // Re-fetch when booking changes or refresh triggered
+    window.addEventListener('globalBookingsRefreshed', handleGlobalRefresh as EventListener);
+    return () => window.removeEventListener('globalBookingsRefreshed', handleGlobalRefresh as EventListener);
+  }, []);
+
+  // 🔥 Also refresh when delete trigger is set (from Admin Dashboard)
+  useEffect(() => {
+    if (bookingsRefreshTrigger !== '0' && refreshBookings) {
+      console.log('🔄 Page 1: Refresh triggered from Admin Dashboard, requesting global refresh');
+      refreshBookings();
+    }
+  }, [bookingsRefreshTrigger, refreshBookings]);
 
   // 🔥 Compute today's checkouts from API-loaded bookings
   const todayCheckouts = useMemo(() => {

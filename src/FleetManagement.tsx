@@ -11,8 +11,8 @@ import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBooking
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
-// 🔥 Auto-refresh hook for polling API data
-import { useAutoRefresh } from './hooks/useAutoRefresh';
+// 🔥 Auto-refresh now handled globally in App.tsx (every 3 minutes)
+// import { useAutoRefresh } from './hooks/useAutoRefresh';
 // 🔥 FIX 35: Professional PDF generation service
 import { generateOwnerCharterPDF } from './services/pdfTemplateService';
 // 🔥 FIX 36: Professional HTML email service (no PDF attachment)
@@ -3629,8 +3629,23 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
     }
   }, [boat]);
 
-  // 🔥 Auto-refresh: Poll bookings every 5 minutes
-  const { isRefreshing } = useAutoRefresh(loadBookings, 5);
+  // 🔥 REMOVED: Local 5-minute refresh - now using global 3-minute refresh from App.tsx
+  // const { isRefreshing } = useAutoRefresh(loadBookings, 5);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // 🔥 NEW: Listen for global refresh events from App.tsx (every 3 minutes)
+  useEffect(() => {
+    const handleGlobalRefresh = () => {
+      console.log('🔄 FleetManagement: Global refresh received, reloading bookings...');
+      setIsRefreshing(true);
+      loadBookings().finally(() => {
+        setTimeout(() => setIsRefreshing(false), 1000);
+      });
+    };
+
+    window.addEventListener('globalBookingsRefreshed', handleGlobalRefresh);
+    return () => window.removeEventListener('globalBookingsRefreshed', handleGlobalRefresh);
+  }, [loadBookings]);
 
   // 🔥 FIX 4: Use optional chaining in dependencies
   useEffect(() => {

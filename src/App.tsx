@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+
+// 🔥 Global auto-refresh interval (3 minutes)
+const AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // 180000 ms
 
 // Import των σελίδων σου
 import HomePage from './HomePage';
@@ -97,7 +100,13 @@ const NavigationWrapper: React.FC<{ pageNum: number; children: React.ReactNode }
 function App() {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(true);
-  
+
+  // 🔥 NEW: Global bookings state (shared across all pages)
+  const [globalBookings, setGlobalBookings] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Shared data across all pages
   const [sharedData, setSharedData] = useState<any>({
     mode: 'in', // Default mode: 'in' or 'out'
@@ -112,6 +121,73 @@ function App() {
 
   // Track previous mode for change detection
   const [previousMode, setPreviousMode] = useState<string>('in');
+
+  // 🔥 NEW: Fetch bookings from API
+  const fetchGlobalBookings = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      console.log('🔄 [Global Auto-Refresh] Fetching bookings from API...');
+
+      const response = await fetch('/api/bookings.php');
+      const data = await response.json();
+
+      if (data.success && data.bookings) {
+        const bookingsList = Array.isArray(data.bookings)
+          ? data.bookings
+          : Object.values(data.bookings);
+
+        setGlobalBookings(bookingsList);
+        setLastRefresh(new Date());
+
+        // 🔥 Dispatch event so all components know data was refreshed
+        window.dispatchEvent(new CustomEvent('globalBookingsRefreshed', {
+          detail: { bookings: bookingsList, timestamp: Date.now() }
+        }));
+
+        console.log(`✅ [Global Auto-Refresh] Loaded ${bookingsList.length} bookings`);
+      }
+    } catch (error) {
+      console.error('❌ [Global Auto-Refresh] Error fetching bookings:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // 🔥 NEW: Set up auto-refresh interval (3 minutes)
+  useEffect(() => {
+    // Initial fetch
+    fetchGlobalBookings();
+
+    // Set up interval
+    refreshIntervalRef.current = setInterval(() => {
+      console.log('⏰ [Global Auto-Refresh] 3-minute interval triggered');
+      fetchGlobalBookings();
+    }, AUTO_REFRESH_INTERVAL);
+
+    console.log('✅ [Global Auto-Refresh] Started - refreshing every 3 minutes');
+
+    // Cleanup on unmount
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        console.log('🛑 [Global Auto-Refresh] Stopped');
+      }
+    };
+  }, [fetchGlobalBookings]);
+
+  // 🔥 NEW: Listen for manual refresh requests from any component
+  useEffect(() => {
+    const handleRefreshRequest = () => {
+      console.log('📢 [Global Auto-Refresh] Manual refresh requested');
+      fetchGlobalBookings();
+    };
+
+    window.addEventListener('requestGlobalRefresh', handleRefreshRequest);
+
+    return () => {
+      window.removeEventListener('requestGlobalRefresh', handleRefreshRequest);
+    };
+  }, [fetchGlobalBookings]);
 
   // 🆕 Initialize authentication system on mount
   useEffect(() => {
@@ -395,7 +471,12 @@ function App() {
     addPhoto,
     saveToDatabase,
     finalizeCheckIn,
-    finalizeCheckOut
+    finalizeCheckOut,
+    // 🔥 NEW: Global bookings with auto-refresh
+    globalBookings,
+    isRefreshing,
+    lastRefresh,
+    refreshBookings: fetchGlobalBookings, // Manual refresh function
   };
 
   return (
