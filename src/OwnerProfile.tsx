@@ -77,7 +77,7 @@ export default function OwnerProfile() {
 
     // Try API if not found locally
     try {
-      const response = await fetch(`${API_BASE}/owner-profile/${code}`);
+      const response = await fetch(`${API_BASE}/owner-profile.php?code=${encodeURIComponent(code)}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -132,7 +132,7 @@ export default function OwnerProfile() {
 
     // Try API sync (optional - don't fail if API is down)
     try {
-      const response = await fetch(`${API_BASE}/owner-profile`, {
+      const response = await fetch(`${API_BASE}/owner-profile.php`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profileData)

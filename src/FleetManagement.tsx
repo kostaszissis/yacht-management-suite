@@ -6185,7 +6185,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     // 1. Try to delete from API (don't block on failure)
     if (bookingCode) {
       try {
-        const response = await fetch(`https://yachtmanagementsuite.com/api/bookings/${encodeURIComponent(bookingCode)}`, {
+        const response = await fetch(`https://yachtmanagementsuite.com/api/bookings.php?booking_number=${encodeURIComponent(bookingCode)}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }
         });

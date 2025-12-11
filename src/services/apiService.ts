@@ -104,7 +104,7 @@ export async function getBookings(filters?: {
   if (filters?.limit) params.append('limit', filters.limit.toString());
   if (filters?.offset) params.append('offset', filters.offset.toString());
 
-  const url = `${API_URL}/bookings${params.toString() ? '?' + params.toString() : ''}`;
+  const url = `${API_URL}/bookings.php${params.toString() ? '?' + params.toString() : ''}`;
   const response = await fetch(url);
   if (!response.ok) throw new Error('Failed to fetch bookings');
   return response.json();
@@ -115,7 +115,7 @@ export async function getBookings(filters?: {
  * @param bookingNumber - The booking number
  */
 export async function getBooking(bookingNumber: string) {
-  const response = await fetch(`${API_URL}/bookings/${bookingNumber}`);
+  const response = await fetch(`${API_URL}/bookings.php?booking_number=${encodeURIComponent(bookingNumber)}`);
   if (!response.ok) {
     if (response.status === 404) return null;
     throw new Error('Failed to fetch booking');
@@ -137,7 +137,7 @@ export async function createBooking(booking: {
   page4DataCheckIn?: any;
   page4DataCheckOut?: any;
 }) {
-  const response = await fetch(`${API_URL}/bookings`, {
+  const response = await fetch(`${API_URL}/bookings.php`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(booking)
@@ -167,7 +167,7 @@ export async function updateBooking(
     synced?: boolean;
   }
 ) {
-  const response = await fetch(`${API_URL}/bookings/${bookingNumber}`, {
+  const response = await fetch(`${API_URL}/bookings.php?booking_number=${encodeURIComponent(bookingNumber)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates)
@@ -202,7 +202,7 @@ export async function updateCharterStatus(
   };
 
   const encodedBookingNumber = encodeURIComponent(bookingNumber);
-  const response = await fetch(`${API_URL}/bookings/${encodedBookingNumber}`, {
+  const response = await fetch(`${API_URL}/bookings.php?booking_number=${encodedBookingNumber}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bookingData: updatedBookingData })
@@ -302,7 +302,7 @@ export async function updateCharterPayments(
 
   // 🔥 FIX 21: Encode booking number for URL (handles spaces in "CHARTER PARTY NO 2")
   const encodedBookingNumber = encodeURIComponent(bookingNumber);
-  const response = await fetch(`${API_URL}/bookings/${encodedBookingNumber}`, {
+  const response = await fetch(`${API_URL}/bookings.php?booking_number=${encodedBookingNumber}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ bookingData: updatedBookingData })
@@ -321,7 +321,7 @@ export async function updateCharterPayments(
  * @param bookingNumber - The booking number
  */
 export async function deleteBooking(bookingNumber: string) {
-  const response = await fetch(`${API_URL}/bookings/${bookingNumber}`, {
+  const response = await fetch(`${API_URL}/bookings.php?booking_number=${encodeURIComponent(bookingNumber)}`, {
     method: 'DELETE'
   });
   if (!response.ok) {
@@ -378,7 +378,7 @@ export async function saveBooking(
 export async function getAllBookings(): Promise<any[]> {
   try {
     console.log('🔄 [API] Fetching all bookings...');
-    const response = await fetch(`${API_URL}/bookings`);
+    const response = await fetch(`${API_URL}/bookings.php`);
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
@@ -406,7 +406,7 @@ export async function getBookingsByVessel(vesselId: number | string): Promise<an
 
   try {
     console.log(`🔄 [API] Fetching bookings for vessel: ${vesselName || vesselId}`);
-    const response = await fetch(`${API_URL}/bookings?vessel=${encodeURIComponent(vesselName || String(vesselId))}`);
+    const response = await fetch(`${API_URL}/bookings.php?vessel=${encodeURIComponent(vesselName || String(vesselId))}`);
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
@@ -881,8 +881,8 @@ export async function getCheckinData(
 ): Promise<CheckinData | null> {
   try {
     const url = category
-      ? `${API_URL}/${endpoint}/${vesselId}?category=${encodeURIComponent(category)}`
-      : `${API_URL}/${endpoint}/${vesselId}`;
+      ? `${API_URL}/${endpoint}.php?vessel_id=${vesselId}&category=${encodeURIComponent(category)}`
+      : `${API_URL}/${endpoint}.php?vessel_id=${vesselId}`;
 
     const response = await fetch(url);
 
@@ -910,7 +910,7 @@ export async function saveCheckinData(
   data: CheckinData
 ): Promise<{ success: boolean; message?: string }> {
   try {
-    const response = await fetch(`${API_URL}/${endpoint}/bulk`, {
+    const response = await fetch(`${API_URL}/${endpoint}.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
