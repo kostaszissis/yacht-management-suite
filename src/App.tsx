@@ -23,6 +23,7 @@ import TaskCategoryCheckin from './TaskCategoryCheckin';
 import SyncIndicator from './SyncIndicator';
 import { initializeAuth } from './authService';
 import authService from './authService';
+import { getVessels, migrateTasksFromLocalStorage, migrateInvoicesFromLocalStorage } from './services/apiService';
 
 // 🔥 Global auto-refresh interval (3 minutes)
 const AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // 180000 ms
@@ -195,6 +196,46 @@ function App() {
   useEffect(() => {
     initializeAuth();
     console.log('✅ Authentication system initialized');
+  }, []);
+
+  // 🔥 AUTO-MIGRATION: Upload localStorage data to API on app load
+  useEffect(() => {
+    const runMigration = async () => {
+      try {
+        console.log('🔄 [Auto-Migration] Starting automatic data migration...');
+
+        // Fetch all vessels from API
+        const vessels = await getVessels();
+
+        if (!vessels || vessels.length === 0) {
+          console.log('ℹ️ [Auto-Migration] No vessels found, skipping migration');
+          return;
+        }
+
+        console.log(`📦 [Auto-Migration] Found ${vessels.length} vessels, checking for localStorage data...`);
+
+        // Migrate data for each vessel
+        for (const vessel of vessels) {
+          const vesselId = vessel.id;
+          const vesselName = vessel.name || String(vesselId);
+
+          // Migrate tasks
+          await migrateTasksFromLocalStorage(vesselId, vesselName);
+
+          // Migrate invoices
+          await migrateInvoicesFromLocalStorage(vesselId, vesselName);
+        }
+
+        console.log('✅ [Auto-Migration] Completed for all vessels');
+      } catch (error) {
+        console.error('❌ [Auto-Migration] Error during migration:', error);
+      }
+    };
+
+    // Run migration after a short delay to not block initial render
+    const timer = setTimeout(runMigration, 2000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // 🆕 Load current booking number on mount (UI state only)
