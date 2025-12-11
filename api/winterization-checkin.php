@@ -181,13 +181,12 @@ try {
                     WHERE vessel_id = :vessel_id
                 ");
 
+                $customSections = $input['customSections'] ?? $input['custom_sections'] ?? null;
                 $stmt->execute([
                     'vessel_id' => $vesselId,
                     'vessel_name' => $input['vesselName'] ?? $input['vessel_name'] ?? null,
                     'sections' => isset($input['sections']) ? json_encode($input['sections']) : null,
-                    'custom_sections' => isset($input['customSections'] ?? $input['custom_sections'])
-                        ? json_encode($input['customSections'] ?? $input['custom_sections'])
-                        : null,
+                    'custom_sections' => $customSections !== null ? json_encode($customSections) : null,
                     'general_notes' => $input['generalNotes'] ?? $input['general_notes'] ?? null,
                     'last_saved' => $input['lastSaved'] ?? $input['last_saved'] ?? date('c')
                 ]);
