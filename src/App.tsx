@@ -1,10 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
-
-// 🔥 Global auto-refresh interval (3 minutes)
-const AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // 180000 ms
-
-// Import των σελίδων σου
 import HomePage from './HomePage';
 import Page1 from './page1-with-fleet-management';
 import Page2 from './vessel-checkin-page2';
@@ -17,18 +12,19 @@ import CompanyNews from './CompanyNews';
 import ChartererDashboard from './ChartererDashboard';
 import OwnerDashboard from './OwnerDashboard';
 import OwnerProfile from './OwnerProfile';
-import AdminPanel from './AdminPanel'; // 🆕 NEW
-import TechnicalSupportChat from './TechnicalSupportChat'; // 🆕 Technical Support Chat
-import TechnicalManagerDashboard from './TechnicalManagerDashboard'; // 🆕 Technical Manager Dashboard
-import WinterizationCheckin from './WinterizationCheckin'; // 🆕 Winterization Check-in
-import WinterMaintenanceInventory from './WinterMaintenanceInventory'; // 🆕 Winter Maintenance Inventory
-import WinterTakeOver from './WinterTakeOver'; // 🆕 Winter Take Over Tracking
-import WinterSafetyEquipment from './WinterSafetyEquipment'; // 🆕 Winter Safety Equipment with Expiry Tracking
-import TaskCategoryCheckin from './TaskCategoryCheckin'; // 🆕 Task Category Check-in Pages
-
-// 🆕 NEW: Import auth service
+import AdminPanel from './AdminPanel';
+import TechnicalSupportChat from './TechnicalSupportChat';
+import TechnicalManagerDashboard from './TechnicalManagerDashboard';
+import WinterizationCheckin from './WinterizationCheckin';
+import WinterMaintenanceInventory from './WinterMaintenanceInventory';
+import WinterTakeOver from './WinterTakeOver';
+import WinterSafetyEquipment from './WinterSafetyEquipment';
+import TaskCategoryCheckin from './TaskCategoryCheckin';
 import { initializeAuth } from './authService';
 import authService from './authService';
+
+// 🔥 Global auto-refresh interval (3 minutes)
+const AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // 180000 ms
 
 // 🔒 SECURITY: Protected Admin Route - Block Owner access
 const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -98,6 +94,8 @@ const NavigationWrapper: React.FC<{ pageNum: number; children: React.ReactNode }
 };
 
 function App() {
+  console.log('🚀 APP LOADED - App component rendering');
+
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(true);
 
