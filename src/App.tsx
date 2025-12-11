@@ -20,6 +20,7 @@ import WinterMaintenanceInventory from './WinterMaintenanceInventory';
 import WinterTakeOver from './WinterTakeOver';
 import WinterSafetyEquipment from './WinterSafetyEquipment';
 import TaskCategoryCheckin from './TaskCategoryCheckin';
+import SyncIndicator from './SyncIndicator';
 import { initializeAuth } from './authService';
 import authService from './authService';
 
@@ -342,6 +343,8 @@ function App() {
   return (
     <DataContext.Provider value={contextValue}>
       <Router>
+        {/* Sync status indicator - shows when refreshing data */}
+        <SyncIndicator isRefreshing={isRefreshing} lastRefresh={lastRefresh} />
         <div style={{ minHeight: '100vh', background: '#eae8dc' }}>
           <Routes>
             {/* Home Page - Landing page με Welcome Section */}
