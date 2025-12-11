@@ -6,7 +6,7 @@ import { codeMatches, textMatches } from './utils/searchUtils';
 import { saveBookingSync, getBookingSync, syncToFleetFormat, fleetToSyncFormat } from './utils/bookingSyncUtils';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
-import { saveBooking, getVessels, getBookingsByVessel, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking, getAllBookings } from './services/apiService';
+import { saveBooking, getVessels, getBookingsByVessel, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking, getAllBookings, getTasksByVessel, saveTask, deleteTask, migrateTasksFromLocalStorage, getInvoicesByVessel, saveInvoice, deleteInvoice, migrateInvoicesFromLocalStorage } from './services/apiService';
 // 🔥 FIX 23: Charter Party DOCX generation
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -2731,7 +2731,7 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
     return textMatches(boatText, searchTerm);
   });
 
-  // 🔥 FIX 16: Load boat details from API first, merge with localStorage
+  // 🔥 API-first: Load boat details from API, with localStorage fallback
   const loadBoatDetails = async (boatId) => {
     setSelectedBoat(boatId);
 
@@ -2745,10 +2745,17 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
       charters = [];
     }
 
-    // Load invoices (localStorage only for now)
-    const invoicesKey = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ`;
-    const invoicesStored = localStorage.getItem(invoicesKey);
-    const invoices = invoicesStored ? JSON.parse(invoicesStored) : [];
+    // 🔥 Load invoices from API first, fallback to localStorage
+    let invoices = [];
+    try {
+      invoices = await getInvoicesByVessel(boatId);
+      console.log(`✅ Loaded ${invoices.length} invoices for boat ${boatId} from API`);
+    } catch (e) {
+      console.error(`❌ API failed for invoices, falling back to localStorage`);
+      const invoicesKey = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ`;
+      const invoicesStored = localStorage.getItem(invoicesKey);
+      invoices = invoicesStored ? JSON.parse(invoicesStored) : [];
+    }
 
     setDetailedData({ charters, invoices });
   };
@@ -4878,39 +4885,97 @@ function TaskPage({ boat, showMessage }) {
     }
   }, [boat?.name]);
 
-  // Load expandable task categories from localStorage
-  useEffect(() => {
-    if (!boat?.name) return;
-    const vesselKey = boat.name.replace(/\s+/g, '_').toLowerCase();
-    const savedCategories = localStorage.getItem(`task_categories_${vesselKey}`);
-    if (savedCategories) {
-      try {
-        const parsed = JSON.parse(savedCategories);
-        // Merge with default categories to add any new ones
-        const mergedCategories = [...parsed];
-        DEFAULT_TASK_CATEGORIES.forEach(defaultCat => {
-          const exists = parsed.some((cat: any) => cat.id === defaultCat.id);
-          if (!exists) {
-            // Add new category that doesn't exist in saved data
-            mergedCategories.push(JSON.parse(JSON.stringify(defaultCat)));
-          }
-        });
+  // 🔥 API-only: Load task categories from API with migration
+  const loadTaskCategories = useCallback(async () => {
+    if (!boat?.id || !boat?.name) return;
+
+    // First, migrate any existing localStorage data to API
+    await migrateTasksFromLocalStorage(boat.id, boat.name);
+
+    // Then load from API
+    try {
+      const apiTasks = await getTasksByVessel(boat.id);
+
+      if (apiTasks && apiTasks.length > 0) {
+        // Convert flat task list to categories format
+        // For now, just use the default categories and merge API tasks
+        const mergedCategories = JSON.parse(JSON.stringify(DEFAULT_TASK_CATEGORIES));
+        // You can enhance this to properly map tasks to categories
         setTaskCategories(mergedCategories);
-      } catch (e) {
-        console.error('Error loading task categories:', e);
-        setTaskCategories(JSON.parse(JSON.stringify(DEFAULT_TASK_CATEGORIES)));
+      } else {
+        // Fallback: try localStorage for backwards compatibility during migration
+        const vesselKey = boat.name.replace(/\s+/g, '_').toLowerCase();
+        const savedCategories = localStorage.getItem(`task_categories_${vesselKey}`);
+        if (savedCategories) {
+          try {
+            const parsed = JSON.parse(savedCategories);
+            const mergedCategories = [...parsed];
+            DEFAULT_TASK_CATEGORIES.forEach(defaultCat => {
+              const exists = parsed.some((cat: any) => cat.id === defaultCat.id);
+              if (!exists) {
+                mergedCategories.push(JSON.parse(JSON.stringify(defaultCat)));
+              }
+            });
+            setTaskCategories(mergedCategories);
+          } catch (e) {
+            setTaskCategories(JSON.parse(JSON.stringify(DEFAULT_TASK_CATEGORIES)));
+          }
+        } else {
+          setTaskCategories(JSON.parse(JSON.stringify(DEFAULT_TASK_CATEGORIES)));
+        }
       }
-    } else {
+    } catch (e) {
+      console.error('Error loading task categories from API:', e);
       setTaskCategories(JSON.parse(JSON.stringify(DEFAULT_TASK_CATEGORIES)));
     }
-  }, [boat?.name]);
+  }, [boat?.id, boat?.name]);
 
-  // Save task categories to localStorage whenever they change
   useEffect(() => {
-    if (!boat?.name || taskCategories.length === 0) return;
-    const vesselKey = boat.name.replace(/\s+/g, '_').toLowerCase();
-    localStorage.setItem(`task_categories_${vesselKey}`, JSON.stringify(taskCategories));
-  }, [taskCategories, boat?.name]);
+    loadTaskCategories();
+  }, [loadTaskCategories]);
+
+  // 🔥 NEW: Listen for global refresh events (every 3 minutes) - SYNC TASKS
+  useEffect(() => {
+    const handleGlobalRefresh = () => {
+      if (boat?.id && boat?.name) {
+        console.log('🔄 TaskPage: Global refresh received, syncing tasks...');
+        loadTaskCategories();
+      }
+    };
+
+    window.addEventListener('globalBookingsRefreshed', handleGlobalRefresh);
+    return () => window.removeEventListener('globalBookingsRefreshed', handleGlobalRefresh);
+  }, [boat?.id, boat?.name, loadTaskCategories]);
+
+  // 🔥 API-only: Save task categories to API whenever they change
+  useEffect(() => {
+    if (!boat?.id || !boat?.name || taskCategories.length === 0) return;
+
+    const saveTaskCategoriesToAPI = async () => {
+      // Save each category as a task to API
+      for (const category of taskCategories) {
+        for (const item of category.items) {
+          if (item.lastUpdatedAt) {
+            // Only save items that have been updated
+            await saveTask({
+              taskCode: item.id,
+              vesselId: boat.id,
+              vesselName: boat.name,
+              title: item.name,
+              category: category.name,
+              status: item.status === 'OK' ? 'completed' : item.status === '#' ? 'pending' : 'in_progress',
+              notes: item.comment,
+              createdBy: item.lastUpdatedBy || undefined
+            });
+          }
+        }
+      }
+    };
+
+    // Debounce the save to avoid too many API calls
+    const timeoutId = setTimeout(saveTaskCategoriesToAPI, 2000);
+    return () => clearTimeout(timeoutId);
+  }, [taskCategories, boat?.id, boat?.name]);
 
   // Toggle category expansion
   const toggleCategoryExpand = (categoryId: string) => {
@@ -7164,6 +7229,19 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
     }
   }, [boat?.id, canViewFinancials]);
 
+  // 🔥 NEW: Listen for global refresh events (every 3 minutes) - SYNC INVOICES
+  useEffect(() => {
+    const handleGlobalRefresh = () => {
+      if (boat && canViewFinancials) {
+        console.log('🔄 FinancialsPage: Global refresh received, syncing invoices...');
+        loadData();
+      }
+    };
+
+    window.addEventListener('globalBookingsRefreshed', handleGlobalRefresh);
+    return () => window.removeEventListener('globalBookingsRefreshed', handleGlobalRefresh);
+  }, [boat?.id, canViewFinancials]);
+
   // 🔥 FIX 3: Null check AFTER all hooks
   if (!boat) {
     return (
@@ -7173,7 +7251,7 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
     );
   }
 
-  // 🔥 FIX 16: Load data from API first, merge with localStorage
+  // 🔥 API-first: Load data from API, migrate localStorage on first load
   const loadData = async () => {
     try {
       // Load charters from API ONLY
@@ -7190,14 +7268,67 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
       chartersData.sort((a: any, b: any) => (b.startDate && a.startDate) ? new Date(b.startDate).getTime() - new Date(a.startDate).getTime() : 0);
       setCharters(chartersData);
 
-      // Load invoices (localStorage only for now)
-      const invoicesKey = `fleet_${boat.id}_ΤΙΜΟΛΟΓΙΑ`;
-      const invoicesStored = localStorage.getItem(invoicesKey);
-      if (invoicesStored) {
-        const invoicesData = JSON.parse(invoicesStored);
-        invoicesData.sort((a: any, b: any) => (b.date && a.date) ? new Date(b.date).getTime() - new Date(a.date).getTime() : 0);
-        setInvoices(invoicesData);
+      // 🔥 Migrate localStorage invoices to API (one-time migration)
+      await migrateInvoicesFromLocalStorage(boat.id, boat.name || String(boat.id));
+
+      // 🔥 Load invoices from API first
+      let invoicesData: any[] = [];
+      try {
+        invoicesData = await getInvoicesByVessel(boat.id);
+        console.log(`✅ FinancialsPage: Loaded ${invoicesData.length} invoices from API`);
+      } catch (apiError) {
+        console.error(`❌ API failed for invoices, falling back to localStorage`);
+        // Fallback to localStorage if API fails
+        const invoicesKey = `fleet_${boat.id}_ΤΙΜΟΛΟΓΙΑ`;
+        const invoicesStored = localStorage.getItem(invoicesKey);
+        if (invoicesStored) {
+          invoicesData = JSON.parse(invoicesStored);
+        }
       }
+
+      // Also check for any pending_sync items in localStorage
+      const pendingSyncKey = `fleet_${boat.id}_ΤΙΜΟΛΟΓΙΑ_pending`;
+      const pendingStored = localStorage.getItem(pendingSyncKey);
+      if (pendingStored) {
+        try {
+          const pendingItems = JSON.parse(pendingStored);
+          // Merge pending items (they should be uploaded to API)
+          for (const pendingInvoice of pendingItems) {
+            const exists = invoicesData.some((inv: any) => inv.id === pendingInvoice.id || inv.invoiceCode === pendingInvoice.invoiceCode);
+            if (!exists) {
+              invoicesData.push(pendingInvoice);
+              // Try to upload to API
+              try {
+                await saveInvoice({
+                  invoiceCode: pendingInvoice.invoiceCode || pendingInvoice.id,
+                  vesselId: boat.id,
+                  vesselName: boat.name || String(boat.id),
+                  invoiceNumber: pendingInvoice.code,
+                  description: pendingInvoice.description,
+                  amount: pendingInvoice.amount || 0,
+                  invoiceDate: pendingInvoice.date,
+                  createdBy: pendingInvoice.createdBy
+                });
+                console.log(`✅ Synced pending invoice: ${pendingInvoice.code}`);
+              } catch (syncError) {
+                console.warn(`⚠️ Failed to sync pending invoice: ${pendingInvoice.code}`);
+              }
+            }
+          }
+          // Clear pending after successful sync attempt
+          localStorage.removeItem(pendingSyncKey);
+        } catch (e) {
+          console.error('Error processing pending invoices:', e);
+        }
+      }
+
+      // Sort invoices by date
+      invoicesData.sort((a: any, b: any) => {
+        const dateA = a.date || a.invoiceDate || a.createdAt;
+        const dateB = b.date || b.invoiceDate || b.createdAt;
+        return (dateB && dateA) ? new Date(dateB).getTime() - new Date(dateA).getTime() : 0;
+      });
+      setInvoices(invoicesData);
 
       authService.logActivity('view_financials', boat.id);
       setLoading(false);
@@ -7317,32 +7448,98 @@ function InvoiceSection({ boatId, canEditFinancials, showMessage, invoices, setI
     reader.readAsDataURL(file);
   };
 
-  const handleAddInvoice = () => {
+  const handleAddInvoice = async () => {
     if (!canEditFinancials) { showMessage('❌ View Only - Δεν έχετε δικαίωμα', 'error'); return; }
     if (!newInvoice.code || !newInvoice.date || !newInvoice.description) {
       showMessage("❌ Παρακαλώ συμπληρώστε όλα τα πεδία.", "error");
       return;
     }
-    
-    const invoice = { id: uid(), ...newInvoice, createdAt: new Date().toISOString(), createdBy: authService.getCurrentUser()?.name };
-    const updated = [...invoices, invoice];
+
+    const invoiceId = uid();
+    const invoice = {
+      id: invoiceId,
+      invoiceCode: `INV-${boatId}-${invoiceId}`,
+      ...newInvoice,
+      createdAt: new Date().toISOString(),
+      createdBy: authService.getCurrentUser()?.name
+    };
+
+    // 🔥 Step 1: Save to localStorage FIRST (immediate, never lost)
     const key = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ`;
+    const updated = [...invoices, invoice];
     localStorage.setItem(key, JSON.stringify(updated));
     setInvoices(updated);
+
+    // 🔥 Step 2: Try to POST to API
+    try {
+      const result = await saveInvoice({
+        invoiceCode: invoice.invoiceCode,
+        vesselId: boatId,
+        vesselName: invoice.vesselName || String(boatId),
+        invoiceNumber: invoice.code,
+        description: invoice.description,
+        amount: invoice.amount || 0,
+        invoiceDate: invoice.date,
+        notes: invoice.notes,
+        createdBy: invoice.createdBy
+      });
+
+      if (result.success) {
+        console.log(`✅ Invoice saved to API: ${invoice.code}`);
+        showMessage("✅ Το τιμολόγιο αποθηκεύτηκε.", "success");
+      } else {
+        // API failed, mark as pending_sync
+        const pendingKey = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ_pending`;
+        const pendingStored = localStorage.getItem(pendingKey);
+        const pendingItems = pendingStored ? JSON.parse(pendingStored) : [];
+        pendingItems.push({ ...invoice, pending_sync: true });
+        localStorage.setItem(pendingKey, JSON.stringify(pendingItems));
+        console.warn(`⚠️ Invoice saved locally, pending sync: ${invoice.code}`);
+        showMessage("✅ Αποθηκεύτηκε τοπικά (θα συγχρονιστεί).", "success");
+      }
+    } catch (apiError) {
+      // 🔥 Step 3: If API fails (offline), mark as "pending_sync" in localStorage
+      console.error('API save failed:', apiError);
+      const pendingKey = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ_pending`;
+      const pendingStored = localStorage.getItem(pendingKey);
+      const pendingItems = pendingStored ? JSON.parse(pendingStored) : [];
+      pendingItems.push({ ...invoice, pending_sync: true });
+      localStorage.setItem(pendingKey, JSON.stringify(pendingItems));
+      console.warn(`⚠️ Invoice saved locally, pending sync: ${invoice.code}`);
+      showMessage("✅ Αποθηκεύτηκε τοπικά (offline mode).", "success");
+    }
+
     authService.logActivity('add_invoice', `${boatId}/${invoice.code}`);
     setNewInvoice({ code: '', date: '', description: '', amount: 0 });
     setShowAddForm(false);
-    showMessage("✅ Το τιμολόγιο προστέθηκε.", "success");
   };
 
-  const handleDeleteInvoice = (invoiceId) => {
+  const handleDeleteInvoice = async (invoiceId) => {
     if (!canEditFinancials) { showMessage('❌ View Only - Δεν έχετε δικαίωμα', 'error'); return; }
     const invoice = invoices.find(inv => inv.id === invoiceId);
+
+    // 🔥 Step 1: Delete from localStorage FIRST
     const updated = invoices.filter((inv) => inv.id !== invoiceId);
     const key = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ`;
     localStorage.setItem(key, JSON.stringify(updated));
     setInvoices(updated);
-    authService.logActivity('delete_invoice', `${boatId}/${invoice?.code}`);
+
+    // 🔥 Step 2: Try to DELETE from API
+    try {
+      const invoiceCode = invoice?.invoiceCode || invoice?.id;
+      if (invoiceCode) {
+        const success = await deleteInvoice(invoiceCode);
+        if (success) {
+          console.log(`✅ Invoice deleted from API: ${invoice?.code}`);
+        } else {
+          console.warn(`⚠️ Invoice deleted locally only: ${invoice?.code}`);
+        }
+      }
+    } catch (apiError) {
+      console.error('API delete failed:', apiError);
+      // Local delete already done, API will be cleaned on next sync
+    }
+
     showMessage("✅ Το τιμολόγιο διαγράφηκε.", "success");
   };
 

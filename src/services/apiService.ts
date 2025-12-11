@@ -1571,3 +1571,406 @@ export async function savePage5DataHybrid(
     return { success: false, synced: false };
   }
 }
+
+// =====================================================
+// TASKS API - Εργασίες (Work Orders/Tasks)
+// =====================================================
+
+const TASKS_API_URL = `${API_BASE}/tasks.php`;
+
+export interface Task {
+  id?: number;
+  taskCode?: string;
+  vesselId: number;
+  vesselName?: string;
+  title: string;
+  description?: string;
+  category?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  assignedTo?: string;
+  dueDate?: string;
+  completedAt?: string;
+  completedBy?: string;
+  estimatedCost?: number;
+  actualCost?: number;
+  notes?: string;
+  photos?: string[];
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Get all tasks for a vessel
+ */
+export async function getTasksByVessel(vesselId: number): Promise<Task[]> {
+  try {
+    const response = await fetch(`${TASKS_API_URL}?vessel_id=${vesselId}`);
+    const result = await response.json();
+    if (result.success) {
+      console.log(`✅ [API] Loaded ${result.tasks?.length || 0} tasks for vessel ${vesselId}`);
+      return result.tasks || [];
+    }
+    return [];
+  } catch (error) {
+    console.error(`❌ [API] Failed to fetch tasks for vessel ${vesselId}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Get all tasks
+ */
+export async function getAllTasks(): Promise<Task[]> {
+  try {
+    const response = await fetch(TASKS_API_URL);
+    const result = await response.json();
+    if (result.success) {
+      console.log(`✅ [API] Loaded ${result.tasks?.length || 0} tasks`);
+      return result.tasks || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('❌ [API] Failed to fetch tasks:', error);
+    return [];
+  }
+}
+
+/**
+ * Save or update a task
+ */
+export async function saveTask(task: Task): Promise<{ success: boolean; taskCode?: string }> {
+  try {
+    const method = task.taskCode ? 'PUT' : 'POST';
+    const response = await fetch(TASKS_API_URL, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(task)
+    });
+    const result = await response.json();
+    if (result.success) {
+      console.log(`✅ [API] Task saved:`, result.task_code);
+      return { success: true, taskCode: result.task_code };
+    }
+    // If POST fails with 409, try PUT
+    if (response.status === 409) {
+      const putResponse = await fetch(TASKS_API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
+      });
+      const putResult = await putResponse.json();
+      return { success: putResult.success, taskCode: putResult.task_code };
+    }
+    return { success: false };
+  } catch (error) {
+    console.error('❌ [API] Failed to save task:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * Delete a task
+ */
+export async function deleteTask(taskCode: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${TASKS_API_URL}?task_code=${encodeURIComponent(taskCode)}`, {
+      method: 'DELETE'
+    });
+    const result = await response.json();
+    return result.success;
+  } catch (error) {
+    console.error('❌ [API] Failed to delete task:', error);
+    return false;
+  }
+}
+
+/**
+ * Migrate tasks from localStorage to API
+ * Call this once on app load to preserve existing data
+ *
+ * IMPORTANT: TaskPage uses `task_categories_${vesselKey}` format
+ * where vesselKey is boat name with underscores (e.g., task_categories_bob)
+ */
+export async function migrateTasksFromLocalStorage(vesselId: number, vesselName: string): Promise<boolean> {
+  const migrationKey = `tasks_migrated_${vesselId}`;
+
+  // Check if already migrated
+  if (localStorage.getItem(migrationKey)) {
+    return true;
+  }
+
+  // 🔥 FIX: TaskPage uses vesselName-based key, not vesselId
+  const vesselKey = vesselName.replace(/\s+/g, '_').toLowerCase();
+  const possibleKeys = [
+    `task_categories_${vesselKey}`,           // Primary: task_categories_bob
+    `fleet_${vesselId}_ΕΡΓΑΣΙΕΣ`,             // Legacy format 1
+    `fleet_${vesselName}_ΕΡΓΑΣΙΕΣ`,           // Legacy format 2
+  ];
+
+  let stored: string | null = null;
+  let usedKey: string | null = null;
+
+  // Try each possible key
+  for (const key of possibleKeys) {
+    const data = localStorage.getItem(key);
+    if (data) {
+      stored = data;
+      usedKey = key;
+      console.log(`📦 Found task data in localStorage key: ${key}`);
+      break;
+    }
+  }
+
+  if (!stored) {
+    // No data to migrate, mark as done
+    console.log(`ℹ️ No task data found in localStorage for vessel ${vesselName}`);
+    localStorage.setItem(migrationKey, 'true');
+    return true;
+  }
+
+  try {
+    const data = JSON.parse(stored);
+
+    // Handle both array format and categories format
+    let tasksToMigrate: any[] = [];
+
+    if (Array.isArray(data)) {
+      // Old flat array format
+      tasksToMigrate = data;
+    } else if (data && typeof data === 'object') {
+      // Categories format: extract all items from all categories
+      // Format: [{id, name, items: [{id, name, status, comment}]}]
+      if (Array.isArray(data)) {
+        for (const category of data) {
+          if (category.items && Array.isArray(category.items)) {
+            for (const item of category.items) {
+              tasksToMigrate.push({
+                ...item,
+                category: category.name,
+                categoryId: category.id
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Also check if data is the categories array directly
+    if (tasksToMigrate.length === 0 && Array.isArray(data)) {
+      for (const category of data) {
+        if (category.items && Array.isArray(category.items)) {
+          for (const item of category.items) {
+            // Only migrate items that have been updated (have lastUpdatedAt)
+            if (item.lastUpdatedAt) {
+              tasksToMigrate.push({
+                ...item,
+                category: category.name,
+                categoryId: category.id
+              });
+            }
+          }
+        }
+      }
+    }
+
+    if (tasksToMigrate.length === 0) {
+      console.log(`ℹ️ No task items to migrate for vessel ${vesselName}`);
+      localStorage.setItem(migrationKey, 'true');
+      return true;
+    }
+
+    console.log(`🔄 Migrating ${tasksToMigrate.length} tasks for vessel ${vesselName} from ${usedKey}...`);
+
+    for (const task of tasksToMigrate) {
+      await saveTask({
+        taskCode: task.id || task.taskCode || `task_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        vesselId,
+        vesselName,
+        title: task.name || task.title,
+        category: task.category,
+        status: task.status === 'OK' ? 'completed' : task.status === '?' ? 'in_progress' : 'pending',
+        notes: task.comment || task.notes,
+        createdBy: task.lastUpdatedBy || task.createdBy
+      });
+    }
+
+    console.log(`✅ Migrated ${tasksToMigrate.length} tasks to API`);
+    localStorage.setItem(migrationKey, 'true');
+    // Keep localStorage data as backup - don't delete
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to migrate tasks:', error);
+    return false;
+  }
+}
+
+// =====================================================
+// INVOICES API - Τιμολόγια/Έξοδα (Invoices/Expenses)
+// =====================================================
+
+const INVOICES_API_URL = `${API_BASE}/invoices.php`;
+
+export interface Invoice {
+  id?: number;
+  invoiceCode?: string;
+  vesselId: number;
+  vesselName?: string;
+  invoiceNumber?: string;
+  invoiceType?: 'expense' | 'income' | 'credit';
+  category?: string;
+  description?: string;
+  vendor?: string;
+  amount: number;
+  vatAmount?: number;
+  totalAmount?: number;
+  currency?: string;
+  invoiceDate?: string;
+  dueDate?: string;
+  paidDate?: string;
+  paymentStatus?: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  paymentMethod?: string;
+  referenceNumber?: string;
+  charterCode?: string;
+  notes?: string;
+  attachments?: string[];
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Get all invoices for a vessel
+ */
+export async function getInvoicesByVessel(vesselId: number): Promise<Invoice[]> {
+  try {
+    const response = await fetch(`${INVOICES_API_URL}?vessel_id=${vesselId}`);
+    const result = await response.json();
+    if (result.success) {
+      console.log(`✅ [API] Loaded ${result.invoices?.length || 0} invoices for vessel ${vesselId}`);
+      return result.invoices || [];
+    }
+    return [];
+  } catch (error) {
+    console.error(`❌ [API] Failed to fetch invoices for vessel ${vesselId}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Get all invoices
+ */
+export async function getAllInvoices(): Promise<Invoice[]> {
+  try {
+    const response = await fetch(INVOICES_API_URL);
+    const result = await response.json();
+    if (result.success) {
+      console.log(`✅ [API] Loaded ${result.invoices?.length || 0} invoices`);
+      return result.invoices || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('❌ [API] Failed to fetch invoices:', error);
+    return [];
+  }
+}
+
+/**
+ * Save or update an invoice
+ */
+export async function saveInvoice(invoice: Invoice): Promise<{ success: boolean; invoiceCode?: string }> {
+  try {
+    const method = invoice.invoiceCode ? 'PUT' : 'POST';
+    const response = await fetch(INVOICES_API_URL, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invoice)
+    });
+    const result = await response.json();
+    if (result.success) {
+      console.log(`✅ [API] Invoice saved:`, result.invoice_code);
+      return { success: true, invoiceCode: result.invoice_code };
+    }
+    // If POST fails with 409, try PUT
+    if (response.status === 409) {
+      const putResponse = await fetch(INVOICES_API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoice)
+      });
+      const putResult = await putResponse.json();
+      return { success: putResult.success, invoiceCode: putResult.invoice_code };
+    }
+    return { success: false };
+  } catch (error) {
+    console.error('❌ [API] Failed to save invoice:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * Delete an invoice
+ */
+export async function deleteInvoice(invoiceCode: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${INVOICES_API_URL}?invoice_code=${encodeURIComponent(invoiceCode)}`, {
+      method: 'DELETE'
+    });
+    const result = await response.json();
+    return result.success;
+  } catch (error) {
+    console.error('❌ [API] Failed to delete invoice:', error);
+    return false;
+  }
+}
+
+/**
+ * Migrate invoices from localStorage to API
+ * Call this once on app load to preserve existing data
+ */
+export async function migrateInvoicesFromLocalStorage(vesselId: number, vesselName: string): Promise<boolean> {
+  const migrationKey = `invoices_migrated_${vesselId}`;
+
+  // Check if already migrated
+  if (localStorage.getItem(migrationKey)) {
+    return true;
+  }
+
+  const storageKey = `fleet_${vesselId}_ΤΙΜΟΛΟΓΙΑ`;
+  const stored = localStorage.getItem(storageKey);
+
+  if (!stored) {
+    // No data to migrate, mark as done
+    localStorage.setItem(migrationKey, 'true');
+    return true;
+  }
+
+  try {
+    const invoices = JSON.parse(stored);
+    if (!Array.isArray(invoices) || invoices.length === 0) {
+      localStorage.setItem(migrationKey, 'true');
+      return true;
+    }
+
+    console.log(`🔄 Migrating ${invoices.length} invoices for vessel ${vesselName}...`);
+
+    for (const invoice of invoices) {
+      await saveInvoice({
+        ...invoice,
+        vesselId,
+        vesselName,
+        invoiceCode: invoice.id || invoice.invoiceCode
+      });
+    }
+
+    console.log(`✅ Migrated ${invoices.length} invoices to API`);
+    localStorage.setItem(migrationKey, 'true');
+    // Optionally clear old localStorage after successful migration
+    // localStorage.removeItem(storageKey);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to migrate invoices:', error);
+    return false;
+  }
+}
