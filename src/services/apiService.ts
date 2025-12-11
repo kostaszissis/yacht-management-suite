@@ -399,6 +399,125 @@ export async function getAllBookings(): Promise<any[]> {
 }
 
 /**
+ * 🔥 VALIDATION: Check if charter party number already exists in API
+ * @param charterCode - The charter party number to check
+ * @param excludeBookingId - Optional booking ID to exclude (for edit mode)
+ * @returns Object with isDuplicate flag and existing booking info if found
+ */
+export async function checkDuplicateCharterCode(
+  charterCode: string,
+  excludeBookingId?: string
+): Promise<{ isDuplicate: boolean; existingBooking?: any }> {
+  try {
+    if (!charterCode || !charterCode.trim()) {
+      return { isDuplicate: false };
+    }
+
+    const codeToCheck = charterCode.trim().toLowerCase();
+    console.log('🔍 [API Validation] Checking duplicate charter code:', codeToCheck);
+
+    const allBookings = await getAllBookings();
+
+    // Helper function to normalize charter code for comparison
+    const normalizeCode = (code: string): string => {
+      if (!code) return '';
+      // Remove common prefixes and normalize
+      return code.toString().trim().toLowerCase()
+        .replace(/^charter\s*party\s*(no\.?|number)?\s*/i, '')
+        .replace(/\s+/g, '');
+    };
+
+    const normalizedCheck = normalizeCode(codeToCheck);
+
+    for (const booking of allBookings) {
+      // Skip the booking being edited
+      if (excludeBookingId && (booking.id === excludeBookingId || booking.code === excludeBookingId)) {
+        continue;
+      }
+
+      const existingCode = booking.code || booking.bookingCode || booking.charterCode || booking.booking_number;
+      if (!existingCode) continue;
+
+      const normalizedExisting = normalizeCode(existingCode);
+
+      // Check for match (exact or normalized)
+      if (normalizedExisting === normalizedCheck ||
+          existingCode.toLowerCase() === codeToCheck) {
+        console.log('❌ [API Validation] Found duplicate charter code:', existingCode);
+        return { isDuplicate: true, existingBooking: booking };
+      }
+    }
+
+    console.log('✅ [API Validation] No duplicate charter code found');
+    return { isDuplicate: false };
+  } catch (error) {
+    console.error('❌ [API Validation] Error checking duplicate:', error);
+    // On error, return false to not block user (fail-open)
+    return { isDuplicate: false };
+  }
+}
+
+/**
+ * 🔥 VALIDATION: Check if vessel has overlapping bookings for given dates
+ * @param vesselId - The vessel ID to check
+ * @param startDate - Start date of new booking
+ * @param endDate - End date of new booking
+ * @param excludeBookingId - Optional booking ID to exclude (for edit mode)
+ * @returns Object with hasOverlap flag and overlapping booking info if found
+ */
+export async function checkDateOverlap(
+  vesselId: number,
+  startDate: string,
+  endDate: string,
+  excludeBookingId?: string
+): Promise<{ hasOverlap: boolean; overlappingBooking?: any }> {
+  try {
+    if (!vesselId || !startDate || !endDate) {
+      return { hasOverlap: false };
+    }
+
+    const newStart = new Date(startDate);
+    const newEnd = new Date(endDate);
+
+    console.log('🔍 [API Validation] Checking date overlap for vessel:', vesselId, 'dates:', startDate, '-', endDate);
+
+    const allBookings = await getAllBookings();
+
+    // Filter bookings for this vessel
+    const vesselBookings = allBookings.filter((booking: any) => {
+      const bookingVesselId = booking.vesselId || booking.vessel_id || booking.boatId;
+      return bookingVesselId === vesselId || bookingVesselId === String(vesselId);
+    });
+
+    console.log(`📦 [API Validation] Found ${vesselBookings.length} bookings for vessel ${vesselId}`);
+
+    for (const booking of vesselBookings) {
+      // Skip the booking being edited
+      if (excludeBookingId && (booking.id === excludeBookingId || booking.code === excludeBookingId)) {
+        continue;
+      }
+
+      const existingStart = new Date(booking.startDate || booking.start_date);
+      const existingEnd = new Date(booking.endDate || booking.end_date);
+
+      // Check for overlap: (start1 <= end2) AND (end1 >= start2)
+      if (newStart <= existingEnd && newEnd >= existingStart) {
+        console.log('❌ [API Validation] Found overlapping booking:', booking.code,
+          `(${booking.startDate} - ${booking.endDate})`);
+        return { hasOverlap: true, overlappingBooking: booking };
+      }
+    }
+
+    console.log('✅ [API Validation] No date overlap found');
+    return { hasOverlap: false };
+  } catch (error) {
+    console.error('❌ [API Validation] Error checking overlap:', error);
+    // On error, return false to not block user (fail-open)
+    return { hasOverlap: false };
+  }
+}
+
+/**
  * Get bookings for a specific vessel from API (NO localStorage fallback)
  */
 export async function getBookingsByVessel(vesselId: number | string): Promise<any[]> {

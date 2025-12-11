@@ -8,7 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { DataContext } from './App';
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import authService from './authService';
-import { getVessels, getBookings, getBooking, getPage1DataHybrid, savePage1DataHybrid, Page1FormData } from './services/apiService';
+import { getVessels, getBookings, getBooking, getPage1DataHybrid, savePage1DataHybrid, Page1FormData, checkDuplicateCharterCode, checkDateOverlap } from './services/apiService';
 import { saveBookingSync, getBookingSync, syncToPage1Format, page1ToSyncFormat } from './utils/bookingSyncUtils';
 
 // 🔥 SIGNATURE COMPRESSION FUNCTION
@@ -929,29 +929,21 @@ export default function Page1() {
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
-  // 🔥 NEW: Check if booking code already exists in API
-  const checkDuplicateBookingCode = async (code) => {
+  // 🔥 API VALIDATION: Check if booking code already exists (uses imported checkDuplicateCharterCode)
+  const checkDuplicateBookingCode = async (code: string) => {
+    if (!code || !code.trim()) {
+      setBookingCodeError('');
+      return;
+    }
+
     try {
-      const response = await fetch('/api/bookings.php');
-      if (!response.ok) {
-        console.error('Failed to fetch bookings');
-        return;
-      }
-      const apiResponse = await response.json();
-      const bookings = apiResponse.bookings || [];
+      const excludeId = currentBookingNumber || form.bookingNumber;
+      const result = await checkDuplicateCharterCode(code, excludeId);
 
-      // Check if code exists (case-insensitive), excluding current booking
-      const exists = bookings.some(booking => {
-        const existingCode = booking.bookingCode || booking.charterCode || booking.code;
-        // Skip if this is the current booking being edited
-        if (existingCode === currentBookingNumber) return false;
-        return existingCode && existingCode.toLowerCase() === code.toLowerCase();
-      });
-
-      if (exists) {
+      if (result.isDuplicate) {
         setBookingCodeError(lang === 'el' ?
-          'Υπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party!' :
-          'A charter with the same charter party number already exists!');
+          'Αυτός ο αριθμός ναύλου υπάρχει ήδη' :
+          'This charter party number already exists');
       } else {
         setBookingCodeError('');
       }
@@ -960,51 +952,44 @@ export default function Page1() {
     }
   };
 
-  // 🔥 NEW: Check if vessel is already booked for overlapping dates
-  const checkDoubleBooking = async (vessel, startDate, endDate) => {
+  // 🔥 API VALIDATION: Check if vessel is already booked for overlapping dates (uses imported checkDateOverlap)
+  const checkDoubleBooking = async (vessel: string, startDate: string, endDate: string) => {
     if (!vessel || !startDate || !endDate) {
       setDoubleBookingError('');
       return;
     }
 
     try {
-      const response = await fetch('/api/bookings.php');
-      if (!response.ok) {
-        console.error('Failed to fetch bookings');
+      // Get vessels from API or localStorage
+      let vesselsList: any[] = [];
+      try {
+        vesselsList = await getVessels();
+      } catch {
+        // Fallback to localStorage
+        const stored = localStorage.getItem(FLEET_STORAGE_KEY);
+        if (stored) {
+          vesselsList = JSON.parse(stored);
+        }
+      }
+
+      // Find vessel ID from name
+      const vesselObj = vesselsList.find((v: any) =>
+        v.name?.toLowerCase() === vessel.toLowerCase()
+      );
+
+      if (!vesselObj) {
+        console.log('Vessel not found for overlap check:', vessel);
+        setDoubleBookingError('');
         return;
       }
-      const apiResponse = await response.json();
-      const bookings = apiResponse.bookings || [];
 
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      const excludeId = currentBookingNumber || form.bookingNumber;
+      const result = await checkDateOverlap(vesselObj.id, startDate, endDate, excludeId);
 
-      // Check for overlapping bookings with same vessel
-      const hasOverlap = bookings.some(booking => {
-        const bookingVessel = booking.vesselName || booking.boatName;
-        const bookingStart = booking.startDate || booking.checkInDate;
-        const bookingEnd = booking.endDate || booking.checkOutDate;
-
-        if (!bookingVessel || !bookingStart || !bookingEnd) return false;
-
-        // Skip if this is the current booking being edited
-        const bookingCode = booking.bookingCode || booking.charterCode || booking.code;
-        if (bookingCode === currentBookingNumber || bookingCode === form.bookingNumber) return false;
-
-        // Check if vessel matches (case-insensitive)
-        if (bookingVessel.toLowerCase() !== vessel.toLowerCase()) return false;
-
-        const bStart = new Date(bookingStart);
-        const bEnd = new Date(bookingEnd);
-
-        // Check for overlap: (start1 <= end2) AND (end1 >= start2)
-        return start <= bEnd && end >= bStart;
-      });
-
-      if (hasOverlap) {
+      if (result.hasOverlap) {
         setDoubleBookingError(lang === 'el' ?
-          'Αυτό το σκάφος είναι ήδη κρατημένο για αυτές τις ημερομηνίες!' :
-          'This vessel is already booked for these dates!');
+          'Το σκάφος έχει ήδη κράτηση για αυτές τις ημερομηνίες' :
+          'This vessel already has a booking for these dates');
       } else {
         setDoubleBookingError('');
       }

@@ -6,7 +6,7 @@ import { codeMatches, textMatches } from './utils/searchUtils';
 import { saveBookingSync, getBookingSync, syncToFleetFormat, fleetToSyncFormat } from './utils/bookingSyncUtils';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
-import { saveBooking, getVessels, getBookingsByVessel, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking, getAllBookings, getTasksByVessel, saveTask, deleteTask, migrateTasksFromLocalStorage, getInvoicesByVessel, saveInvoice, deleteInvoice, migrateInvoicesFromLocalStorage } from './services/apiService';
+import { saveBooking, getVessels, getBookingsByVessel, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking, getAllBookings, getTasksByVessel, saveTask, deleteTask, migrateTasksFromLocalStorage, getInvoicesByVessel, saveInvoice, deleteInvoice, migrateInvoicesFromLocalStorage, checkDuplicateCharterCode, checkDateOverlap } from './services/apiService';
 // 🔥 FIX 23: Charter Party DOCX generation
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -5697,7 +5697,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
         if (isDuplicate) {
           // Show error immediately
           console.log('❌ DUPLICATE! Showing alert...');
-          setCharterCodeError('Υπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party!');
+          setCharterCodeError('Αυτός ο αριθμός ναύλου υπάρχει ήδη');
           // 🔥 Apply INTENSE red highlight with glow
           if (charterCodeRef.current) {
             charterCodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -5728,7 +5728,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
               }
             }, 3000);
           }
-          alert(`❌ ΣΤΑΜΑΤΑ!\n\nΥπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party "${newCharter.code}"!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
+          alert(`❌ ΣΤΑΜΑΤΑ!\n\nΑυτός ο αριθμός ναύλου υπάρχει ήδη: "${newCharter.code}"!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
           return; // DON'T move to next field
         } else {
           setCharterCodeError(''); // Clear error if no duplicate
@@ -5774,7 +5774,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
               }
             }, 3000);
           }
-          alert(`❌ ΣΤΑΜΑΤΑ!\n\nΥπάρχει ήδη ναύλο στο σκάφος "${boat?.name}" για αυτές τις ημερομηνίες!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
+          alert(`❌ ΣΤΑΜΑΤΑ!\n\nΤο σκάφος "${boat?.name}" έχει ήδη κράτηση για αυτές τις ημερομηνίες!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
           return; // DON'T move to next field
         } else {
           setDoubleBookingError(''); // Clear error if no overlap
@@ -5799,37 +5799,19 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     }
   };
 
-  // 🔥 NEW: Check if charter code already exists
-  const checkDuplicateCharterCode = async (code) => {
-    console.log('🔍 checkDuplicateCharterCode called with code:', code);
+  // 🔥 API VALIDATION: Check if charter code already exists (uses imported checkDuplicateCharterCode)
+  const validateCharterCodeOnBlur = async (code: string, excludeId?: string) => {
+    console.log('🔍 validateCharterCodeOnBlur called with code:', code);
+    if (!code || !code.trim()) {
+      setCharterCodeError('');
+      return;
+    }
+
     try {
-      const response = await fetch('/api/bookings.php');
-      if (!response.ok) {
-        console.error('❌ Failed to fetch bookings, status:', response.status);
-        return;
-      }
-      const apiResponse = await response.json();
-      console.log('📦 API Response:', apiResponse);
-
-      const bookings = apiResponse.bookings || [];
-      console.log('📋 Bookings array:', bookings);
-      console.log('📊 Number of bookings:', bookings.length);
-
-      // Check if code exists (case-insensitive)
-      const exists = bookings.some(booking => {
-        const existingCode = booking.bookingCode || booking.charterCode || booking.code || booking.id;
-        const codeMatch = existingCode && existingCode.toLowerCase() === code.toLowerCase();
-        if (existingCode) {
-          console.log(`  Comparing "${code.toLowerCase()}" with "${existingCode.toLowerCase()}" => ${codeMatch}`);
-        }
-        return codeMatch;
-      });
-
-      console.log('✅ Duplicate found:', exists);
-
-      if (exists) {
-        console.log('🚫 Setting error: Charter code already exists!');
-        setCharterCodeError('This charter party code already exists! / Αυτός ο κωδικός ναύλου υπάρχει ήδη!');
+      const result = await checkDuplicateCharterCode(code, excludeId);
+      if (result.isDuplicate) {
+        console.log('🚫 Duplicate found in API!');
+        setCharterCodeError('Αυτός ο αριθμός ναύλου υπάρχει ήδη');
       } else {
         console.log('✅ Code is available');
         setCharterCodeError('');
@@ -5839,50 +5821,24 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     }
   };
 
-  // 🔥 NEW: Check if vessel is already booked for overlapping dates
-  const checkDoubleBooking = async (startDate, endDate) => {
+  // 🔥 API VALIDATION: Check if vessel is already booked for overlapping dates (uses imported checkDateOverlap)
+  const validateDatesOnBlur = async (startDate: string, endDate: string, excludeId?: string) => {
     if (!boat || !startDate || !endDate) {
       setDoubleBookingError('');
       return;
     }
 
     try {
-      const response = await fetch('/api/bookings.php');
-      if (!response.ok) {
-        console.error('Failed to fetch bookings');
-        return;
-      }
-      const apiResponse = await response.json();
-      const bookings = apiResponse.bookings || [];
-
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-
-      // Check for overlapping bookings with same vessel
-      const hasOverlap = bookings.some(booking => {
-        const bookingVessel = booking.vesselName || booking.boatName;
-        const bookingStart = booking.startDate || booking.checkInDate;
-        const bookingEnd = booking.endDate || booking.checkOutDate;
-
-        if (!bookingVessel || !bookingStart || !bookingEnd) return false;
-
-        // Check if vessel matches (case-insensitive)
-        if (bookingVessel.toLowerCase() !== boat.name.toLowerCase()) return false;
-
-        const bStart = new Date(bookingStart);
-        const bEnd = new Date(bookingEnd);
-
-        // Check for overlap: (start1 <= end2) AND (end1 >= start2)
-        return start <= bEnd && end >= bStart;
-      });
-
-      if (hasOverlap) {
-        setDoubleBookingError('This vessel is already booked for these dates! / Αυτό το σκάφος είναι ήδη κρατημένο για αυτές τις ημερομηνίες!');
+      const result = await checkDateOverlap(boat.id, startDate, endDate, excludeId);
+      if (result.hasOverlap) {
+        console.log('🚫 Date overlap found in API!');
+        setDoubleBookingError('Το σκάφος έχει ήδη κράτηση για αυτές τις ημερομηνίες');
       } else {
+        console.log('✅ Dates are available');
         setDoubleBookingError('');
       }
     } catch (error) {
-      console.error('Error checking double booking:', error);
+      console.error('❌ Error checking date overlap:', error);
     }
   };
 
@@ -5954,23 +5910,30 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       return;
     }
 
-    // 🔥 CRITICAL: Final check for duplicate charter code before saving (using localStorage)
+    // 🔥 CRITICAL: Final check for duplicate charter code before saving (using API)
     // 🔥 SKIP duplicate check if editing the SAME charter code
     const isCodeChanged = isEditMode && editingCharter.code !== newCharter.code;
     const shouldCheckDuplicate = !isEditMode || isCodeChanged;
 
     console.log('🛑🛑🛑 FINAL CHECK for duplicate code:', newCharter.code);
     console.log('🛑 isEditMode:', isEditMode, 'isCodeChanged:', isCodeChanged, 'shouldCheckDuplicate:', shouldCheckDuplicate);
-    console.log('🛑 Current items count:', items.length);
-    console.log('🛑 Items codes:', items.map((c: any) => c.code));
 
-    const isDuplicateCode = shouldCheckDuplicate ? checkDuplicateOnEnter(newCharter.code) : false;
+    // 🔥 API VALIDATION: Check duplicate charter code in database
+    let isDuplicateCode = false;
+    if (shouldCheckDuplicate) {
+      const excludeId = isEditMode ? editingCharter.id || editingCharter.code : undefined;
+      const duplicateResult = await checkDuplicateCharterCode(newCharter.code, excludeId);
+      isDuplicateCode = duplicateResult.isDuplicate;
+      if (duplicateResult.existingBooking) {
+        console.log('🛑 Found existing booking with same code:', duplicateResult.existingBooking.code);
+      }
+    }
     console.log('🛑 isDuplicateCode result:', isDuplicateCode);
 
     // 🔥🔥🔥 ABSOLUTE BLOCK - IF DUPLICATE FOUND, DO NOT CONTINUE
     if (isDuplicateCode === true) {
       console.log('🛑🛑🛑 BLOCKING SAVE - DUPLICATE DETECTED! STOPPING HERE!');
-      setCharterCodeError('Υπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party!');
+      setCharterCodeError('Αυτός ο αριθμός ναύλου υπάρχει ήδη');
       // 🔥 Apply INTENSE red highlight
       if (charterCodeRef.current) {
         charterCodeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -6001,7 +5964,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
           }
         }, 3000);
       }
-      alert(`❌ ΣΤΑΜΑΤΑ!\n\nΥπάρχει ήδη νάυλο με τον ίδιο αριθμό charter party "${newCharter.code}"!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
+      alert(`❌ ΣΤΑΜΑΤΑ!\n\nΑυτός ο αριθμός ναύλου υπάρχει ήδη: "${newCharter.code}"!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
       console.log('🛑🛑🛑 RETURNING NOW - SAVE BLOCKED');
       return; // 🛑 ABSOLUTE BLOCK
     }
@@ -6013,24 +5976,21 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       return;
     }
 
-    // 🔥 CRITICAL: Check for date overlap on same vessel
+    // 🔥 CRITICAL: Check for date overlap on same vessel (using API)
     // 🔥 SKIP overlap check for the same charter when editing
-    console.log('🔍 FINAL CHECK for date overlap');
+    console.log('🔍 FINAL CHECK for date overlap (API validation)');
     console.log('🔍 Dates:', newCharter.startDate, '-', newCharter.endDate);
-    // When editing, exclude the current charter from overlap check
-    const hasDateOverlap = isEditMode
-      ? items.filter((c: any) => c.id !== editingCharter.id).some((charter: any) => {
-          const existingStart = new Date(charter.startDate);
-          const existingEnd = new Date(charter.endDate);
-          const newStart = new Date(newCharter.startDate);
-          const newEnd = new Date(newCharter.endDate);
-          return newStart <= existingEnd && newEnd >= existingStart;
-        })
-      : checkDoubleBookingOnEnter(newCharter.startDate, newCharter.endDate);
+    // Check against API database
+    const excludeIdForDates = isEditMode ? editingCharter.id || editingCharter.code : undefined;
+    const overlapResult = await checkDateOverlap(boat.id, newCharter.startDate, newCharter.endDate, excludeIdForDates);
+    const hasDateOverlap = overlapResult.hasOverlap;
+    if (overlapResult.overlappingBooking) {
+      console.log('🛑 Found overlapping booking:', overlapResult.overlappingBooking.code);
+    }
     console.log('🔍 hasDateOverlap result:', hasDateOverlap);
     if (hasDateOverlap) {
       console.log('❌❌❌ BLOCKING SAVE - DATE OVERLAP DETECTED!');
-      setDoubleBookingError('Υπάρχει ήδη ναύλο για αυτές τις ημερομηνίες!');
+      setDoubleBookingError('Το σκάφος έχει ήδη κράτηση για αυτές τις ημερομηνίες');
       // 🔥 Apply INTENSE red highlight
       if (datesRef.current) {
         datesRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -6061,7 +6021,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
           }
         }, 3000);
       }
-      alert(`❌ ΣΤΑΜΑΤΑ!\n\nΥπάρχει ήδη ναύλο στο σκάφος "${boat?.name}" για αυτές τις ημερομηνίες!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
+      alert(`❌ ΣΤΑΜΑΤΑ!\n\nΤο σκάφος "${boat?.name}" έχει ήδη κράτηση για αυτές τις ημερομηνίες!\n\nΔΕΝ ΜΠΟΡΕΙΤΕ ΝΑ ΑΠΟΘΗΚΕΥΣΕΤΕ!`);
       return; // BLOCK SAVE
     }
 
@@ -6419,7 +6379,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       value={newCharter.code}
                       onChange={handleFormChange}
                       onKeyDown={handleFormKeyDown}
-                      onBlur={() => newCharter.code && checkDuplicateCharterCode(newCharter.code)}
+                      onBlur={() => newCharter.code && validateCharterCodeOnBlur(newCharter.code, editingCharter?.id)}
                       placeholder="π.χ. NAY-002"
                       autoComplete="off"
                       autoCorrect="off"
@@ -6441,6 +6401,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                           value={newCharter.startDate}
                           onChange={handleFormChange}
                           onKeyDown={handleFormKeyDown}
+                          onBlur={() => newCharter.startDate && newCharter.endDate && validateDatesOnBlur(newCharter.startDate, newCharter.endDate, editingCharter?.id)}
                           min={new Date().toISOString().split('T')[0]}
                           className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${doubleBookingError ? 'border-red-500' : 'border-gray-500'} focus:border-teal-500 focus:outline-none`}
                         />
@@ -6466,6 +6427,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                           value={newCharter.endDate}
                           onChange={handleFormChange}
                           onKeyDown={handleFormKeyDown}
+                          onBlur={() => newCharter.startDate && newCharter.endDate && validateDatesOnBlur(newCharter.startDate, newCharter.endDate, editingCharter?.id)}
                           min={newCharter.startDate || new Date().toISOString().split('T')[0]}
                           className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${dateRangeError || doubleBookingError ? 'border-red-500' : 'border-gray-500'} focus:border-teal-500 focus:outline-none`}
                         />
