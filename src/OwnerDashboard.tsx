@@ -5,7 +5,7 @@ import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
 // 🔥 FIX 16: Import API functions for multi-device sync
 // 🔥 FIX 31: Added checkExpiredOptions for auto-expire
-import { getBookingsByVesselHybrid, checkExpiredOptions } from './services/apiService';
+import { getBookingsByVessel, checkExpiredOptions } from './services/apiService';
 // 🔥 Auto-refresh hook for polling API data
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 
@@ -21,12 +21,12 @@ const INITIAL_FLEET = [
   { id: 3, name: "Valesia", type: "Monohull", model: "Bavaria c42 Cruiser" }
 ];
 
-// 🔥 FIX 16 + FIX 29: Async function to get pending charters from API (with localStorage fallback)
+// 🔥 FIX 16 + FIX 29: Async function to get pending charters from API (no localStorage fallback)
 // Now includes "Pending Final Confirmation" status for second owner approval
 const getPendingChartersAsync = async (boatId: number | string): Promise<any[]> => {
   try {
-    // Fetch from API first (with localStorage merge and fallback)
-    const charters = await getBookingsByVesselHybrid(boatId);
+    // Fetch from API only (API is source of truth)
+    const charters = await getBookingsByVessel(boatId);
     console.log(`✅ OwnerDashboard: Loaded ${charters.length} charters for boat ${boatId}`);
     // Filter for statuses needing owner attention: Option, Pending, OR Pending Final Confirmation
     return charters.filter((c: any) =>
@@ -35,23 +35,8 @@ const getPendingChartersAsync = async (boatId: number | string): Promise<any[]> 
       c.status === 'Pending Final Confirmation'
     );
   } catch (e) {
-    console.error('Error loading charters from API:', e);
-    // Fallback to localStorage only
-    try {
-      const key = `fleet_${boatId}_ΝΑΥΛΑ`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const charters = JSON.parse(stored);
-        return charters.filter((c: any) =>
-          c.status === 'Pending' ||
-          c.status === 'Option' ||
-          c.status === 'Pending Final Confirmation'
-        );
-      }
-    } catch (localError) {
-      console.error('Error loading from localStorage:', localError);
-    }
-    return [];
+    console.error('❌ Error loading charters from API:', e);
+    return []; // No localStorage fallback - API is source of truth
   }
 };
 

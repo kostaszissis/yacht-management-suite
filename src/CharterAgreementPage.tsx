@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import wordDocumentService from './services/wordDocumentService';
-import { updateCharterCrew, loadCharterCrew } from './services/apiService';
+import { updateCharterCrew, loadCharterCrew, getAllBookings } from './services/apiService';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
@@ -52,39 +52,49 @@ export default function CharterAgreementPage() {
   const { isRefreshing } = useAutoRefresh(loadCrewData, 5);
 
   useEffect(() => {
-    console.log('🔍 CharterAgreementPage: Loading booking:', bookingCode);
+    const loadBookingFromAPI = async () => {
+      console.log('🔍 CharterAgreementPage: Loading booking from API:', bookingCode);
 
-    if (bookingCode) {
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
+      if (bookingCode) {
+        try {
+          // Fetch all bookings from API (API is source of truth)
+          const allBookings = await getAllBookings();
 
-      // Find matching booking key case-insensitively
-      const matchingKey = Object.keys(bookings).find(key => codeMatches(key, bookingCode));
-      const booking = matchingKey ? bookings[matchingKey] : null;
+          // Find matching booking by code (case-insensitive)
+          const booking = allBookings.find((b: any) =>
+            codeMatches(b.bookingNumber || b.code || b.id, bookingCode)
+          );
 
-      console.log('📦 Found booking:', booking);
+          console.log('📦 Found booking from API:', booking);
 
-      if (booking?.bookingData) {
-        const data = {
-          bookingCode: matchingKey || bookingCode,
-          ...booking.bookingData
-        };
-        console.log('✅ Setting bookingData:', data);
-        setBookingData(data);
+          if (booking) {
+            const data = {
+              bookingCode: booking.bookingNumber || booking.code || bookingCode,
+              ...booking
+            };
+            console.log('✅ Setting bookingData:', data);
+            setBookingData(data);
 
-        // 🔥 FIX 26: Load crew members from API data (or localStorage fallback)
-        const savedCrew = data.crewMembers || booking.charterAgreementData?.crewMembers;
-        if (savedCrew && savedCrew.length > 0) {
-          console.log('👥 Loading saved crew members:', savedCrew);
-          setCrewMembers(savedCrew);
-          setShowCrewForm(true);
+            // Load crew members from API data
+            const savedCrew = data.crewMembers || booking.charterAgreementData?.crewMembers;
+            if (savedCrew && savedCrew.length > 0) {
+              console.log('👥 Loading saved crew members:', savedCrew);
+              setCrewMembers(savedCrew);
+              setShowCrewForm(true);
+            }
+            setLastUpdated(new Date());
+          } else {
+            console.warn('⚠️ No booking found in API for:', bookingCode);
+          }
+        } catch (error) {
+          console.error('❌ Error loading booking from API:', error);
         }
-        setLastUpdated(new Date());
       } else {
-        console.warn('⚠️ No bookingData found for:', bookingCode);
+        console.warn('⚠️ No booking code found!');
       }
-    } else {
-      console.warn('⚠️ No booking code found!');
-    }
+    };
+
+    loadBookingFromAPI();
   }, [bookingCode]);
 
   const handleDownloadBoardingPass = () => {
@@ -652,23 +662,10 @@ export default function CharterAgreementPage() {
     const crewToSave = showCrewForm ? crewMembers : [];
 
     try {
-      // 🔥 FIX 26: Save crew members to API
+      // Save crew members to API (API is source of truth - no localStorage)
       if (crewToSave.length > 0) {
         console.log('👥 Saving crew to API...', { bookingCode, crewMembers: crewToSave });
         await updateCharterCrew(bookingCode, crewToSave);
-      }
-
-      // Also save to localStorage for backwards compatibility
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      // Find matching booking key case-insensitively
-      const matchingKey = Object.keys(bookings).find(key => codeMatches(key, bookingCode));
-      if (matchingKey && bookings[matchingKey]) {
-        bookings[matchingKey].charterAgreementData = {
-          skipperLicense,
-          crewMembers: crewToSave,
-          submittedAt: new Date().toISOString()
-        };
-        localStorage.setItem('bookings', JSON.stringify(bookings));
       }
 
       alert(language === 'en'

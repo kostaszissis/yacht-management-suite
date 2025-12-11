@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import {
   getChatMessages,
   getChatUnreadCount,
@@ -7,6 +7,7 @@ import {
   markChatMessagesRead,
   ChatMessage
 } from './services/apiService';
+import { DataContext } from './App';
 
 // Converted Message type for internal use (matching old interface)
 interface Message {
@@ -33,6 +34,9 @@ const convertApiMessage = (msg: ChatMessage): Message => ({
 });
 
 export default function FloatingChatWidget() {
+  // Get context data (API is source of truth)
+  const contextData = useContext(DataContext);
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -48,27 +52,28 @@ export default function FloatingChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Get booking info on mount
+  // Get booking info from context (API is source of truth)
   useEffect(() => {
     let code = '';
     let vessel = '';
     let name = 'Guest Customer';
     let visitor = true;
 
-    try {
-      const currentBookingCode = localStorage.getItem('currentBooking');
-      if (currentBookingCode) {
-        const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-        const booking = bookings[currentBookingCode];
-        if (booking?.bookingData) {
-          code = currentBookingCode;
-          vessel = booking.bookingData.vesselName || booking.bookingData.selectedVessel || '';
-          name = `${booking.bookingData.skipperFirstName || ''} ${booking.bookingData.skipperLastName || ''}`.trim() || 'Guest Customer';
-          visitor = false;
-        }
+    // Try to get booking info from context
+    const currentBookingCode = contextData?.bookingNumber || localStorage.getItem('currentBooking');
+    if (currentBookingCode) {
+      // Find booking in globalBookings from context
+      const globalBookings = contextData?.globalBookings || [];
+      const booking = globalBookings.find((b: any) =>
+        b.bookingNumber === currentBookingCode || b.code === currentBookingCode
+      ) || contextData?.data;
+
+      if (booking) {
+        code = currentBookingCode;
+        vessel = booking.vesselName || booking.selectedVessel || '';
+        name = `${booking.skipperFirstName || ''} ${booking.skipperLastName || ''}`.trim() || 'Guest Customer';
+        visitor = false;
       }
-    } catch (e) {
-      console.error('Error loading booking:', e);
     }
 
     // If no booking, create/get guest code
@@ -88,7 +93,7 @@ export default function FloatingChatWidget() {
     setVesselName(vessel);
     setCustomerName(name);
     setIsVisitor(visitor);
-  }, []);
+  }, [contextData?.bookingNumber, contextData?.globalBookings, contextData?.data]);
 
   // Global unread counter - polling every 30 seconds
   useEffect(() => {

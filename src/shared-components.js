@@ -204,67 +204,19 @@ export const I18N = {
   },
 };
 
-// 💾 STORAGE FUNCTIONS
+// 💾 STORAGE FUNCTIONS - DEPRECATED: Use apiService.ts functions instead
+// These functions are kept for backwards compatibility but should NOT use localStorage
 export const saveBookingData = (bookingNumber, page2Data, mode) => {
-  try {
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    if (!bookings[bookingNumber]) {
-      bookings[bookingNumber] = { 
-        bookingData: {}, 
-        lastModified: new Date().toISOString(), 
-        synced: false 
-      };
-    }
-    
-    const storageKey = mode === 'in' ? 'page2DataCheckIn' : 'page2DataCheckOut';
-    bookings[bookingNumber][storageKey] = page2Data;
-    bookings[bookingNumber].lastModified = new Date().toISOString();
-    bookings[bookingNumber].synced = false;
-    
-    localStorage.setItem('bookings', JSON.stringify(bookings));
-    console.log(`✅ Page 2 data saved to ${storageKey}`);
-  } catch (error) {
-    console.error('Error saving booking data:', error);
-  }
+  // DEPRECATED: Use savePage2DataHybrid from apiService.ts instead
+  console.warn('⚠️ saveBookingData is deprecated - use apiService.ts functions instead');
+  console.log(`📝 Page 2 data for ${bookingNumber} (${mode}) should be saved via API`);
 };
 
 export const loadBookingData = (bookingNumber, mode) => {
-  try {
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    const storageKey = mode === 'in' ? 'page2DataCheckIn' : 'page2DataCheckOut';
-    let data = bookings[bookingNumber]?.[storageKey] || null;
-    
-    if (mode === 'out' && !data) {
-      const checkInData = bookings[bookingNumber]?.page2DataCheckIn || null;
-      if (checkInData) {
-        console.log('📂 Check-out empty, loading Check-in data...');
-        data = JSON.parse(JSON.stringify(checkInData));
-        
-        // 🔥 Καθαρίζουμε τα Check-out specific fields
-        if (data.items) {
-          data.items = data.items.map(item => ({ ...item, out: null }));
-        }
-        if (data.hullItems) {
-          data.hullItems = data.hullItems.map(item => ({ ...item, out: null }));
-        }
-        if (data.dinghyItems) {
-          data.dinghyItems = data.dinghyItems.map(item => ({ ...item, out: null }));
-        }
-        
-        // 🔥 ΣΗΜΑΝΤΙΚΟ: Καθαρίζουμε την υπογραφή για Check-out!
-        data.signatureImage = '';
-        data.signatureDone = false;
-        
-        console.log('🧹 Signature cleared for Check-out mode');
-      }
-    }
-    
-    console.log(`📂 Page 2 data loaded from ${storageKey}:`, data ? 'Found' : 'Empty');
-    return data;
-  } catch (error) {
-    console.error('Error loading booking data:', error);
-    return null;
-  }
+  // DEPRECATED: Use getPage2DataHybrid from apiService.ts instead
+  console.warn('⚠️ loadBookingData is deprecated - use apiService.ts functions instead');
+  console.log(`📝 Page 2 data for ${bookingNumber} (${mode}) should be loaded via API`);
+  return null; // Return null - callers should use API functions
 };
 
 
@@ -622,65 +574,18 @@ export function SignatureBox({ brand, lang, onSignChange, onImageChange, initial
   );
 }
 
-// ========= Page 3 Specific Save/Load =========
+// ========= Page 3 Specific Save/Load - DEPRECATED =========
 export const savePage3Data = (bookingNumber, page3Data, mode) => {
-  try {
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    if (!bookings[bookingNumber]) {
-      bookings[bookingNumber] = { 
-        bookingData: {}, 
-        lastModified: new Date().toISOString(), 
-        synced: false 
-      };
-    }
-    
-    const storageKey = mode === 'in' ? 'page3DataCheckIn' : 'page3DataCheckOut';
-    bookings[bookingNumber][storageKey] = page3Data;
-    bookings[bookingNumber].lastModified = new Date().toISOString();
-    bookings[bookingNumber].synced = false;
-    
-    localStorage.setItem('bookings', JSON.stringify(bookings));
-    console.log(`✅ Page 3 data saved to ${storageKey}`);
-  } catch (error) {
-    console.error('Error saving page 3 data:', error);
-  }
+  // DEPRECATED: Use savePage3DataHybrid from apiService.ts instead
+  console.warn('⚠️ savePage3Data is deprecated - use apiService.ts functions instead');
+  console.log(`📝 Page 3 data for ${bookingNumber} (${mode}) should be saved via API`);
 };
 
 export const loadPage3Data = (bookingNumber, mode) => {
-  try {
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    const booking = bookings[bookingNumber];
-    if (!booking) return null;
-    
-    const storageKey = mode === 'in' ? 'page3DataCheckIn' : 'page3DataCheckOut';
-    let data = booking[storageKey] || null;
-    
-    // 🔥 If Check-OUT is empty, load Check-IN data and clear out fields
-    if (mode === 'out' && !data) {
-      const checkInData = booking.page3DataCheckIn || null;
-      if (checkInData) {
-        data = JSON.parse(JSON.stringify(checkInData)); // Deep clone
-        
-        // Clear check-out specific fields
-        if (data.safetyItems) {
-          data.safetyItems = data.safetyItems.map(item => ({ ...item, out: null }));
-        }
-        if (data.cabinItems) {
-          data.cabinItems = data.cabinItems.map(item => ({ ...item, out: null }));
-        }
-        if (data.optionalItems) {
-          data.optionalItems = data.optionalItems.map(item => ({ ...item, out: null }));
-        }
-        // Clear signature
-        data.signature = '';
-      }
-    }
-    
-    return data;
-  } catch (error) {
-    console.error('Error loading page 3 data:', error);
-    return null;
-  }
+  // DEPRECATED: Use getPage3DataHybrid from apiService.ts instead
+  console.warn('⚠️ loadPage3Data is deprecated - use apiService.ts functions instead');
+  console.log(`📝 Page 3 data for ${bookingNumber} (${mode}) should be loaded via API`);
+  return null; // Return null - callers should use API functions
 };
 
 // ========= TableSection Component (for Page 3 and future pages) =========

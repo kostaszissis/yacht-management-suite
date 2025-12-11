@@ -6,7 +6,7 @@ import { codeMatches, textMatches } from './utils/searchUtils';
 import { saveBookingSync, getBookingSync, syncToFleetFormat, fleetToSyncFormat } from './utils/bookingSyncUtils';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
-import { saveBookingHybrid, getVessels, getBookingsByVesselHybrid, getAllBookingsHybrid, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking } from './services/apiService';
+import { saveBooking, getVessels, getBookingsByVessel, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking, getAllBookings } from './services/apiService';
 // 🔥 FIX 23: Charter Party DOCX generation
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -960,7 +960,7 @@ export default function FleetManagement() {
 
   // 🔥 NEW: Scan for Page 1 bookings needing financial details
   useEffect(() => {
-    const scanForPage1Bookings = () => {
+    const scanForPage1Bookings = async () => {
       let totalCount = 0;
       let firstBookingFound: any = null;
       let firstBoatId: string | null = null;
@@ -968,10 +968,16 @@ export default function FleetManagement() {
       // Get all boats
       const boats = FleetService.getAllBoats();
 
-      for (const boat of boats) {
-        const storageKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
-        try {
-          const charters = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      // 🔥 API-only: Get all bookings from API
+      try {
+        const allBookings = await getAllBookings();
+
+        for (const boat of boats) {
+          // Filter bookings for this boat
+          const charters = allBookings.filter((b: any) =>
+            b.vesselId === boat.id ||
+            b.vesselName?.toLowerCase() === boat.name?.toLowerCase()
+          );
 
           // Find Page 1 bookings without amount
           const page1BookingsNeedingDetails = charters.filter((c: any) =>
@@ -990,9 +996,9 @@ export default function FleetManagement() {
 
             console.log(`📋 Boat ${boat.name}: ${page1BookingsNeedingDetails.length} Page 1 booking(s) need financial details`);
           }
-        } catch (e) {
-          console.warn(`Error scanning ${storageKey}:`, e);
         }
+      } catch (e) {
+        console.warn('Error scanning for Page 1 bookings:', e);
       }
 
       setPage1BookingsNeedingAmount({
@@ -1053,17 +1059,14 @@ export default function FleetManagement() {
 
     // Load all boats in parallel for better performance
     await Promise.all(allBoats.map(async (boat: any) => {
-      const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
-
-      // Load charters from API (with localStorage merge and fallback)
+      // Load charters from API ONLY
       let charters: any[] = [];
       try {
-        charters = await getBookingsByVesselHybrid(boat.id);
-        console.log(`📂 ${boat.name} (${chartersKey}): ${charters.length} charters from API`);
+        charters = await getBookingsByVessel(boat.id);
+        console.log(`📂 ${boat.name}: ${charters.length} charters from API`);
       } catch (e) {
-        const chartersStored = localStorage.getItem(chartersKey);
-        charters = chartersStored ? JSON.parse(chartersStored) : [];
-        console.log(`📂 ${boat.name} (${chartersKey}): ${charters.length} charters from localStorage (API failed)`);
+        console.error(`❌ ${boat.name}: API failed, no charters loaded`);
+        charters = [];
       }
 
       // Load invoices (localStorage only for now)
@@ -2176,12 +2179,9 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
           // Delete ALL bookings from database
           const dbCount = await deleteFromDatabase('bookings');
           deletedCount += dbCount;
-          // Clear Page 1 localStorage
-          localStorage.removeItem('bookings');
-          localStorage.removeItem('currentBooking');
-          console.log('🧹 Cleared all Page 1 bookings from database and localStorage');
+          console.log('🧹 Cleared all Page 1 bookings from database');
         } else if (page1Item.mode === 'selective' && page1Item.bookings?.length > 0) {
-          // Delete selected bookings one by one
+          // Delete selected bookings one by one from API
           for (const bookingCode of page1Item.bookings) {
             try {
               const response = await fetch(`/api/bookings.php?booking_number=${encodeURIComponent(bookingCode)}`, {
@@ -2191,13 +2191,6 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
               if (result.success) {
                 console.log(`✅ Deleted booking: ${bookingCode}`);
                 deletedCount++;
-                // Also remove from localStorage 'bookings' object
-                const bookingsStr = localStorage.getItem('bookings');
-                if (bookingsStr) {
-                  const bookings = JSON.parse(bookingsStr);
-                  delete bookings[bookingCode];
-                  localStorage.setItem('bookings', JSON.stringify(bookings));
-                }
               } else {
                 console.error(`❌ Failed to delete ${bookingCode}:`, result.error);
                 apiErrors.push(`${bookingCode}: ${result.error}`);
@@ -2240,22 +2233,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
 
     authService.logActivity('clear_data', `Deleted ${deletedCount} data items`);
 
-    // 🔥 Set refresh trigger so other pages (like Page 1) know to reload data
-    const refreshTimestamp = Date.now().toString();
-    localStorage.setItem('bookings_refresh_trigger', refreshTimestamp);
-
-    // 🔥 Also clear the main 'bookings' localStorage if charters were deleted
-    if (selectedItems.charters?.enabled && selectedItems.charters?.mode === 'all') {
-      localStorage.removeItem('bookings');
-      localStorage.removeItem('currentBooking');
-      console.log('🧹 Cleared main bookings localStorage');
-    }
-
-    // 🔥 Dispatch storage event manually for same-tab listeners
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'bookings_refresh_trigger',
-      newValue: refreshTimestamp
-    }));
+    // Data deleted from API - UI will refresh from API on next load
 
     if (apiErrors.length > 0) {
       globalShowMessage(`⚠️ Διαγράφηκαν ${deletedCount} στοιχεία (με σφάλματα: ${apiErrors.join(', ')})`, 'warning');
@@ -2757,16 +2735,14 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
   const loadBoatDetails = async (boatId) => {
     setSelectedBoat(boatId);
 
-    // Load charters from API (with localStorage merge)
+    // Load charters from API ONLY
     let charters = [];
     try {
-      charters = await getBookingsByVesselHybrid(boatId);
+      charters = await getBookingsByVessel(boatId);
       console.log(`✅ Loaded ${charters.length} charters for boat ${boatId} from API`);
     } catch (e) {
-      console.warn('⚠️ API failed, using localStorage for charters');
-      const chartersKey = `fleet_${boatId}_ΝΑΥΛΑ`;
-      const chartersStored = localStorage.getItem(chartersKey);
-      charters = chartersStored ? JSON.parse(chartersStored) : [];
+      console.error(`❌ API failed for boat ${boatId}, no charters loaded`);
+      charters = [];
     }
 
     // Load invoices (localStorage only for now)
@@ -3323,16 +3299,14 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
 
     // Load all boats in parallel for better performance
     await Promise.all(boatIds.map(async (boatId: any) => {
-      // Load charters from API (with localStorage merge and fallback)
+      // Load charters from API ONLY
       let charters = [];
       try {
-        charters = await getBookingsByVesselHybrid(boatId);
+        charters = await getBookingsByVessel(boatId);
         console.log(`✅ FleetSummary: Loaded ${charters.length} charters for boat ${boatId} from API`);
       } catch (e) {
-        console.warn(`⚠️ API failed for boat ${boatId}, using localStorage`);
-        const chartersKey = `fleet_${boatId}_ΝΑΥΛΑ`;
-        const chartersStored = localStorage.getItem(chartersKey);
-        charters = chartersStored ? JSON.parse(chartersStored) : [];
+        console.error(`❌ API failed for boat ${boatId}, no charters loaded`);
+        charters = [];
       }
 
       // Load invoices (localStorage only for now)
@@ -3612,19 +3586,18 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
   const canViewFinancials = !isTechnicalUser; // TECHNICAL δεν βλέπει οικονομικά
   const canEditBookings = (authService.isAdmin() || authService.isBooking()) && !isOwnerUser;
 
-  // 🔥 Auto-refresh: Memoized loadBookings function
+  // 🔥 Auto-refresh: Memoized loadBookings function - API-only
   const loadBookings = useCallback(async () => {
     if (!boat) return;
     try {
-      const key = `fleet_${boat.id}_ΝΑΥΛΑ`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        setBookings(JSON.parse(stored));
-      }
+      // 🔥 API-only: Load bookings from API
+      const apiBookings = await getBookingsByVessel(boat.id);
+      setBookings(apiBookings || []);
       setLoading(false);
       setLastUpdated(new Date());
     } catch (e) {
-      console.error('Error loading bookings:', e);
+      console.error('Error loading bookings from API:', e);
+      setBookings([]); // No localStorage fallback
       setLoading(false);
     }
   }, [boat]);
@@ -3677,12 +3650,12 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
     );
   }
 
-  const cycleBookingStatus = (booking) => {
+  const cycleBookingStatus = async (booking) => {
     if (!canEditBookings) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
     }
-    
+
     let newStatus;
     switch(booking.status) {
       case 'Option':
@@ -3698,15 +3671,28 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
       default:
         newStatus = 'Option';
     }
-    
-    const updated = bookings.map((b) => 
-      b.id === booking.id ? { ...b, status: newStatus, updatedBy: authService.getCurrentUser()?.name, updatedAt: new Date().toISOString() } : b
-    );
-    const key = `fleet_${boat.id}_ΝΑΥΛΑ`;
-    localStorage.setItem(key, JSON.stringify(updated));
-    setBookings(updated);
-    
-    showMessage(`✅ Status άλλαξε σε ${newStatus}`, 'success');
+
+    // 🔥 API-only: Update status via API
+    try {
+      const bookingNumber = booking.bookingNumber || booking.code || booking.id;
+      const updatedBooking = {
+        ...booking,
+        status: newStatus,
+        updatedBy: authService.getCurrentUser()?.name,
+        updatedAt: new Date().toISOString()
+      };
+      await saveBooking(bookingNumber, { bookingData: updatedBooking });
+
+      // Update local state
+      const updated = bookings.map((b: any) =>
+        b.id === booking.id ? updatedBooking : b
+      );
+      setBookings(updated);
+      showMessage(`✅ Status άλλαξε σε ${newStatus}`, 'success');
+    } catch (e) {
+      console.error('Error updating status via API:', e);
+      showMessage('❌ Σφάλμα αποθήκευσης status', 'error');
+    }
   };
 
   const changeMonth = (offset) => {
@@ -4613,7 +4599,7 @@ function DetailsPage({ boat, category, navigate, showMessage }) {
       // For ΝΑΥΛΑ (charters): fetch from API first, merge with localStorage
       if (category === 'ΝΑΥΛΑ') {
         console.log(`🔄 Loading charters for vessel ${boat.id} from API...`);
-        const charters = await getBookingsByVesselHybrid(boat.id);
+        const charters = await getBookingsByVessel(boat.id);
         setItems(charters);
         setLoading(false);
         return;
@@ -5861,7 +5847,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     doubleBookingError
   });
 
-  // 🔥 FIX 6: Add saveBookingHybrid API sync
+  // 🔥 FIX 6: Add saveBooking API sync
   // 🔥 NEW: Handles both ADD and EDIT modes
   const handleAddCharter = async () => {
     const isEditMode = !!editingCharter;
@@ -6081,7 +6067,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
     // 🔥 FIX 6: Sync to API
     try {
-      const apiResult = await saveBookingHybrid(charter.code, { bookingData: charter });
+      const apiResult = await saveBooking(charter.code, { bookingData: charter });
       console.log('✅ Charter synced to API:', apiResult);
     } catch (error) {
       console.error('❌ API sync error (charter saved locally):', error);
@@ -6753,7 +6739,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
       onUpdateStatus(charter, 'Option Accepted');
       try {
         const updatedCharter = { ...charter, status: 'Option Accepted', vesselId: boat.id };
-        await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
+        await saveBooking(charter.code, { bookingData: updatedCharter });
         console.log('✅ Charter acceptance synced to API');
       } catch (error) {
         console.error('❌ API sync error:', error);
@@ -6779,7 +6765,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
       onUpdateStatus(charter, 'Cancelled');
       try {
         const updatedCharter = { ...charter, status: 'Cancelled', vesselId: boat.id };
-        await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
+        await saveBooking(charter.code, { bookingData: updatedCharter });
         console.log('✅ Charter rejection synced to API');
       } catch (error) {
         console.error('❌ API sync error:', error);
@@ -6817,7 +6803,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
       onUpdateStatus(charter, 'Confirmed');
       try {
         const updatedCharter = { ...charter, status: 'Confirmed', vesselId: boat.id };
-        await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
+        await saveBooking(charter.code, { bookingData: updatedCharter });
         console.log('✅ Final confirmation synced to API');
       } catch (error) {
         console.error('❌ API sync error:', error);
@@ -6842,7 +6828,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
       onUpdateStatus(charter, 'Pending Final Confirmation');
       try {
         const updatedCharter = { ...charter, status: 'Pending Final Confirmation', vesselId: boat.id };
-        await saveBookingHybrid(charter.code, { bookingData: updatedCharter });
+        await saveBooking(charter.code, { bookingData: updatedCharter });
         console.log('✅ Sent for final approval - synced to API');
       } catch (error) {
         console.error('❌ API sync error:', error);
@@ -7190,16 +7176,14 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
   // 🔥 FIX 16: Load data from API first, merge with localStorage
   const loadData = async () => {
     try {
-      // Load charters from API (with localStorage merge and fallback)
+      // Load charters from API ONLY
       let chartersData: any[] = [];
       try {
-        chartersData = await getBookingsByVesselHybrid(boat.id);
+        chartersData = await getBookingsByVessel(boat.id);
         console.log(`✅ FinancialsPage: Loaded ${chartersData.length} charters from API`);
       } catch (apiError) {
-        console.warn('⚠️ API failed, using localStorage for charters');
-        const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
-        const chartersStored = localStorage.getItem(chartersKey);
-        chartersData = chartersStored ? JSON.parse(chartersStored) : [];
+        console.error(`❌ API failed, no charters loaded`);
+        chartersData = [];
       }
 
       // Sort charters by date
@@ -7616,20 +7600,21 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
     );
   }
 
-  const loadAllData = () => {
+  const loadAllData = async () => {
     try {
       const boats = FleetService.getAllBoats();
       setAllBoats(boats);
-      
-      let allBookingsData = [];
-      for (const boat of boats) {
-        const bookingsKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
-        const bookingsStored = localStorage.getItem(bookingsKey);
-        if (bookingsStored) {
-          const bookings = JSON.parse(bookingsStored);
-          bookings.forEach((booking) => { allBookingsData.push({ ...booking, boatId: boat.id }); });
+
+      // Load all bookings from API for all boats
+      let allBookingsData: any[] = [];
+      await Promise.all(boats.map(async (boat: any) => {
+        try {
+          const bookings = await getBookingsByVessel(boat.id);
+          bookings.forEach((booking: any) => { allBookingsData.push({ ...booking, boatId: boat.id }); });
+        } catch (e) {
+          console.error(`❌ Failed to load bookings for boat ${boat.id}`);
         }
-      }
+      }));
       setAllBookings(allBookingsData);
       setLoading(false);
     } catch (e) {

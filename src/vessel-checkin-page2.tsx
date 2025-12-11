@@ -706,24 +706,17 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
       setDiversReportFile(null);
       
       if (currentBookingNumber) {
-                try {
-          const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-          if (bookings[currentBookingNumber]) {
-            bookings[currentBookingNumber].page2DataCheckIn = {};
-            bookings[currentBookingNumber].page2DataCheckOut = {};
-            localStorage.setItem('bookings', JSON.stringify(bookings));
-          }
-          
+        try {
+          // Clear signature localStorage (UI state)
           localStorage.removeItem(`page2_signature_${currentBookingNumber}_in`);
           localStorage.removeItem(`page2_signature_${currentBookingNumber}_out`);
           localStorage.removeItem(`page2_signatureDone_${currentBookingNumber}_in`);
           localStorage.removeItem(`page2_signatureDone_${currentBookingNumber}_out`);
-          
           localStorage.removeItem(`page2_diversReport_${currentBookingNumber}_in`);
           localStorage.removeItem(`page2_diversReport_${currentBookingNumber}_out`);
           localStorage.removeItem(`page2_diversImageUploaded_${currentBookingNumber}_in`);
           localStorage.removeItem(`page2_diversImageUploaded_${currentBookingNumber}_out`);
-          
+          // Note: Page data is cleared via state reset above - API data will be re-fetched
         } catch (e) {
           console.error('Error clearing data:', e);
         }
@@ -819,9 +812,13 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
     }
 
     const { generateLuxuryPDF } = await import('./utils/LuxuryPDFGenerator');
-    
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    const bookingInfo = bookings[currentBookingNumber]?.bookingData || {};
+
+    // Get booking info from context (API is source of truth)
+    const globalBookings = contextData?.globalBookings || [];
+    const bookingFromContext = globalBookings.find((b: any) =>
+      b.bookingNumber === currentBookingNumber || b.code === currentBookingNumber
+    );
+    const bookingInfo = bookingFromContext || contextData?.data || {};
 
     const bookingData = {
       bookingNumber: currentBookingNumber,
@@ -906,8 +903,13 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
     
     doc.save(`Page2_${mode === 'in' ? 'CheckIn' : 'CheckOut'}_${currentBookingNumber}_${new Date().toISOString().split('T')[0]}.pdf`);
   };
-  const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-  const bookingInfo = bookings[currentBookingNumber]?.bookingData || {};
+
+  // Get booking info from context (API is source of truth)
+  const renderGlobalBookings = contextData?.globalBookings || [];
+  const renderBookingFromContext = renderGlobalBookings.find((b: any) =>
+    b.bookingNumber === currentBookingNumber || b.code === currentBookingNumber
+  );
+  const bookingInfo = renderBookingFromContext || contextData?.data || {};
 
   return (
     <div className="min-h-screen p-4" style={{ background: brand.pageBg }}>

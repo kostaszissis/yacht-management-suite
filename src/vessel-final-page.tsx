@@ -10,12 +10,13 @@
 // 4. Employee signature ULTRA FIX with 3 attempts
 // =================================================================
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import { sendCheckInEmail, sendCheckOutEmail } from './services/emailService';
 import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
-import { saveBookingHybrid, getBookingHybrid, savePage5DataHybrid, getPage5DataHybrid } from './services/apiService';
+import { saveBooking, getBooking, savePage5DataHybrid, getPage5DataHybrid, getAllBookings } from './services/apiService';
+import { DataContext } from './App';
 
 import {
   brand,
@@ -253,155 +254,23 @@ function getItemLabel(key, lang = 'en') {
 }
 
 function getAllItems(lang = 'en') {
-  const allItems = [];
-  try {
-    const currentBooking = localStorage.getItem('currentBooking');
-    if (!currentBooking) return allItems;
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    
-    const pageSections = [
-      { page: 'page2DataCheckIn', sections: ['items', 'hullItems', 'dinghyItems'], pageLabel: 'Page 2' },
-      { page: 'page3DataCheckIn', sections: ['safetyItems', 'cabinItems', 'optionalItems'], pageLabel: 'Page 3' },
-      { page: 'page4DataCheckIn', sections: ['items', 'navItems', 'safetyItems', 'genItems', 'deckItems', 'fdeckItems', 'dinghyItems', 'fendersItems', 'boathookItems'], pageLabel: 'Page 4' }
-    ];
-    
-    pageSections.forEach(({ page, sections, pageLabel }) => {
-      const checkInData = bookings[currentBooking]?.[page] || {};
-      const checkOutPage = page.replace('CheckIn', 'CheckOut');
-      const checkOutData = bookings[currentBooking]?.[checkOutPage] || {};
-      
-      sections.forEach(sectionKey => {
-        const itemsIn = checkInData[sectionKey] || [];
-        const itemsOut = checkOutData[sectionKey] || [];
-        
-        const itemMap = new Map();
-        
-        itemsIn.forEach(item => {
-          const itemId = item.id || `${sectionKey}-${item.key}`;
-          itemMap.set(itemId, {
-            key: item.key,
-            name: getItemLabel(item.key, lang),
-            inOk: item.inOk,
-            qty: item.qty || 1,
-            price: item.price || 0,
-            section: sectionKey,
-            page: pageLabel,
-            media: item.media || []
-          });
-        });
-        
-        itemsOut.forEach(item => {
-          const itemId = item.id || `${sectionKey}-${item.key}`;
-          if (itemMap.has(itemId)) {
-            itemMap.get(itemId).out = item.out;
-            if (item.media && item.media.length > 0) {
-              itemMap.get(itemId).media = [...(itemMap.get(itemId).media || []), ...item.media];
-            }
-          } else {
-            itemMap.set(itemId, {
-              key: item.key,
-              name: getItemLabel(item.key, lang),
-              inOk: false,
-              out: item.out,
-              qty: item.qty || 1,
-              price: item.price || 0,
-              section: sectionKey,
-              page: pageLabel,
-              media: item.media || []
-            });
-          }
-        });
-        
-        itemMap.forEach(item => allItems.push(item));
-      });
-    });
-  } catch (e) {
-    console.error('Error loading all items:', e);
-  }
-  return allItems;
+  // DEPRECATED: This function needs refactoring to use API data
+  // Page data should come from API via getPage2DataHybrid, getPage3DataHybrid, getPage4DataHybrid
+  console.warn('⚠️ getAllItems: localStorage for bookings removed - page data should be loaded via API');
+  return [];
 }
 
 function getDamagePhotos(mode) {
+  // DEPRECATED: This function needs refactoring to use API data
+  console.warn('⚠️ getDamagePhotos: localStorage for bookings removed - photos should be loaded via API');
   if (mode !== 'out') return {};
-  
-  try {
-    const currentBooking = localStorage.getItem('currentBooking');
-    if (!currentBooking) return {};
-    
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    if (!bookings[currentBooking]) return {};
-    
-    const allPhotos = {};
-    const checkOutPages = ['page2DataCheckOut', 'page3DataCheckOut', 'page4DataCheckOut'];
-    const sections = ['items', 'hullItems', 'dinghyItems', 'safetyItems', 'cabinItems', 'optionalItems', 
-                      'navItems', 'genItems', 'deckItems', 'fdeckItems', 'fendersItems', 'boathookItems'];
-    
-    checkOutPages.forEach(page => {
-      const pageData = bookings[currentBooking]?.[page] || {};
-      sections.forEach(section => {
-        const items = pageData[section];
-        if (Array.isArray(items)) {
-          items.forEach(item => {
-            if (item.out === 'not' && item?.media?.length) {
-              const label = getItemLabel(item.key, 'en');
-              if (!allPhotos[label]) allPhotos[label] = [];
-              item.media.forEach(m => {
-                if (m?.url) {
-                  allPhotos[label].push(m.url);
-                }
-              });
-            }
-          });
-        }
-      });
-    });
-    
-    return allPhotos;
-  } catch (e) {
-    console.error('Error loading damage photos:', e);
-    return {};
-  }
+  return {};
 }
 
 function getAllPhotos() {
-  try {
-    const currentBooking = localStorage.getItem('currentBooking');
-    if (!currentBooking) return {};
-    
-    const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-    if (!bookings[currentBooking]) return {};
-    
-    const allPhotos = {};
-    const PAGES = ['page2DataCheckIn', 'page2DataCheckOut', 'page3DataCheckIn', 'page3DataCheckOut', 'page4DataCheckIn', 'page4DataCheckOut'];
-    const SECTIONS = ['items', 'hullItems', 'dinghyItems', 'safetyItems', 'cabinItems', 'optionalItems', 'navItems', 'genItems', 'deckItems', 'fdeckItems', 'fendersItems', 'boathookItems'];
-    const seenUrls = new Set();
-    
-    PAGES.forEach(page => {
-      const pageData = bookings[currentBooking]?.[page] || {};
-      SECTIONS.forEach(section => {
-        const items = pageData[section];
-        if (Array.isArray(items)) {
-          items.forEach(item => {
-            if (item?.media?.length) {
-              const label = getItemLabel(item.key, 'en');
-              if (!allPhotos[label]) allPhotos[label] = [];
-              item.media.forEach(m => {
-                if (m?.url && !seenUrls.has(m.url)) {
-                  allPhotos[label].push(m.url);
-                  seenUrls.add(m.url);
-                }
-              });
-            }
-          });
-        }
-      });
-    });
-    
-    return allPhotos;
-  } catch (e) {
-    console.error('Error loading photos:', e);
-    return {};
-  }
+  // DEPRECATED: This function needs refactoring to use API data
+  console.warn('⚠️ getAllPhotos: localStorage for bookings removed - photos should be loaded via API');
+  return {};
 }
 
 async function sendEmailWithPDF(bookingData, pdfBlob, mode, lang) {
@@ -1084,11 +953,14 @@ function EmployeeSignatureWithLogin({
 // =================================================================
 
 export default function Page5({ onNavigate }) {
+  // Get context data (API is source of truth)
+  const contextData = useContext(DataContext);
+
   const [mode, setMode] = useState('in');
   const isCheckIn = mode === 'in';
   const isCheckOut = mode === 'out';
   const [currentBookingNumber, setCurrentBookingNumber] = useState('');
-  
+
   // Refs
   const returnRef = useRef(null);
   const termsRef = useRef(null);
@@ -1101,16 +973,7 @@ export default function Page5({ onNavigate }) {
   const employeeCanvasRef = useRef(null);
   const employeeLoginRef = useRef(null);
   
-  const [lang, setLang] = useState(() => {
-    try {
-      const currentBooking = localStorage.getItem('currentBooking');
-      if (!currentBooking) return "en";
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      return bookings[currentBooking]?.bookingData?.language || "en";
-    } catch {
-      return "en";
-    }
-  });
+  const [lang, setLang] = useState("en"); // Will be set from context/API
   
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
@@ -1195,24 +1058,21 @@ export default function Page5({ onNavigate }) {
   };
   
   useEffect(() => {
-    try {
-      const currentBooking = localStorage.getItem('currentBooking');
-      if (!currentBooking) return;
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      const savedMode = bookings[currentBooking]?.bookingData?.mode || 'in';
-      setMode(savedMode);
-      localStorage.setItem('currentMode', savedMode);
-      
-      const employeeSession = sessionStorage.getItem('currentEmployee');
-      if (employeeSession) {
+    // Load mode from context (API is source of truth)
+    const savedMode = contextData?.mode || 'in';
+    setMode(savedMode);
+
+    const employeeSession = sessionStorage.getItem('currentEmployee');
+    if (employeeSession) {
+      try {
         const employee = JSON.parse(employeeSession);
         setIsEmployee(true);
         setCurrentEmployee(employee);
+      } catch (e) {
+        console.error('Error parsing employee session:', e);
       }
-    } catch (e) {
-      console.error('Error loading mode:', e);
     }
-  }, []);
+  }, [contextData?.mode]);
   
   useEffect(() => {
     const loadData = async () => {
@@ -1230,12 +1090,23 @@ export default function Page5({ onNavigate }) {
       }
 
       try {
-        const currentBooking = localStorage.getItem('currentBooking');
+        // Get booking from context (API is source of truth)
+        const currentBooking = contextData?.bookingNumber || localStorage.getItem('currentBooking');
         if (!currentBooking) return;
         setCurrentBookingNumber(currentBooking);
-        const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-        const data = bookings[currentBooking]?.bookingData || {};
+
+        // Use globalBookings from context instead of localStorage
+        const globalBookings = contextData?.globalBookings || [];
+        const bookingFromContext = globalBookings.find((b: any) =>
+          b.bookingNumber === currentBooking || b.code === currentBooking
+        );
+        const data = bookingFromContext || contextData?.data || {};
         setBookingData(data);
+
+        // Set language from booking data
+        if (data?.language) {
+          setLang(data.language);
+        }
 
         // 🔥 Try API first for Page 5 data
         let page5Data = null;
@@ -1603,7 +1474,7 @@ export default function Page5({ onNavigate }) {
       if (currentBookingNumber) {
         try {
           // Load existing booking to get all page data
-          const existingBooking = await getBookingHybrid(currentBookingNumber);
+          const existingBooking = await getBooking(currentBookingNumber);
 
           // Prepare complete booking update
           const completeUpdate = {
@@ -1624,7 +1495,7 @@ export default function Page5({ onNavigate }) {
           }
 
           // Save complete booking to API
-          await saveBookingHybrid(currentBookingNumber, completeUpdate);
+          await saveBooking(currentBookingNumber, completeUpdate);
           console.log('✅ Complete booking saved to API');
         } catch (error) {
           console.error('⚠️ Failed to save complete booking to API:', error);

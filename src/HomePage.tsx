@@ -63,85 +63,13 @@ export default function HomePage() {
           }
         }
       } catch (apiError) {
-        console.log('API not available, using localStorage');
+        console.log('API not available');
       }
 
-      // Fallback to localStorage if API failed
+      // API is source of truth - no localStorage fallback
       if (!apiResponse) {
-        console.log('📦 Using localStorage fallback');
-        const localBookings: Record<string, any> = {};
-
-        // First, get all boats from fleet storage to get vessel names
-        const fleetBoats: any[] = [];
-        try {
-          // FleetManagement uses 'app_fleet_vessels' key
-          const fleetData = localStorage.getItem('app_fleet_vessels');
-          console.log('📦 Fleet vessels data:', fleetData ? 'found' : 'not found');
-          if (fleetData) {
-            const boats = JSON.parse(fleetData);
-            console.log('🚤 Boats loaded:', boats?.length || 0, 'boats');
-            if (Array.isArray(boats)) {
-              fleetBoats.push(...boats);
-              boats.forEach((b: any) => console.log('  - Boat:', b.id, '=', b.name));
-            }
-          }
-        } catch (e) {
-          console.log('No app_fleet_vessels');
-        }
-
-        // Get all localStorage keys for charters (fleet_BOATID_ΝΑΥΛΑ pattern)
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-
-          // Match FleetManagement charter storage pattern: fleet_BOATID_ΝΑΥΛΑ
-          if (key && key.includes('_ΝΑΥΛΑ')) {
-            try {
-              const data = JSON.parse(localStorage.getItem(key) || '[]');
-              // Extract boat ID from key (fleet_BOATID_ΝΑΥΛΑ)
-              const boatIdMatch = key.match(/fleet_(.+)_ΝΑΥΛΑ/);
-              const boatId = boatIdMatch ? boatIdMatch[1] : '';
-
-              // Find boat name from fleet
-              const boat = fleetBoats.find((b: any) => b.id === boatId);
-              const boatName = boat?.name || boatId;
-
-              if (Array.isArray(data)) {
-                data.forEach((charter: any) => {
-                  const code = charter.code || charter.bookingCode || charter.charterCode;
-                  if (code) {
-                    console.log('📋 Found charter:', code, 'on vessel:', boatName);
-                    localBookings[code] = {
-                      bookingData: {
-                        ...charter,
-                        vesselName: charter.vesselName || charter.boatName || boatName,
-                        boatName: boatName
-                      }
-                    };
-                  }
-                });
-              }
-            } catch (e) {
-              console.log('Error parsing', key);
-            }
-          }
-
-          // Also check booking_ pattern from Page1
-          if (key && key.startsWith('booking_')) {
-            try {
-              const data = JSON.parse(localStorage.getItem(key) || '{}');
-              const code = data.bookingCode || data.bookingNumber || key.replace('booking_', '');
-              if (code && !localBookings[code]) {
-                localBookings[code] = { bookingData: data };
-              }
-            } catch (e) {
-              // Skip
-            }
-          }
-        }
-
-        console.log('📋 LocalStorage bookings found:', Object.keys(localBookings).length);
-        console.log('📋 Booking codes:', Object.keys(localBookings));
-        apiResponse = { bookings: Object.values(localBookings).map(b => b.bookingData) };
+        console.log('⚠️ API not available - no localStorage fallback');
+        apiResponse = { bookings: [] };
       }
 
       // Handle both array format and { bookings: {...} } object format from API

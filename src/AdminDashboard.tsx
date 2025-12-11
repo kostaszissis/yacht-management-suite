@@ -7,7 +7,7 @@ import InstallButton from './InstallButton';
 import { textMatches } from './utils/searchUtils';
 // 🔥 FIX 16: Import API functions for multi-device sync
 // 🔥 FIX 31: Added checkExpiredOptions for auto-expire
-import { getBookingsByVesselHybrid, checkExpiredOptions } from './services/apiService';
+import { getBookingsByVessel, getAllBookings, checkExpiredOptions } from './services/apiService';
 // 🔥 Auto-refresh hook for polling API data
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 
@@ -111,38 +111,6 @@ export default function AdminDashboard({
   const user = authService.getCurrentUser();
   const reactNavigate = useNavigate();
 
-  // 🔥 DEBUG: Show all fleet localStorage data on mount
-  useEffect(() => {
-    console.log('');
-    console.log('╔════════════════════════════════════════════════════════════════╗');
-    console.log('║           🔍 FLEET LOCALSTORAGE DEBUG                          ║');
-    console.log('╚════════════════════════════════════════════════════════════════╝');
-    const keys = Object.keys(localStorage).filter(k => k.includes('fleet_') && k.includes('ΝΑΥΛΑ'));
-    console.log('📦 Found', keys.length, 'fleet keys:', keys);
-    console.log('');
-    keys.forEach(key => {
-      try {
-        const data = JSON.parse(localStorage.getItem(key) || '[]');
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log('🔑 KEY:', key);
-        console.log('   Charters count:', data.length);
-        data.forEach((c: any) => {
-          console.log('   📋 Charter:', c.code);
-          console.log('      vesselName:', c.vesselName);
-          console.log('      vesselId:', c.vesselId, '(type:', typeof c.vesselId + ')');
-          console.log('      boatName:', c.boatName);
-          console.log('      source:', c.source);
-          console.log('      status:', c.status);
-        });
-      } catch (e) {
-        console.log('❌ Error parsing key:', key, e);
-      }
-    });
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🚢 Available boats:', boats.map(b => ({ id: b.id, name: b.name })));
-    console.log('╚════════════════════════════════════════════════════════════════╝');
-  }, [boats]);
-
   // Filter boats based on search (case-insensitive)
   const filteredBoats = boats.filter(boat => {
     if (!searchTerm.trim()) return true;
@@ -158,17 +126,16 @@ export default function AdminDashboard({
 
     // Load all boats in parallel for better performance
     await Promise.all(boats.map(async (boat: any) => {
-      // Load charters from API (with localStorage merge and fallback)
+      // Load charters from API only (no localStorage fallback)
       let charters: any[] = [];
       try {
-        charters = await getBookingsByVesselHybrid(boat.id);
+        charters = await getBookingsByVessel(boat.id);
       } catch (e) {
-        const chartersKey = `fleet_${boat.id}_ΝΑΥΛΑ`;
-        const chartersStored = localStorage.getItem(chartersKey);
-        charters = chartersStored ? JSON.parse(chartersStored) : [];
+        console.error(`❌ Error loading charters for ${boat.name}:`, e);
+        charters = []; // No localStorage fallback
       }
 
-      // Load invoices (localStorage only for now)
+      // Load invoices (localStorage only for now - separate from bookings)
       const invoicesKey = `fleet_${boat.id}_ΤΙΜΟΛΟΓΙΑ`;
       const invoicesStored = localStorage.getItem(invoicesKey);
       const invoices = invoicesStored ? JSON.parse(invoicesStored) : [];
@@ -223,152 +190,71 @@ export default function AdminDashboard({
     loadFinancialsData();
   }, [loadFinancialsData]);
 
-  // 📝 Scan localStorage for Page 1 bookings per boat
+  // 📝 Fetch Page 1 bookings from API (no localStorage)
   useEffect(() => {
-    const scanPage1Bookings = () => {
+    const fetchPage1Bookings = async () => {
       const bookingsByBoat: {[boatId: string]: {count: number, firstBooking: any}} = {};
 
-      // 🔍 DEBUG: Log ALL localStorage keys to find the mismatch
-      console.log('📂 ALL localStorage keys:', Object.keys(localStorage));
-      console.log('📂 Keys with "fleet":', Object.keys(localStorage).filter(k => k.toLowerCase().includes('fleet')));
-      console.log('📂 Keys with "ΝΑΥΛΑ":', Object.keys(localStorage).filter(k => k.includes('ΝΑΥΛΑ')));
-      console.log('📂 Keys with "bookings":', Object.keys(localStorage).filter(k => k.toLowerCase().includes('booking')));
-
-      console.log('🔍 AdminDashboard: Scanning for Page 1 bookings...');
+      console.log('🔍 AdminDashboard: Fetching Page 1 bookings from API...');
       console.log('📦 Available boats:', boats.map(b => ({ id: b.id, name: b.name })));
 
-      boats.forEach((boat: any) => {
-        // 🔥 FIX: Check ALL possible key variations (case sensitivity)
-        const keysToCheck = [
-          `fleet_${boat.id}_ΝΑΥΛΑ`,                           // By ID (e.g., fleet_7_ΝΑΥΛΑ)
-          `fleet_${boat.name}_ΝΑΥΛΑ`,                         // By name exact (e.g., fleet_Perla_ΝΑΥΛΑ)
-          `fleet_${boat.name?.toUpperCase()}_ΝΑΥΛΑ`,          // By name UPPER (e.g., fleet_PERLA_ΝΑΥΛΑ)
-          `fleet_${boat.name?.toLowerCase()}_ΝΑΥΛΑ`,          // By name lower (e.g., fleet_perla_ΝΑΥΛΑ)
-        ];
+      try {
+        // Fetch all bookings from API
+        const allBookings = await getAllBookings();
+        console.log(`📂 Fetched ${allBookings.length} total bookings from API`);
 
-        // 🔥 FIX: Also scan ALL localStorage keys for any that match this boat
-        // This handles cases where vesselId was stored differently
-        const allStorageKeys = Object.keys(localStorage);
-        const fleetKeys = allStorageKeys.filter(k => k.startsWith('fleet_') && k.endsWith('_ΝΑΥΛΑ'));
+        boats.forEach((boat: any) => {
+          // Filter bookings for this boat
+          const boatBookings = allBookings.filter((b: any) =>
+            b.vesselName?.toLowerCase() === boat.name?.toLowerCase() ||
+            b.boatName?.toLowerCase() === boat.name?.toLowerCase() ||
+            b.vessel?.toLowerCase() === boat.name?.toLowerCase()
+          );
 
-        // Add any fleet keys that might match this boat (case-insensitive comparison)
-        fleetKeys.forEach(key => {
-          // Extract vessel identifier from key (fleet_{vesselId}_ΝΑΥΛΑ)
-          const match = key.match(/^fleet_(.+)_ΝΑΥΛΑ$/);
-          if (match) {
-            const keyVesselId = match[1];
-            // Check if this key's vesselId matches boat name (case-insensitive)
-            if (keyVesselId.toLowerCase() === boat.name?.toLowerCase() ||
-                keyVesselId.toLowerCase() === boat.id?.toString().toLowerCase()) {
-              if (!keysToCheck.includes(key)) {
-                keysToCheck.push(key);
-                console.log(`   🔍 Added matching key from scan: ${key}`);
-              }
-            }
+          console.log(`📂 ${boat.name}: Found ${boatBookings.length} total bookings`);
 
-            // 🔥 FIX: Also check if any charter inside this key has vesselName matching this boat
-            if (!keysToCheck.includes(key)) {
-              try {
-                const stored = localStorage.getItem(key);
-                if (stored) {
-                  const charters = JSON.parse(stored);
-                  const hasMatchingCharter = charters.some((c: any) =>
-                    c.vesselName?.toLowerCase() === boat.name?.toLowerCase() ||
-                    c.boatName?.toLowerCase() === boat.name?.toLowerCase()
-                  );
-                  if (hasMatchingCharter) {
-                    keysToCheck.push(key);
-                    console.log(`   🔍 Added key with matching vesselName: ${key}`);
-                  }
-                }
-              } catch (e) {
-                // Ignore parse errors
-              }
+          if (boatBookings.length > 0) {
+            // Find Page 1 bookings that need financial details
+            // Check: source='page1' OR status='Draft' (more lenient)
+            // AND: amount is missing or 0
+            const page1Bookings = boatBookings.filter((c: any) => {
+              const isFromPage1 = c.source === 'page1';
+              const isDraft = c.status === 'Draft';
+              const needsAmount = !c.amount || c.amount === 0;
+
+              // Include if: (from Page 1 OR Draft) AND needs amount
+              return (isFromPage1 || isDraft) && needsAmount;
+            });
+
+            console.log(`📝 ${boat.name}: Found ${page1Bookings.length} Page 1 bookings needing attention`);
+
+            if (page1Bookings.length > 0) {
+              bookingsByBoat[boat.id] = {
+                count: page1Bookings.length,
+                firstBooking: page1Bookings[0]
+              };
             }
           }
         });
 
-        // Combine charters from ALL keys
-        let allCharters: any[] = [];
-
-        keysToCheck.forEach(key => {
-          const stored = localStorage.getItem(key);
-          if (stored) {
-            try {
-              const charters = JSON.parse(stored);
-              // Add only if not already in the list (avoid duplicates)
-              charters.forEach((c: any) => {
-                if (!allCharters.find(existing => existing.code === c.code || existing.id === c.id)) {
-                  allCharters.push(c);
-                }
-              });
-              console.log(`   ✅ Found ${charters.length} charters in ${key}`);
-            } catch (e) {
-              console.error(`❌ Error parsing ${key}:`, e);
-            }
-          }
-        });
-
-        // 🔍 SPECIAL DEBUG FOR PERLA - show ALL data
-        if (boat.name?.toLowerCase() === 'perla') {
-          console.log('🔍 PERLA SPECIAL DEBUG:', {
-            boatId: boat.id,
-            boatName: boat.name,
-            keysChecked: keysToCheck,
-            allChartersFound: allCharters,
-            chartersWithSource: allCharters.map(c => ({ code: c.code, source: c.source, status: c.status, amount: c.amount })),
-            allFleetKeys: Object.keys(localStorage).filter(k => k.includes('fleet') && k.includes('ΝΑΥΛΑ'))
-          });
-        }
-
-        console.log(`📂 ${boat.name}: Found ${allCharters.length} total charters`);
-
-        if (allCharters.length > 0) {
-          // Find Page 1 bookings that need financial details
-          // Check: source='page1' OR status='Draft' (more lenient)
-          // AND: amount is missing or 0
-          const page1Bookings = allCharters.filter((c: any) => {
-            const isFromPage1 = c.source === 'page1';
-            const isDraft = c.status === 'Draft';
-            const needsAmount = !c.amount || c.amount === 0;
-
-            // 🔍 Debug each charter
-            if (boat.name?.toLowerCase() === 'perla') {
-              console.log(`   🔍 Charter ${c.code}:`, { isFromPage1, isDraft, needsAmount, source: c.source, status: c.status, amount: c.amount });
-            }
-
-            // Include if: (from Page 1 OR Draft) AND needs amount
-            return (isFromPage1 || isDraft) && needsAmount;
-          });
-
-          console.log(`📝 ${boat.name}: Found ${page1Bookings.length} Page 1 bookings needing attention from ${allCharters.length} total`);
-
-          if (page1Bookings.length > 0) {
-            bookingsByBoat[boat.id] = {
-              count: page1Bookings.length,
-              firstBooking: page1Bookings[0]
-            };
-          }
-        }
-      });
-
-      console.log('✅ Page 1 bookings summary:', bookingsByBoat);
-      console.log('✅ Boats with Page 1 bookings:', Object.keys(bookingsByBoat));
-      setPage1BookingsByBoat(bookingsByBoat);
-    };
-
-    scanPage1Bookings();
-
-    // Re-scan when storage changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key?.includes('fleet_') && e.key?.includes('_ΝΑΥΛΑ')) {
-        console.log('🔄 Storage changed, re-scanning Page 1 bookings');
-        scanPage1Bookings();
+        console.log('✅ Page 1 bookings summary:', bookingsByBoat);
+        setPage1BookingsByBoat(bookingsByBoat);
+      } catch (error) {
+        console.error('❌ Error fetching Page 1 bookings:', error);
+        setPage1BookingsByBoat({});
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    fetchPage1Bookings();
+
+    // Re-fetch when global bookings refresh
+    const handleRefresh = () => {
+      console.log('🔄 Global refresh triggered, re-fetching Page 1 bookings');
+      fetchPage1Bookings();
+    };
+
+    window.addEventListener('globalBookingsRefreshed', handleRefresh);
+    return () => window.removeEventListener('globalBookingsRefreshed', handleRefresh);
   }, [boats]);
 
   const handleBackNavigation = () => {

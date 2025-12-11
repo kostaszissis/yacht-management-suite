@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import authService from './authService';
-import { savePage4DataHybrid, getPage4DataHybrid } from './services/apiService';
+import { savePage4DataHybrid, getPage4DataHybrid, getAllBookings } from './services/apiService';
+import { DataContext } from './App';
 import {
   compressImage,
   getBase64Size,
@@ -340,23 +341,31 @@ export default function Page4({ onNavigate }) {
     }
   }, [pendingFlashItemId, activeSection]);
 
+  // Get context data
+  const contextData = useContext(DataContext);
+
   useEffect(() => {
-    const currentBooking = localStorage.getItem('currentBooking');
-    
-    if (currentBooking) {
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      
-      if (bookings[currentBooking]) {
-        setCurrentBookingNumber(currentBooking);
-        
-        const bookingData = bookings[currentBooking]?.bookingData || {};
-        setBookingInfo(bookingData);
-        
-        const savedMode = bookingData?.mode || 'in';
-        setMode(savedMode);
-        
-        const rawVesselName = bookingData?.vesselName || bookingData?.vessel || '';
-        console.log('📍 Raw vessel name:', rawVesselName);
+    const loadBookingFromAPI = async () => {
+      // Use currentBooking from context or localStorage (UI state)
+      const currentBooking = contextData?.bookingNumber || localStorage.getItem('currentBooking');
+
+      if (currentBooking) {
+        try {
+          // Fetch booking info from API (source of truth)
+          const allBookings = await getAllBookings();
+          const booking = allBookings.find((b: any) =>
+            b.bookingNumber === currentBooking || b.code === currentBooking
+          );
+
+          if (booking) {
+            setCurrentBookingNumber(currentBooking);
+            setBookingInfo(booking);
+
+            const savedMode = contextData?.mode || booking?.mode || 'in';
+            setMode(savedMode);
+
+            const rawVesselName = booking?.vesselName || booking?.vessel || '';
+            console.log('📍 Raw vessel name:', rawVesselName);
 
         if (rawVesselName) {
           const vesselLower = rawVesselName.toLowerCase();
@@ -387,18 +396,26 @@ export default function Page4({ onNavigate }) {
 
           console.log('📍 Final vessel key:', vesselKey);
           console.log('📍 Floorplan URL:', VESSEL_FLOORPLANS[vesselKey]);
-          setSelectedVessel(vesselKey);
+            setSelectedVessel(vesselKey);
+          }
+
+          loadDataForMode(currentBooking, savedMode);
+
+          console.log(`✅ Page 4 loaded from API: ${currentBooking}, Mode: ${savedMode}, Vessel: ${rawVesselName}`);
+          } else {
+            console.warn(`⚠️ Booking ${currentBooking} not found in API`);
+          }
+        } catch (error) {
+          console.error('❌ Error loading booking from API:', error);
         }
-        
-        loadDataForMode(currentBooking, savedMode);
-        
-        console.log(`✅ Page 4 loaded: ${currentBooking}, Mode: ${savedMode}, Vessel: ${rawVesselName}`);
       }
-    }
-  }, []);
+    };
+
+    loadBookingFromAPI();
+  }, [contextData?.bookingNumber, contextData?.mode]);
 
   const loadDataForMode = async (bookingNumber, selectedMode) => {
-    // 🔥 Try API first, then localStorage fallback
+    // API only - no localStorage fallback
     let data = null;
     try {
       const apiData = await getPage4DataHybrid(bookingNumber, selectedMode);
@@ -407,29 +424,7 @@ export default function Page4({ onNavigate }) {
         data = apiData;
       }
     } catch (error) {
-      console.warn('⚠️ API load failed, using localStorage:', error);
-    }
-
-    // Fallback to localStorage
-    if (!data) {
-      const storageKey = selectedMode === 'in' ? 'page4DataCheckIn' : 'page4DataCheckOut';
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      data = bookings[bookingNumber]?.[storageKey] || null;
-
-      if (selectedMode === 'out' && !data) {
-        const checkInData = bookings[bookingNumber]?.page4DataCheckIn || null;
-        if (checkInData) {
-          data = JSON.parse(JSON.stringify(checkInData));
-
-          ['items', 'navItems', 'safetyItems', 'genItems', 'deckItems', 'fdeckItems', 'dinghyItems', 'fendersItems', 'boathookItems'].forEach(section => {
-            if (data[section]) {
-              data[section] = data[section].map(item => ({ ...item, out: null }));
-            }
-          });
-
-          data.signatureImage = '';
-        }
-      }
+      console.error('❌ Error loading Page 4 data from API:', error);
     }
 
     if (data) {

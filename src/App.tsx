@@ -195,147 +195,36 @@ function App() {
     console.log('✅ Authentication system initialized');
   }, []);
 
-  // 🆕 Load mode από localStorage on mount
+  // 🆕 Load current booking number on mount (UI state only)
   useEffect(() => {
     try {
       const currentBooking = localStorage.getItem('currentBooking');
       if (currentBooking) {
-        const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-        const savedMode = bookings[currentBooking]?.bookingData?.mode || 'in';
-        const bookingNumber = currentBooking;
-        
-        console.log('🔄 App.tsx: Loading initial booking:', bookingNumber, 'mode:', savedMode);
-        
-        setSharedData(prev => ({ 
-          ...prev, 
-          mode: savedMode,
-          bookingNumber: bookingNumber
+        console.log('🔄 App.tsx: Loading current booking:', currentBooking);
+        setSharedData(prev => ({
+          ...prev,
+          bookingNumber: currentBooking
         }));
-        setPreviousMode(savedMode);
       }
     } catch (e) {
-      console.error('Error loading mode:', e);
+      console.error('Error loading booking:', e);
     }
   }, []);
 
-  // 🔥 NEW: Detect mode change and initialize Check-out data from Check-in
+  // 🔥 Mode change detection - dispatch event to notify pages
   useEffect(() => {
-    // Only run if mode actually changed
     if (previousMode !== sharedData.mode) {
       console.log(`🔄 Mode changed: ${previousMode} → ${sharedData.mode}`);
-      
-      // If switching to Check-out for the first time, copy Check-in data
-      if (sharedData.mode === 'out') {
-        initializeCheckOutFromCheckIn();
-      }
-      
-      // Update previous mode
       setPreviousMode(sharedData.mode);
-      
-      // Dispatch event to notify all pages
-      window.dispatchEvent(new CustomEvent('modeChanged', { 
-        detail: { mode: sharedData.mode } 
+
+      // Dispatch event to notify all pages (pages will handle data from API)
+      window.dispatchEvent(new CustomEvent('modeChanged', {
+        detail: { mode: sharedData.mode }
       }));
-      
+
       console.log('✅ Mode change handled!');
     }
   }, [sharedData.mode, previousMode]);
-
-  // 🔥 NEW: Initialize Check-out data from Check-in (first time only)
-  const initializeCheckOutFromCheckIn = () => {
-    try {
-      const currentBooking = localStorage.getItem('currentBooking');
-      if (!currentBooking) return;
-      
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      if (!bookings[currentBooking]) return;
-      
-      // 🔥 PAGE 2: Copy Check-in → Check-out (if not exists)
-      if (!bookings[currentBooking].page2DataCheckOut) {
-        const page2CheckIn = bookings[currentBooking].page2DataCheckIn || {};
-        bookings[currentBooking].page2DataCheckOut = JSON.parse(JSON.stringify(page2CheckIn));
-        
-        // Reset 'out' field to null for user input
-        ['items', 'hullItems', 'dinghyItems'].forEach(section => {
-          if (bookings[currentBooking].page2DataCheckOut[section]) {
-            bookings[currentBooking].page2DataCheckOut[section].forEach((item: any) => {
-              item.out = null;
-            });
-          }
-        });
-        
-        console.log('✅ Page 2 Check-out data initialized from Check-in');
-      }
-      
-      // 🔥 PAGE 3: Copy Check-in → Check-out (if not exists)
-      if (!bookings[currentBooking].page3DataCheckOut) {
-        const page3CheckIn = bookings[currentBooking].page3DataCheckIn || {};
-        bookings[currentBooking].page3DataCheckOut = JSON.parse(JSON.stringify(page3CheckIn));
-        
-        // Reset 'out' field to null for user input
-        ['safetyItems', 'cabinItems', 'optionalItems'].forEach(section => {
-          if (bookings[currentBooking].page3DataCheckOut[section]) {
-            bookings[currentBooking].page3DataCheckOut[section].forEach((item: any) => {
-              item.out = null;
-            });
-          }
-        });
-        
-        console.log('✅ Page 3 Check-out data initialized from Check-in');
-      }
-      
-      // 🔥 PAGE 4: Copy Check-in → Check-out (if not exists)
-      if (!bookings[currentBooking].page4DataCheckOut) {
-        const page4CheckIn = bookings[currentBooking].page4DataCheckIn || {};
-        bookings[currentBooking].page4DataCheckOut = JSON.parse(JSON.stringify(page4CheckIn));
-        
-        // Reset 'out' field to null for user input
-        const sections = ['items', 'navItems', 'safetyItems', 'genItems', 'deckItems', 'fdeckItems', 'dinghyItems', 'fendersItems', 'boathookItems'];
-        sections.forEach(section => {
-          if (bookings[currentBooking].page4DataCheckOut[section]) {
-            bookings[currentBooking].page4DataCheckOut[section].forEach((item: any) => {
-              item.out = null;
-            });
-          }
-        });
-        
-        console.log('✅ Page 4 Check-out data initialized from Check-in');
-      }
-      
-      // Save to localStorage
-      localStorage.setItem('bookings', JSON.stringify(bookings));
-      
-      console.log('🎉 All Check-out data initialized successfully!');
-    } catch (e) {
-      console.error('❌ Error initializing Check-out data:', e);
-    }
-  };
-
-  // 🆕 Listen for storage changes (when mode changes in Page 1)
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'bookings' && e.newValue) {
-        try {
-          const currentBooking = localStorage.getItem('currentBooking');
-          if (currentBooking) {
-            const bookings = JSON.parse(e.newValue);
-            const savedMode = bookings[currentBooking]?.bookingData?.mode;
-            if (savedMode) {
-              setSharedData(prev => ({ ...prev, mode: savedMode }));
-            }
-          }
-        } catch (err) {
-          console.error('Error parsing bookings:', err);
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
 
   // 🆕 Listen for custom mode change event (same tab)
   useEffect(() => {
@@ -350,33 +239,23 @@ function App() {
     };
   }, []);
 
-  // 🔥 FIXED: Listen for booking change event
+  // 🔥 Listen for booking change event
   useEffect(() => {
     const handleBookingChange = (e: CustomEvent) => {
-      try {
-        const newBookingNumber = e.detail?.bookingNumber;
-        console.log('📢 App.tsx received bookingChanged event:', newBookingNumber);
-        
-        if (newBookingNumber) {
-          const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-          const savedMode = bookings[newBookingNumber]?.bookingData?.mode || 'in';
-          
-          setSharedData(prev => ({ 
-            ...prev, 
-            mode: savedMode,
-            bookingNumber: newBookingNumber
-          }));
-          setPreviousMode(savedMode);
-          
-          console.log('✅ App.tsx: Booking updated to:', newBookingNumber, 'mode:', savedMode);
-        }
-      } catch (e) {
-        console.error('Error loading booking:', e);
+      const newBookingNumber = e.detail?.bookingNumber;
+      console.log('📢 App.tsx received bookingChanged event:', newBookingNumber);
+
+      if (newBookingNumber) {
+        setSharedData(prev => ({
+          ...prev,
+          bookingNumber: newBookingNumber
+        }));
+        console.log('✅ App.tsx: Booking updated to:', newBookingNumber);
       }
     };
 
     window.addEventListener('bookingChanged', handleBookingChange as EventListener);
-    
+
     return () => {
       window.removeEventListener('bookingChanged', handleBookingChange as EventListener);
     };
@@ -385,45 +264,25 @@ function App() {
   // Update shared data
   const updateSharedData = (updates: any) => {
     console.log('📝 App.tsx: updateSharedData called with:', updates);
-    
+
     const newData = { ...sharedData, ...updates };
     setSharedData(newData);
-    
-    // 🔥 FIXED: Dispatch bookingChanged event when bookingNumber changes
+
+    // Track current booking number (UI state only)
     if (updates.bookingNumber && updates.bookingNumber !== sharedData.bookingNumber) {
       console.log('📢 App.tsx: Dispatching bookingChanged event for:', updates.bookingNumber);
-      
-      // Update localStorage
       localStorage.setItem('currentBooking', updates.bookingNumber);
-      
-      // Dispatch event
-      window.dispatchEvent(new CustomEvent('bookingChanged', { 
-        detail: { bookingNumber: updates.bookingNumber } 
+      window.dispatchEvent(new CustomEvent('bookingChanged', {
+        detail: { bookingNumber: updates.bookingNumber }
       }));
     }
-    
-    // 🆕 Αν αλλάζει το mode, αποθήκευσέ το στο localStorage
+
+    // Dispatch mode change event (no localStorage for booking data)
     if (updates.mode) {
-      try {
-        const currentBooking = updates.bookingNumber || sharedData.bookingNumber || localStorage.getItem('currentBooking');
-        if (currentBooking) {
-          const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-          if (bookings[currentBooking]) {
-            bookings[currentBooking].bookingData = bookings[currentBooking].bookingData || {};
-            bookings[currentBooking].bookingData.mode = updates.mode;
-            localStorage.setItem('bookings', JSON.stringify(bookings));
-            
-            // Dispatch custom event for same-tab sync
-            window.dispatchEvent(new CustomEvent('modeChanged', { 
-              detail: { mode: updates.mode } 
-            }));
-            
-            console.log('✅ App.tsx: Mode saved to localStorage:', updates.mode);
-          }
-        }
-      } catch (e) {
-        console.error('Error saving mode:', e);
-      }
+      window.dispatchEvent(new CustomEvent('modeChanged', {
+        detail: { mode: updates.mode }
+      }));
+      console.log('✅ App.tsx: Mode changed to:', updates.mode);
     }
   };
 

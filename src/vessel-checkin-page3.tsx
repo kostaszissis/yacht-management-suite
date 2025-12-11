@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
-import { savePage3DataHybrid, getPage3DataHybrid } from './services/apiService';
+import { savePage3DataHybrid, getPage3DataHybrid, getAllBookings } from './services/apiService';
+import { DataContext } from './App';
 import {
   compressImage,
   getBase64Size,
@@ -153,50 +154,44 @@ export default function Page3({ onNavigate }) {
     };
   }, []);
 
+  // Get context data
+  const contextData = useContext(DataContext);
+
   useEffect(() => {
-    // Load from currentBooking, not first booking!
-    const currentBooking = localStorage.getItem('currentBooking');
-    
-    if (currentBooking) {
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      
-      if (bookings[currentBooking]) {
-        setCurrentBookingNumber(currentBooking);
-        
-        // Load booking info - handle both old and new structure
-        const bookingData = bookings[currentBooking]?.bookingData || {};
-        setBookingInfo(bookingData);
-        
-        const savedMode = bookingData?.mode || 'in';
-        setMode(savedMode);
-        loadDataForMode(currentBooking, savedMode);
-        
-        console.log(`✅ Loaded booking: ${currentBooking}, Mode: ${savedMode}`);
+    const loadBookingFromAPI = async () => {
+      // Use currentBooking from localStorage (UI state) or context
+      const currentBooking = contextData?.bookingNumber || localStorage.getItem('currentBooking');
+
+      if (currentBooking) {
+        try {
+          // Fetch booking info from API (source of truth)
+          const allBookings = await getAllBookings();
+          const booking = allBookings.find((b: any) =>
+            b.bookingNumber === currentBooking || b.code === currentBooking
+          );
+
+          if (booking) {
+            setCurrentBookingNumber(currentBooking);
+            setBookingInfo(booking);
+
+            const savedMode = contextData?.mode || booking?.mode || 'in';
+            setMode(savedMode);
+            loadDataForMode(currentBooking, savedMode);
+
+            console.log(`✅ Loaded booking from API: ${currentBooking}, Mode: ${savedMode}`);
+          } else {
+            console.warn(`⚠️ Booking ${currentBooking} not found in API`);
+          }
+        } catch (error) {
+          console.error('❌ Error loading booking from API:', error);
+        }
       } else {
-        console.warn(`⚠️ Booking ${currentBooking} not found in localStorage`);
+        console.warn('⚠️ No current booking set');
       }
-    } else {
-      // Fallback: load first booking if no currentBooking
-      const bookings = JSON.parse(localStorage.getItem('bookings') || '{}');
-      const bookingNumbers = Object.keys(bookings);
-      
-      if (bookingNumbers.length > 0) {
-        const firstBooking = bookingNumbers[0];
-        setCurrentBookingNumber(firstBooking);
-        
-        const bookingData = bookings[firstBooking]?.bookingData || {};
-        setBookingInfo(bookingData);
-        
-        const savedMode = bookingData?.mode || 'in';
-        setMode(savedMode);
-        loadDataForMode(firstBooking, savedMode);
-        
-        console.log(`✅ Loaded first booking: ${firstBooking}, Mode: ${savedMode}`);
-      } else {
-        console.warn('⚠️ No bookings found in localStorage');
-      }
-    }
-  }, []);
+    };
+
+    loadBookingFromAPI();
+  }, [contextData?.bookingNumber, contextData?.mode]);
 
   const loadDataForMode = async (bookingNumber, selectedMode) => {
     // 🔥 Try API first, then localStorage fallback
