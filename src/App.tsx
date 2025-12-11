@@ -26,6 +26,9 @@ import authService from './authService';
 // 🔥 Global auto-refresh interval (3 minutes)
 const AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // 180000 ms
 
+// 🔥 Production API URL (same as apiService.ts)
+const API_BASE = 'https://yachtmanagementsuite.com/api';
+
 // 🔒 SECURITY: Protected Admin Route - Block Owner access
 const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
@@ -126,7 +129,7 @@ function App() {
       setIsRefreshing(true);
       console.log('🔄 [Global Auto-Refresh] Fetching bookings from API...');
 
-      const response = await fetch('/api/bookings.php');
+      const response = await fetch(`${API_BASE}/bookings.php`);
       const data = await response.json();
 
       if (data.success && data.bookings) {
