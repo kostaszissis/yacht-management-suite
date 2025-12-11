@@ -19,13 +19,43 @@ const VESSEL_NAMES: { [key: number]: string } = {
 // VESSELS API
 // =====================================================
 export async function getVessels() {
-  const response = await fetch(`${API_URL}/vessels`);
-  if (!response.ok) throw new Error('Failed to fetch vessels');
-  return response.json();
+  try {
+    const response = await fetch(`${API_URL}/vessels.php`);
+    if (!response.ok) throw new Error('Failed to fetch vessels');
+    const data = await response.json();
+    // API returns { success: true, vessels: [...] }
+    if (data.success && data.vessels) {
+      return data.vessels;
+    }
+    // Fallback to hardcoded list if API fails
+    return [
+      { id: 8, name: 'Bob', type: 'Catamaran', model: 'Lagoon 42' },
+      { id: 7, name: 'Perla', type: 'Catamaran', model: 'Lagoon 46' },
+      { id: 6, name: 'Infinity', type: 'Catamaran', model: 'Bali 4.2' },
+      { id: 1, name: 'Maria 1', type: 'Monohull', model: 'Jeanneau Sun Odyssey 449' },
+      { id: 2, name: 'Maria 2', type: 'Monohull', model: 'Jeanneau yacht 54' },
+      { id: 4, name: 'Bar Bar', type: 'Monohull', model: 'Beneteau Oceanis 46.1' },
+      { id: 5, name: 'Kalispera', type: 'Monohull', model: 'Bavaria c42 Cruiser' },
+      { id: 3, name: 'Valesia', type: 'Monohull', model: 'Bavaria c42 Cruiser' },
+    ];
+  } catch (error) {
+    console.error('Error fetching vessels from API, using fallback:', error);
+    // Return hardcoded list as fallback
+    return [
+      { id: 8, name: 'Bob', type: 'Catamaran', model: 'Lagoon 42' },
+      { id: 7, name: 'Perla', type: 'Catamaran', model: 'Lagoon 46' },
+      { id: 6, name: 'Infinity', type: 'Catamaran', model: 'Bali 4.2' },
+      { id: 1, name: 'Maria 1', type: 'Monohull', model: 'Jeanneau Sun Odyssey 449' },
+      { id: 2, name: 'Maria 2', type: 'Monohull', model: 'Jeanneau yacht 54' },
+      { id: 4, name: 'Bar Bar', type: 'Monohull', model: 'Beneteau Oceanis 46.1' },
+      { id: 5, name: 'Kalispera', type: 'Monohull', model: 'Bavaria c42 Cruiser' },
+      { id: 3, name: 'Valesia', type: 'Monohull', model: 'Bavaria c42 Cruiser' },
+    ];
+  }
 }
 
 export async function createVessel(vessel: any) {
-  const response = await fetch(`${API_URL}/vessels`, {
+  const response = await fetch(`${API_URL}/vessels.php`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(vessel)
@@ -35,7 +65,7 @@ export async function createVessel(vessel: any) {
 }
 
 export async function updateVessel(id: string, vessel: any) {
-  const response = await fetch(`${API_URL}/vessels/${id}`, {
+  const response = await fetch(`${API_URL}/vessels.php?id=${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(vessel)
@@ -45,7 +75,7 @@ export async function updateVessel(id: string, vessel: any) {
 }
 
 export async function deleteVessel(id: string) {
-  const response = await fetch(`${API_URL}/vessels/${id}`, {
+  const response = await fetch(`${API_URL}/vessels.php?id=${id}`, {
     method: 'DELETE'
   });
   if (!response.ok) throw new Error('Failed to delete vessel');
