@@ -271,6 +271,27 @@ export default function HomePage() {
     setSearchQuery('');
   };
 
+  // 🔥 FIX: Check if already logged in before showing Fleet login modal
+  const handleFleetClick = () => {
+    // If user is already logged in, navigate directly without showing login
+    if (authService.isLoggedIn()) {
+      const user = authService.getCurrentUser();
+      if (authService.isAdmin()) {
+        navigate('/fleet-management', { state: { userType: 'COMPANY', isAdmin: true, employeeCode: user?.code } });
+        return;
+      } else if (authService.isOwner()) {
+        navigate('/owner-dashboard', { state: { ownerCode: user?.code } });
+        return;
+      } else if (authService.isTechnical() || authService.isBooking() || authService.isAccounting()) {
+        // Employee with specific role - go to fleet management
+        navigate('/fleet-management', { state: { userType: 'COMPANY', employeeCode: user?.code } });
+        return;
+      }
+    }
+    // Not logged in - show login modal
+    setShowFleetModal(true);
+  };
+
   const handleWeather = () => {
     window.open('https://www.windy.com/-Waves-waves?waves,60.172,24.935,5,p:wind', '_blank');
   };
@@ -693,7 +714,7 @@ export default function HomePage() {
     { id: 'guides', icon: '🎥', title: language === 'en' ? 'Technical Guides' : 'Τεχνικοί Οδηγοί', color: 'purple', action: () => console.log('guides') },
     { id: 'agreement', icon: '📄', title: language === 'en' ? 'Charter Agreement' : 'Ναυλοσύμφωνο', color: 'green', action: () => navigate('/charter-agreement', { state: { bookingCode: bookingStatus?.bookingCode } }) },
     { id: 'prefill', icon: '📋', title: language === 'en' ? 'Pre-Fill Details' : 'Συμπλήρωση Στοιχείων', color: 'orange', action: handlePreFillClick },
-    { id: 'fleet', icon: '⚓', title: language === 'en' ? 'Fleet Management' : 'Διαχείριση Στόλου', color: 'teal', action: () => setShowFleetModal(true) },
+    { id: 'fleet', icon: '⚓', title: language === 'en' ? 'Fleet Management' : 'Διαχείριση Στόλου', color: 'teal', action: handleFleetClick },
     { id: 'news', icon: '📰', title: language === 'en' ? 'Company Newsletter' : 'Newsletter Εταιρίας', color: 'indigo', action: handleCompanyNews },
   ];
 

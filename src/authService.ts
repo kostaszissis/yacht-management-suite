@@ -404,12 +404,13 @@ export const login = (code: string): CurrentUser | null => {
         permissions: employee,
         loginTime: new Date().toISOString()
       };
-      
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+
+      // 🔥 FIX: Use sessionStorage - auto-clears when browser closes
+      sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
       console.log('✅ Employee logged in:', employee.name);
       return user;
     }
-    
+
     // Check if it's an owner code
     const owner = getOwnerByCode(code);
     if (owner) {
@@ -421,12 +422,13 @@ export const login = (code: string): CurrentUser | null => {
         boatIds: owner.boatIds,
         loginTime: new Date().toISOString()
       };
-      
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+
+      // 🔥 FIX: Use sessionStorage - auto-clears when browser closes
+      sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
       console.log('✅ Owner logged in:', owner.code);
       return user;
     }
-    
+
     console.log('❌ Invalid code:', code);
     return null;
   } catch (error) {
@@ -436,13 +438,15 @@ export const login = (code: string): CurrentUser | null => {
 };
 
 export const logout = (): void => {
-  localStorage.removeItem(CURRENT_USER_KEY);
+  // 🔥 FIX: Use sessionStorage to match login
+  sessionStorage.removeItem(CURRENT_USER_KEY);
   console.log('✅ User logged out');
 };
 
 export const getCurrentUser = (): CurrentUser | null => {
   try {
-    const stored = localStorage.getItem(CURRENT_USER_KEY);
+    // 🔥 FIX: Use sessionStorage to match login
+    const stored = sessionStorage.getItem(CURRENT_USER_KEY);
     return stored ? JSON.parse(stored) : null;
   } catch (error) {
     console.error('Error getting current user:', error);
