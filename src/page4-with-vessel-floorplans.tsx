@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useContext } from "react";
 import authService from './authService';
-import { savePage4DataHybrid, getPage4DataHybrid, getAllBookings } from './services/apiService';
+import { savePage4DataHybrid, getPage4DataHybrid, getAllBookings, getFloorplan } from './services/apiService';
 import { DataContext } from './App';
 import {
   compressImage,
@@ -164,6 +164,18 @@ const VESSEL_NAME_ALIASES: Record<string, string> = {
   'bavaria-c42-valesia': 'valesia'
 };
 
+// Map vessel keys to API vessel IDs for floorplan loading
+const VESSEL_NAME_TO_ID: Record<string, number> = {
+  'bob': 8,
+  'perla': 7,
+  'infinity': 6,
+  'maria 1': 1,
+  'maria 2': 2,
+  'bar bar': 4,
+  'kalispera': 5,
+  'valesia': 3
+};
+
 const VESSEL_HOTSPOTS = {
   'bob': [
     { id: "hs_kitchen", x: 0.4535, y: 0.5945, title: "KITCHEN", category: "items" },
@@ -252,7 +264,7 @@ const VESSEL_HOTSPOTS = {
   ]
 };
 
-const getHotspotsForVessel = (vesselId) => {
+const getHotspotsForVesselFallback = (vesselId) => {
   return VESSEL_HOTSPOTS[vesselId] || VESSEL_HOTSPOTS['bob'];
 };
 
@@ -300,7 +312,9 @@ export default function Page4({ onNavigate }) {
   const [activeSection, setActiveSection] = useState(null);
   const [hoveredHotspot, setHoveredHotspot] = useState(null);
   const [imageError, setImageError] = useState(false);
-  
+  const [apiFloorplan, setApiFloorplan] = useState<{ background_image: string; hotspots: any[] } | null>(null);
+  const [loadingFloorplan, setLoadingFloorplan] = useState(false);
+
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -414,6 +428,43 @@ export default function Page4({ onNavigate }) {
     loadBookingFromAPI();
   }, [contextData?.bookingNumber, contextData?.mode]);
 
+  // Load floorplan from API when vessel changes
+  useEffect(() => {
+    const loadFloorplanFromAPI = async () => {
+      const vesselId = VESSEL_NAME_TO_ID[selectedVessel];
+      if (!vesselId) {
+        console.log('📍 No vessel ID mapping for:', selectedVessel);
+        setApiFloorplan(null);
+        return;
+      }
+
+      setLoadingFloorplan(true);
+      try {
+        console.log('🔄 Loading floorplan from API for vessel ID:', vesselId);
+        const floorplan = await getFloorplan(vesselId);
+
+        if (floorplan && floorplan.background_image) {
+          console.log('✅ Floorplan loaded from API:', floorplan);
+          setApiFloorplan({
+            background_image: floorplan.background_image,
+            hotspots: floorplan.hotspots || []
+          });
+          setImageError(false);
+        } else {
+          console.log('📍 No API floorplan, using fallback for:', selectedVessel);
+          setApiFloorplan(null);
+        }
+      } catch (error) {
+        console.error('❌ Error loading floorplan from API:', error);
+        setApiFloorplan(null);
+      } finally {
+        setLoadingFloorplan(false);
+      }
+    };
+
+    loadFloorplanFromAPI();
+  }, [selectedVessel]);
+
   const loadDataForMode = async (bookingNumber, selectedMode) => {
     // API only - no localStorage fallback
     let data = null;
@@ -455,6 +506,24 @@ export default function Page4({ onNavigate }) {
   };
 
   const initItems = (keys) => keys.map(key => ({ id: uid(), key, price: "", qty: 1, inOk: false, out: null, media: [] }));
+
+  // Get hotspots - prefer API data, fallback to hardcoded
+  const getHotspotsForVessel = (vesselId) => {
+    // If API floorplan has hotspots, convert them for display
+    if (apiFloorplan && apiFloorplan.hotspots && apiFloorplan.hotspots.length > 0) {
+      console.log('📍 Using API hotspots for vessel:', vesselId);
+      return apiFloorplan.hotspots.map(h => ({
+        id: h.id,
+        x: h.x / 100, // API stores as 0-100, convert to 0-1 for positioning
+        y: h.y / 100,
+        title: h.label || 'ITEM',
+        category: h.category || 'items'
+      }));
+    }
+    // Fallback to hardcoded hotspots
+    console.log('📍 Using fallback hotspots for vessel:', vesselId);
+    return getHotspotsForVesselFallback(vesselId);
+  };
 
   const getSectionData = (category) => {
     const mapping = {
@@ -813,9 +882,9 @@ export default function Page4({ onNavigate }) {
       const signatureKey = `page4_signature_${currentBookingNumber}_${mode}`;
       const actualSignature = localStorage.getItem(signatureKey) || '';
       
-      // Get vessel name and floorplan
+      // Get vessel name and floorplan (prefer API, fallback to hardcoded)
       const vesselName = VESSELS.find(v => v.id === selectedVessel)?.name || selectedVessel;
-      const floorplanPath = VESSEL_FLOORPLANS[selectedVessel];
+      const floorplanPath = apiFloorplan?.background_image || VESSEL_FLOORPLANS[selectedVessel];
       
       const additionalData = {
         // 9 sections
@@ -1046,8 +1115,8 @@ export default function Page4({ onNavigate }) {
                 <div className="relative w-full" style={{ paddingTop: '60%' }}>
                   
                   {!imageError ? (
-                    <img 
-                      src={VESSEL_FLOORPLANS[selectedVessel]}
+                    <img
+                      src={apiFloorplan?.background_image || VESSEL_FLOORPLANS[selectedVessel]}
                       alt={selectedVessel + ' floorplan'}
                       className="absolute inset-0 w-full h-full object-contain rounded-lg"
                       onError={() => setImageError(true)}
