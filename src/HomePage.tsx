@@ -78,8 +78,8 @@ export default function HomePage() {
     };
   }, []);
 
-  const isLoggedIn = !!currentUser;
   const isAdmin = currentUser?.role === 'ADMIN';
+  const isStaff = currentUser && currentUser.role !== 'OWNER'; // Staff = any role except OWNER
 
   // Check booking status from API (case-insensitive search or by date)
   const checkBookingStatus = async (bookingCode: string) => {
@@ -911,20 +911,26 @@ export default function HomePage() {
         </div>
 
         {/* Login/Enter Button - Centered */}
-        {/* 🔥 FIX: When logged in, "Enter" goes to /admin (NO logout). Logout only from 🏠 Home button */}
+        {/* 🔥 FIX: Staff logged in = go to /admin. Owner logged in OR not logged in = show login modal */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
           <button
-            onClick={isLoggedIn ? () => navigate('/admin') : () => setShowAdminModal(true)}
+            onClick={() => {
+              if (isStaff) {
+                navigate('/admin');
+              } else {
+                setShowAdminModal(true);
+              }
+            }}
             style={{ ...styles.quickBtn, width: '200px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
             className="shadow-md hover:shadow-2xl hover:-translate-y-2 hover:scale-105 transform-gpu"
           >
-            <div style={styles.quickIcon}>{isLoggedIn ? '➡️' : '🔐'}</div>
+            <div style={styles.quickIcon}>{isStaff ? '➡️' : '🔐'}</div>
             <span style={styles.quickLabel}>
-              {isLoggedIn
+              {isStaff
                 ? (language === 'en' ? 'Enter' : 'Είσοδος')
                 : (language === 'en' ? 'Login' : 'Σύνδεση')}
             </span>
-            {!isLoggedIn && (
+            {!isStaff && (
               <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
                 {language === 'en' ? 'Only Staff' : 'Μόνο Προσωπικό'}
               </span>
