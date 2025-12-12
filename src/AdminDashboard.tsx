@@ -21,6 +21,7 @@ const icons = {
   x: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>),
   fileText: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>),
   chevronLeft: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>),
+  returnArrow: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>),
   eye: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>)
 };
 
@@ -32,13 +33,23 @@ const COMPANY_INFO = {
 };
 
 // Header Component
-function Header({ title, onBack, onLogout }) {
+function Header({ title, onBack, onHome = null }) {
   const user = authService.getCurrentUser();
 
   return (
     <div className="bg-gray-800 p-4 shadow-md flex items-center justify-between border-b border-gray-700">
-      {onBack && <button onClick={onBack} className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg transition-colors">{icons.chevronLeft}</button>}
-      {!onBack && <div className="w-10"></div>}
+      {/* LEFT: Home emoji - logout AND navigate to HomePage */}
+      {onHome && (
+        <button
+          onClick={onHome}
+          className="p-2 hover:bg-gray-700 rounded-lg transition-colors flex flex-col items-center"
+          title="Αποσύνδεση & Επιστροφή στην Αρχική"
+        >
+          <span className="text-2xl">🏠</span>
+          <span className="text-[10px] text-red-400 mt-0.5">Home</span>
+        </button>
+      )}
+      {!onHome && <div className="w-12"></div>}
 
       <div className="flex-grow text-center">
         <h1 className="text-xl font-bold text-gray-100 truncate px-2">{title}</h1>
@@ -52,16 +63,18 @@ function Header({ title, onBack, onLogout }) {
         )}
       </div>
 
-      {onLogout && (
+      {/* RIGHT: Return arrow - just navigate back, NO logout */}
+      {onBack && (
         <button
-          onClick={onLogout}
-          className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg transition-colors"
-          title="Logout"
+          onClick={onBack}
+          className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg transition-colors flex flex-col items-center"
+          title="Πίσω (παραμένετε συνδεδεμένοι)"
         >
-          {icons.logout}
+          {icons.returnArrow}
+          <span className="text-[10px] mt-0.5">Return</span>
         </button>
       )}
-      {!onLogout && <div className="w-10"></div>}
+      {!onBack && <div className="w-12"></div>}
     </div>
   );
 }
@@ -70,7 +83,7 @@ function Header({ title, onBack, onLogout }) {
 export default function AdminDashboard({
   boats,
   onSelectBoat,
-  onLogout,
+  onHome,
   navigate,
   loadBoats,
   showAddBoat,
@@ -257,22 +270,16 @@ export default function AdminDashboard({
     return () => window.removeEventListener('globalBookingsRefreshed', handleRefresh);
   }, [boats]);
 
+  // 🔥 FIX: Return button = navigate only, NO logout
+  // Use React Router navigate (not window.location.href) to preserve session
   const handleBackNavigation = () => {
-    const isEmployee = authService.isTechnical() || authService.isBooking() || authService.isAccounting();
-
-    if (isEmployee) {
-      reactNavigate('/owner-dashboard');
-    } else if (authService.isAdmin()) {
-      window.location.href = '/';
-    } else {
-      reactNavigate('/');
-    }
+    reactNavigate('/');
   };
 
   if (!authService.isLoggedIn()) {
     return (
       <div className="flex flex-col h-screen w-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100 fixed inset-0 z-50">
-        <Header title="Access Denied" onLogout={onLogout} />
+        <Header title="Access Denied" onBack={null} onHome={onHome} />
         <div className="flex-grow flex items-center justify-center p-8">
           <div className="text-center">
             <div className="text-8xl mb-6">🔒</div>
@@ -296,7 +303,7 @@ export default function AdminDashboard({
         <Header
           title="Πίνακας Διαχειριστή"
           onBack={handleBackNavigation}
-          onLogout={onLogout}
+          onHome={onHome}
         />
 
         {/* User Info Bar */}

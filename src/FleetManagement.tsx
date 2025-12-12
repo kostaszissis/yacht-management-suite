@@ -146,6 +146,7 @@ const icons = {
   fileText: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>),
   calendar: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>),
   chevronLeft: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>),
+  returnArrow: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>),
   chevronRight: (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>),
   plus: (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>),
   x: (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>),
@@ -1204,7 +1205,7 @@ export default function FleetManagement() {
         return <AdminDashboard
           boats={allBoats}
           onSelectBoat={handleAdminSelectBoat}
-          onLogout={handleLogout}
+          onHome={handleLogout}
           navigate={setPage}
           loadBoats={loadBoats}
           showAddBoat={showAddBoat}
@@ -1337,14 +1338,24 @@ function FullScreenLoader() {
   );
 }
 
-function Header({ title, onBack, onLogout }) {
+function Header({ title, onBack, onHome = null }) {
   const user = authService.getCurrentUser();
-  
+
   return (
     <div className="bg-gray-800 p-4 shadow-md flex items-center justify-between sticky top-0 z-20 w-full max-w-lg mx-auto border-b border-gray-700">
-      {onBack && <button onClick={onBack} className="text-teal-400 p-2 -ml-2 hover:bg-gray-700 rounded-lg transition-colors">{icons.chevronLeft}</button>}
-      {!onBack && <div className="w-10"></div>}
-      
+      {/* LEFT: Home emoji - logout AND navigate to HomePage */}
+      {onHome && (
+        <button
+          onClick={onHome}
+          className="p-2 -ml-2 hover:bg-gray-700 rounded-lg transition-colors flex flex-col items-center"
+          title="Αποσύνδεση & Επιστροφή στην Αρχική"
+        >
+          <span className="text-2xl">🏠</span>
+          <span className="text-[10px] text-red-400 mt-0.5">Home</span>
+        </button>
+      )}
+      {!onHome && <div className="w-12"></div>}
+
       <div className="flex-grow text-center">
         <h1 className="text-xl font-bold text-gray-100 truncate px-2">{title}</h1>
         {user && (
@@ -1356,17 +1367,19 @@ function Header({ title, onBack, onLogout }) {
           </div>
         )}
       </div>
-      
-      {onLogout && (
-        <button 
-          onClick={onLogout} 
-          className="text-teal-400 p-2 -mr-2 hover:bg-gray-700 rounded-lg transition-colors"
-          title="Logout"
+
+      {/* RIGHT: Return arrow - just navigate back, NO logout */}
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="text-teal-400 p-2 -mr-2 hover:bg-gray-700 rounded-lg transition-colors flex flex-col items-center"
+          title="Πίσω (παραμένετε συνδεδεμένοι)"
         >
-          {icons.logout}
+          {icons.returnArrow}
+          <span className="text-[10px] mt-0.5">Return</span>
         </button>
       )}
-      {!onLogout && <div className="w-10"></div>}
+      {!onBack && <div className="w-12"></div>}
     </div>
   );
 }

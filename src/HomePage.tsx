@@ -45,6 +45,39 @@ export default function HomePage() {
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
   const navigate = useNavigate();
 
+  // 🔥 FIX: Sync currentUser with sessionStorage on every mount/navigation
+  // This ensures back/forward browser navigation doesn't show stale state
+  useEffect(() => {
+    // Sync on mount
+    const syncUser = () => {
+      const user = authService.getCurrentUser();
+      setCurrentUser(user);
+    };
+
+    syncUser();
+
+    // Also sync when page is shown (back/forward navigation from bfcache)
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        // Page was restored from bfcache
+        syncUser();
+      }
+    };
+
+    // Also sync on focus (tab switching)
+    const handleFocus = () => {
+      syncUser();
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
   const isLoggedIn = !!currentUser;
   const isAdmin = currentUser?.role === 'ADMIN';
 
@@ -262,13 +295,6 @@ export default function HomePage() {
     
     alert(language === 'en' ? 'Invalid code!' : 'Μη έγκυρος κωδικός!');
     setFleetCode('');
-  };
-
-  const handleAdminLogout = () => {
-    authService.logout();
-    setCurrentUser(null);
-    setBookingStatus(null);
-    setSearchQuery('');
   };
 
   // 🔥 FIX: Check if already logged in before showing Fleet login modal
@@ -884,18 +910,19 @@ export default function HomePage() {
           })}
         </div>
 
-        {/* Login Button - Centered */}
+        {/* Login/Enter Button - Centered */}
+        {/* 🔥 FIX: When logged in, "Enter" goes to /admin (NO logout). Logout only from 🏠 Home button */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
           <button
-            onClick={isLoggedIn ? handleAdminLogout : () => setShowAdminModal(true)}
+            onClick={isLoggedIn ? () => navigate('/admin') : () => setShowAdminModal(true)}
             style={{ ...styles.quickBtn, width: '200px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
             className="shadow-md hover:shadow-2xl hover:-translate-y-2 hover:scale-105 transform-gpu"
           >
-            <div style={styles.quickIcon}>{isLoggedIn ? '🔓' : '🔐'}</div>
+            <div style={styles.quickIcon}>{isLoggedIn ? '➡️' : '🔐'}</div>
             <span style={styles.quickLabel}>
               {isLoggedIn
-                ? (language === 'en' ? 'Logout' : 'Αποσύνδεση')
-                : (language === 'en' ? 'Login' : 'Είσοδος')}
+                ? (language === 'en' ? 'Enter' : 'Είσοδος')
+                : (language === 'en' ? 'Login' : 'Σύνδεση')}
             </span>
             {!isLoggedIn && (
               <span style={{ fontSize: '10px', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
