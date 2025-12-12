@@ -384,7 +384,7 @@ export default function AdminDashboard({
 
             {authService.canManageFleet() && (
               <button
-                onClick={() => setShowAddBoat(true)}
+                onClick={() => window.location.href = '/add-boat'}
                 className="w-full h-14 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
                 title="Προσθήκη Σκάφους"
               >

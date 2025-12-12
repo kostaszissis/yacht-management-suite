@@ -2123,3 +2123,90 @@ export async function migrateInvoicesFromLocalStorage(vesselId: number, vesselNa
     return false;
   }
 }
+
+// =====================================================
+// VESSELS API - TYPED VERSION
+// =====================================================
+
+export interface Vessel {
+  id?: number;
+  name: string;
+  type: string;
+  model: string;
+  length?: number;
+  capacity?: number;
+  year?: number;
+  created_at?: string;
+}
+
+export const getVessel = async (id: number): Promise<Vessel | null> => {
+  try {
+    const response = await fetch(`${API_URL}/vessels.php?id=${id}`);
+    const data = await response.json();
+    return data.success ? data.vessel : null;
+  } catch (error) {
+    console.error('Error fetching vessel:', error);
+    return null;
+  }
+};
+
+// =====================================================
+// FLOOR PLAN API
+// =====================================================
+
+export interface Hotspot {
+  id: string;
+  x: number;
+  y: number;
+  label: string;
+  type: string;
+  category: string;
+}
+
+export interface Floorplan {
+  id?: number;
+  vessel_id: number;
+  background_image: string;
+  hotspots: Hotspot[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const getFloorplan = async (vesselId: number): Promise<Floorplan | null> => {
+  try {
+    const response = await fetch(`${API_URL}/floorplans.php?vessel_id=${vesselId}`);
+    const data = await response.json();
+    return data.success ? data.floorplan : null;
+  } catch (error) {
+    console.error('Error fetching floorplan:', error);
+    return null;
+  }
+};
+
+export const saveFloorplan = async (floorplan: { vessel_id: number; background_image: string; hotspots: Hotspot[] }): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_URL}/floorplans.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(floorplan),
+    });
+    const data = await response.json();
+    return data.success;
+  } catch (error) {
+    console.error('Error saving floorplan:', error);
+    return false;
+  }
+};
+
+export const deleteFloorplan = async (vesselId: number): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_URL}/floorplans.php?vessel_id=${vesselId}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+    return data.success;
+  } catch (error) {
+    console.error('Error deleting floorplan:', error);
+    return false;
+  }
+};

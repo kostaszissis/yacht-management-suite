@@ -21,6 +21,8 @@ import WinterTakeOver from './WinterTakeOver';
 import WinterSafetyEquipment from './WinterSafetyEquipment';
 import TaskCategoryCheckin from './TaskCategoryCheckin';
 import SyncIndicator from './SyncIndicator';
+import AddBoat from './AddBoat';
+import EditFloorPlan from './EditFloorPlan';
 import { initializeAuth } from './authService';
 import authService from './authService';
 import { getVessels, migrateTasksFromLocalStorage, migrateInvoicesFromLocalStorage } from './services/apiService';
@@ -436,6 +438,12 @@ function App() {
 
             {/* 🆕 NEW: Task Category Check-in Pages */}
             <Route path="/tasks/:category" element={<TaskCategoryCheckin />} />
+
+            {/* 🆕 NEW: Add Boat - Full page vessel creator with floor plan */}
+            <Route path="/add-boat" element={<AddBoat />} />
+
+            {/* 🆕 NEW: Edit Floor Plan - Edit existing vessel floor plans */}
+            <Route path="/edit-floorplan" element={<EditFloorPlan />} />
 
             {/* Charter Agreement & Documents Page */}
             <Route path="/charter-agreement" element={<CharterAgreementPage />} />
