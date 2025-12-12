@@ -864,7 +864,8 @@ export default function FleetManagement() {
         boatIds: state.boatIds || [state.boatId],
         loginTime: new Date().toISOString()
       };
-      localStorage.setItem('auth_current_user', JSON.stringify(ownerUser));
+      // 🔥 FIX: Use sessionStorage to match authService
+      sessionStorage.setItem('auth_current_user', JSON.stringify(ownerUser));
       setAuthenticatedUser(ownerUser);
       console.log('✅ Owner auto-logged in:', state.ownerCode);
     }
