@@ -343,25 +343,6 @@ export default function AdminDashboard({
           </div>
         </div>
 
-        {/* Financials Button */}
-        {authService.canViewFinancials() && (
-          <div className="border-b border-blue-100">
-            <button
-              onClick={() => setShowFinancials(true)}
-              className="w-full p-3 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 backdrop-blur-xl flex items-center justify-between border-b border-blue-100 transition-all"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-xl">💰</span>
-                <span className="font-bold text-slate-800">Συγκεντρωτικά Οικονομικά</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-green-600 font-bold">{financialsData.totals.net.toFixed(0)}€</span>
-                <span className="text-slate-600">→</span>
-              </div>
-            </button>
-          </div>
-        )}
-
         {/* Main Content - 3 columns */}
         <div className="flex-grow flex overflow-hidden">
           {/* Left Buttons */}
@@ -587,6 +568,20 @@ export default function AdminDashboard({
               >
                 {icons.fileText}
                 <span className="text-sm font-bold">Log</span>
+              </button>
+            )}
+
+            {authService.isAdmin() && (
+              <button
+                onClick={() => {
+                  console.log('💰 ΟΙΚΟΝΟΜΙΚΑ clicked');
+                  alert('ΟΙΚΟΝΟΜΙΚΑ - Coming soon!');
+                }}
+                className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                title="Οικονομικά Στοιχεία"
+              >
+                <span className="text-xl">💰</span>
+                <span className="text-sm font-bold">Οικονομικά</span>
               </button>
             )}
           </div>

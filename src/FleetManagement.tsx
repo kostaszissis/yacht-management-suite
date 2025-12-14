@@ -5425,6 +5425,7 @@ function TaskPage({ boat, showMessage }) {
 }
 
 function CharterPage({ items, boat, showMessage, saveItems }) {
+  console.log('🚀 CharterPage component mounted');
   const [selectedCharter, setSelectedCharter] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   // 🔥 NEW: Edit mode for Draft/Page1 charters
@@ -6341,6 +6342,64 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     }
   };
 
+  // 🔥 NEW: Refresh selected charter from API (for auto-refresh)
+  const refreshSelectedCharter = useCallback(async () => {
+    if (!selectedCharter) return;
+
+    try {
+      const bookingCode = selectedCharter.code || selectedCharter.id;
+      const latestBooking = await getBooking(bookingCode);
+
+      if (latestBooking && latestBooking.bookingData) {
+        const newStatus = latestBooking.bookingData.status;
+
+        // Only update if status changed
+        if (newStatus && newStatus !== selectedCharter.status) {
+          console.log('🔄 Modal auto-refresh: Status changed from', selectedCharter.status, 'to', newStatus);
+
+          // Update modal with all latest data
+          setSelectedCharter(prev => ({ ...prev, ...latestBooking.bookingData }));
+
+          // Update list
+          const updated = items.map((item) =>
+            item.id === selectedCharter.id ? { ...item, status: newStatus } : item
+          );
+          saveItems(updated);
+
+          showMessage(`📋 Status updated: ${newStatus}`, 'info');
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Modal refresh error:', error);
+    }
+  }, [selectedCharter, items, saveItems, showMessage]);
+
+  // 🔥 NEW: Auto-refresh modal every 30 seconds when open
+  useEffect(() => {
+    console.log('🔍 useEffect running, selectedCharter:', selectedCharter?.code);
+    if (!selectedCharter) return;
+
+    const interval = setInterval(() => {
+      console.log('⏰ Modal 30-second refresh triggered');
+      refreshSelectedCharter();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedCharter?.id, refreshSelectedCharter]);
+
+  // 🔥 NEW: Update modal when global refresh happens
+  useEffect(() => {
+    const handleGlobalRefresh = () => {
+      if (selectedCharter) {
+        console.log('🔄 CharterPage: Global refresh received, updating modal...');
+        refreshSelectedCharter();
+      }
+    };
+
+    window.addEventListener('globalBookingsRefreshed', handleGlobalRefresh);
+    return () => window.removeEventListener('globalBookingsRefreshed', handleGlobalRefresh);
+  }, [selectedCharter, refreshSelectedCharter]);
+
   return (
     <div>
       {isOwnerUser && (
@@ -6779,7 +6838,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
     if (success) {
       onUpdateStatus(charter, 'Option Accepted');
       try {
-        const updatedCharter = { ...charter, status: 'Option Accepted', vesselId: boat.id };
+        const updatedCharter = { ...charter, status: 'option_accepted', vesselId: boat.id };
         await saveBooking(charter.code, { bookingData: updatedCharter });
         console.log('✅ Charter acceptance synced to API');
       } catch (error) {

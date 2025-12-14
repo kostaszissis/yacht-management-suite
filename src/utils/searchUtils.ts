@@ -32,7 +32,7 @@ export const extractCode = (input: string): string => {
 
 // Flexible text match (for names)
 export const textMatches = (source: string, search: string): boolean => {
-  if (!search || !source) return !search;
+  if (!search || !source) return false;
   return normalizeText(source).includes(normalizeText(search));
 };
 
@@ -44,7 +44,7 @@ export const textMatches = (source: string, search: string): boolean => {
 // - Handles leading zeros: "05" matches "05" and "5" matches "05"
 // - IMPORTANT: "21" should NOT match "2" or "1"
 export const codeMatches = (source: string, search: string): boolean => {
-  if (!search || !source) return !search;
+  if (!search || !source) return false;
 
   const sourceUpper = source.toUpperCase().trim();
   const searchUpper = search.toUpperCase().trim();
