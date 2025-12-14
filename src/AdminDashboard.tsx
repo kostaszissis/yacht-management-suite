@@ -110,6 +110,8 @@ export default function AdminDashboard({
   const [page1BookingsByBoat, setPage1BookingsByBoat] = useState<{[boatId: string]: {count: number, firstBooking: any}}>({});
   // 🔧 Expandable tasks menu state
   const [tasksMenuExpanded, setTasksMenuExpanded] = useState(false);
+  // 💰 Expandable financials menu state
+  const [financialsMenuExpanded, setFinancialsMenuExpanded] = useState(false);
 
   // Task categories for navigation (all same light blue color)
   const taskCategories = [
@@ -572,17 +574,39 @@ export default function AdminDashboard({
             )}
 
             {authService.isAdmin() && (
-              <button
-                onClick={() => {
-                  console.log('💰 ΟΙΚΟΝΟΜΙΚΑ clicked');
-                  alert('ΟΙΚΟΝΟΜΙΚΑ - Coming soon!');
-                }}
-                className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
-                title="Οικονομικά Στοιχεία"
-              >
-                <span className="text-xl">💰</span>
-                <span className="text-sm font-bold">Οικονομικά</span>
-              </button>
+              <div className="w-full">
+                <button
+                  onClick={() => setFinancialsMenuExpanded(!financialsMenuExpanded)}
+                  className="w-full h-14 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all shadow-lg hover:shadow-xl"
+                  title="Οικονομικά Στοιχεία"
+                >
+                  <span className="text-xl">💰</span>
+                  <span className="text-sm font-bold">Οικονομικά</span>
+                  <span className={`transition-transform ${financialsMenuExpanded ? 'rotate-180' : ''}`}>▼</span>
+                </button>
+                {financialsMenuExpanded && (
+                  <div className="mt-2 space-y-2">
+                    <button
+                      onClick={() => alert('ΣΤΑΤΙΣΤΙΚΑ - Coming soon!')}
+                      className="w-full h-10 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-bold transition-colors"
+                    >
+                      📊 ΣΤΑΤΙΣΤΙΚΑ
+                    </button>
+                    <button
+                      onClick={() => alert('ΣΥΓΚΕΝΤΡΩΤΙΚΑ - Coming soon!')}
+                      className="w-full h-10 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-bold transition-colors"
+                    >
+                      📋 ΣΥΓΚΕΝΤΡΩΤΙΚΑ
+                    </button>
+                    <button
+                      onClick={() => alert('ΤΙΜΟΛΟΓΙΑ - Coming soon!')}
+                      className="w-full h-10 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-bold transition-colors"
+                    >
+                      📄 ΤΙΜΟΛΟΓΙΑ
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
