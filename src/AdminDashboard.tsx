@@ -7,7 +7,9 @@ import InstallButton from './InstallButton';
 import { textMatches } from './utils/searchUtils';
 // 🔥 FIX 16: Import API functions for multi-device sync
 // 🔥 FIX 31: Added checkExpiredOptions for auto-expire
-import { getBookingsByVessel, getAllBookings, checkExpiredOptions } from './services/apiService';
+import { getBookingsByVessel, getAllBookings, checkExpiredOptions, getInvoicesByVessel } from './services/apiService';
+// 📊 Charts for Statistics modal
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LineChart, Line, ResponsiveContainer } from 'recharts';
 // 🔥 Auto-refresh hook for polling API data
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 
@@ -79,6 +81,1269 @@ function Header({ title, onBack, onHome = null }) {
   );
 }
 
+// 📊 Statistics Modal Component - PROFESSIONAL REDESIGN (Seazone/Voly/Latitude365 Inspired)
+interface StatisticsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  boats: any[];
+}
+
+// Custom tooltip for charts - Light Blue Theme
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white/95 backdrop-blur-sm border border-blue-300 rounded-lg p-3 shadow-xl">
+        <p className="text-blue-700 font-semibold mb-2">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} className="text-sm font-medium" style={{ color: entry.color }}>
+            {entry.name}: €{entry.value?.toLocaleString('el-GR', { minimumFractionDigits: 0 })}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+// Animated stat card component - Light Blue Theme
+const StatCard = ({ title, value, subtitle, icon, trend, color, delay = 0 }: {
+  title: string;
+  value: string;
+  subtitle?: string;
+  icon: string;
+  trend?: { value: number; isPositive: boolean };
+  color: string;
+  delay?: number;
+}) => (
+  <div
+    className={`relative overflow-hidden rounded-xl p-4 transition-all duration-500 hover:scale-[1.02] hover:shadow-xl cursor-default group bg-white/90 border border-blue-200 shadow-md`}
+    style={{
+      borderLeft: `4px solid ${color}`,
+      animationDelay: `${delay}ms`
+    }}
+  >
+    <div className="absolute top-0 right-0 w-20 h-20 opacity-15 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform duration-500">
+      <span className="text-5xl">{icon}</span>
+    </div>
+    <div className="relative z-10">
+      <p className="text-gray-500 text-xs font-medium uppercase tracking-wider mb-1">{title}</p>
+      <p className="text-gray-800 text-xl font-bold mb-1">{value}</p>
+      {subtitle && <p className="text-gray-500 text-xs">{subtitle}</p>}
+      {trend && (
+        <div className={`flex items-center gap-1 mt-2 text-xs ${trend.isPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+          <span>{trend.isPositive ? '↑' : '↓'}</span>
+          <span>{Math.abs(trend.value)}%</span>
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+// Chart colors - professional palette for light theme
+const CHART_COLORS = {
+  income: '#0D9488',      // Teal-600
+  expenses: '#DC2626',    // Red-600
+  commission: '#D97706',  // Amber-600
+  invoices: '#7C3AED',    // Violet-600
+  profit: '#059669',      // Emerald-600
+  neutral: '#6B7280'      // Gray-500
+};
+
+function StatisticsModal({ isOpen, onClose, boats }: StatisticsModalProps) {
+  // Filter states
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedBoat, setSelectedBoat] = useState<string>('all');
+  const [selectedPeriod, setSelectedPeriod] = useState<'monthly' | 'quarterly' | 'yearly'>('monthly');
+  const [isLoading, setIsLoading] = useState(false);
+  const [chartersData, setChartersData] = useState<any[]>([]);
+  const [invoicesData, setInvoicesData] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'charts' | 'boats'>('overview');
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [lang, setLang] = useState<'el' | 'en'>('el');
+
+  // Get available years dynamically from data (last 5 years as fallback)
+  const currentYear = new Date().getFullYear();
+  const availableYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+  // Load charters and invoices data when modal opens or filters change
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        let allCharters: any[] = [];
+        let allInvoices: any[] = [];
+
+        if (selectedBoat === 'all') {
+          // Load charters and invoices from all boats in parallel
+          const results = await Promise.all(boats.map(async (boat) => {
+            const [boatCharters, boatInvoices] = await Promise.all([
+              getBookingsByVessel(boat.id).catch(() => []),
+              getInvoicesByVessel(boat.id).catch(() => {
+                // Fallback to localStorage for invoices
+                const key = `fleet_${boat.id}_ΤΙΜΟΛΟΓΙΑ`;
+                const stored = localStorage.getItem(key);
+                return stored ? JSON.parse(stored) : [];
+              })
+            ]);
+            return {
+              charters: boatCharters.map((c: any) => ({ ...c, boatName: boat.name, boatId: boat.id })),
+              invoices: boatInvoices.map((i: any) => ({ ...i, boatName: boat.name, boatId: boat.id }))
+            };
+          }));
+
+          results.forEach(r => {
+            allCharters = [...allCharters, ...r.charters];
+            allInvoices = [...allInvoices, ...r.invoices];
+          });
+        } else {
+          // Load charters and invoices from selected boat
+          const boat = boats.find(b => b.id === selectedBoat || String(b.id) === selectedBoat);
+          const boatId = boat?.id || selectedBoat;
+
+          const [boatCharters, boatInvoices] = await Promise.all([
+            getBookingsByVessel(boatId).catch(() => []),
+            getInvoicesByVessel(boatId).catch(() => {
+              const key = `fleet_${boatId}_ΤΙΜΟΛΟΓΙΑ`;
+              const stored = localStorage.getItem(key);
+              return stored ? JSON.parse(stored) : [];
+            })
+          ]);
+
+          allCharters = boatCharters.map((c: any) => ({ ...c, boatName: boat?.name || selectedBoat, boatId }));
+          allInvoices = boatInvoices.map((i: any) => ({ ...i, boatName: boat?.name || selectedBoat, boatId }));
+        }
+
+        // Filter charters by year
+        const filteredCharters = allCharters.filter((c: any) => {
+          const charterDate = c.startDate || c.dateFrom || c.date;
+          if (!charterDate) return false;
+          const year = new Date(charterDate).getFullYear();
+          return year === selectedYear;
+        });
+
+        // Filter invoices by year
+        const filteredInvoices = allInvoices.filter((i: any) => {
+          const invoiceDate = i.date || i.invoiceDate || i.createdAt;
+          if (!invoiceDate) return false;
+          const year = new Date(invoiceDate).getFullYear();
+          return year === selectedYear;
+        });
+
+        setChartersData(filteredCharters);
+        setInvoicesData(filteredInvoices);
+        console.log(`📊 Stats: Loaded ${filteredCharters.length} charters and ${filteredInvoices.length} invoices for ${selectedYear}`);
+      } catch (error) {
+        console.error('Error loading statistics data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [isOpen, selectedYear, selectedBoat, boats]);
+
+  // Calculate statistics including invoices
+  const statistics = React.useMemo(() => {
+    // Charter income
+    const totalIncome = chartersData.reduce((sum, c) => sum + (c.amount || c.totalAmount || c.charterAmount || 0), 0);
+
+    // Charter expenses (commission + VAT)
+    const totalCommission = chartersData.reduce((sum, c) => sum + (c.commission || 0), 0);
+    const totalVat = chartersData.reduce((sum, c) => sum + (c.vat_on_commission || c.vatOnCommission || 0), 0);
+    const charterExpenses = totalCommission + totalVat;
+
+    // Invoice expenses (boat expenses/timologia)
+    const invoiceExpenses = invoicesData.reduce((sum, i) => sum + (i.amount || 0), 0);
+
+    // Total expenses = charter expenses + invoice expenses
+    const totalExpenses = charterExpenses + invoiceExpenses;
+    const netProfit = totalIncome - totalExpenses;
+    const charterCount = chartersData.length;
+    const invoiceCount = invoicesData.length;
+    const avgValue = charterCount > 0 ? totalIncome / charterCount : 0;
+    const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+
+    // Find best performing boat (by net profit)
+    const boatPerformance: { [key: string]: { income: number; expenses: number; name: string } } = {};
+
+    // Add charter income
+    chartersData.forEach(c => {
+      const boatId = c.boatId || c.vesselId || 'unknown';
+      const boatName = c.boatName || c.vesselName || boatId;
+      if (!boatPerformance[boatId]) {
+        boatPerformance[boatId] = { income: 0, expenses: 0, name: boatName };
+      }
+      boatPerformance[boatId].income += (c.amount || c.totalAmount || c.charterAmount || 0);
+      boatPerformance[boatId].expenses += (c.commission || 0) + (c.vat_on_commission || c.vatOnCommission || 0);
+    });
+
+    // Add invoice expenses
+    invoicesData.forEach(i => {
+      const boatId = i.boatId || i.vesselId || 'unknown';
+      const boatName = i.boatName || i.vesselName || boatId;
+      if (!boatPerformance[boatId]) {
+        boatPerformance[boatId] = { income: 0, expenses: 0, name: boatName };
+      }
+      boatPerformance[boatId].expenses += (i.amount || 0);
+    });
+
+    // Sort by net profit (income - expenses)
+    const bestBoat = Object.entries(boatPerformance)
+      .map(([id, data]) => ({ id, ...data, net: data.income - data.expenses }))
+      .sort((a, b) => b.net - a.net)[0];
+
+    return {
+      totalIncome,
+      totalExpenses,
+      charterExpenses,
+      invoiceExpenses,
+      netProfit,
+      charterCount,
+      invoiceCount,
+      avgValue,
+      profitMargin,
+      bestBoat: bestBoat ? { name: bestBoat.name, income: bestBoat.income, net: bestBoat.net } : null
+    };
+  }, [chartersData, invoicesData]);
+
+  // Translation helper
+  const t = React.useCallback((el: string, en: string) => lang === 'el' ? el : en, [lang]);
+
+  // Prepare pie chart data with breakdown
+  const pieChartData = React.useMemo(() => {
+    if (statistics.totalIncome === 0 && statistics.totalExpenses === 0) {
+      return [{ name: t('Δεν υπάρχουν δεδομένα', 'No data available'), value: 1, fill: CHART_COLORS.neutral }];
+    }
+    return [
+      { name: t('Καθαρό Κέρδος', 'Net Profit'), value: Math.max(0, statistics.netProfit), fill: CHART_COLORS.profit },
+      { name: t('Προμήθειες', 'Commissions'), value: statistics.charterExpenses, fill: CHART_COLORS.commission },
+      { name: t('Τιμολόγια', 'Invoices'), value: statistics.invoiceExpenses, fill: CHART_COLORS.invoices }
+    ].filter(d => d.value > 0);
+  }, [statistics, t]);
+
+  // Income vs Expenses donut chart
+  const incomeExpenseData = React.useMemo(() => {
+    if (statistics.totalIncome === 0 && statistics.totalExpenses === 0) {
+      return [{ name: t('Δεν υπάρχουν δεδομένα', 'No data available'), value: 1, fill: CHART_COLORS.neutral }];
+    }
+    return [
+      { name: t('Έσοδα', 'Income'), value: statistics.totalIncome, fill: CHART_COLORS.income },
+      { name: t('Έξοδα', 'Expenses'), value: statistics.totalExpenses, fill: CHART_COLORS.expenses }
+    ];
+  }, [statistics, t]);
+
+  // Monthly/Quarterly/Yearly data aggregation
+  const periodData = React.useMemo(() => {
+    const monthNames = lang === 'el'
+      ? ['Ιαν', 'Φεβ', 'Μαρ', 'Απρ', 'Μάι', 'Ιουν', 'Ιουλ', 'Αυγ', 'Σεπ', 'Οκτ', 'Νοε', 'Δεκ']
+      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const quarterNames = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+    let data: { name: string; income: number; expenses: number; profit: number; charterExpenses: number; invoiceExpenses: number; charters: number }[] = [];
+
+    if (selectedPeriod === 'monthly') {
+      data = monthNames.map((name) => ({
+        name,
+        income: 0,
+        expenses: 0,
+        profit: 0,
+        charterExpenses: 0,
+        invoiceExpenses: 0,
+        charters: 0
+      }));
+
+      chartersData.forEach(c => {
+        const charterDate = c.startDate || c.dateFrom || c.date;
+        if (!charterDate) return;
+        const month = new Date(charterDate).getMonth();
+        const charterExp = (c.commission || 0) + (c.vat_on_commission || c.vatOnCommission || 0);
+        const income = c.amount || c.totalAmount || c.charterAmount || 0;
+        data[month].income += income;
+        data[month].charterExpenses += charterExp;
+        data[month].expenses += charterExp;
+        data[month].charters += 1;
+      });
+
+      invoicesData.forEach(i => {
+        const invoiceDate = i.date || i.invoiceDate || i.createdAt;
+        if (!invoiceDate) return;
+        const month = new Date(invoiceDate).getMonth();
+        const amount = i.amount || 0;
+        data[month].invoiceExpenses += amount;
+        data[month].expenses += amount;
+      });
+
+      // Calculate profit for each month
+      data.forEach(d => {
+        d.profit = d.income - d.expenses;
+      });
+    } else if (selectedPeriod === 'quarterly') {
+      data = quarterNames.map((name) => ({
+        name,
+        income: 0,
+        expenses: 0,
+        profit: 0,
+        charterExpenses: 0,
+        invoiceExpenses: 0,
+        charters: 0
+      }));
+
+      chartersData.forEach(c => {
+        const charterDate = c.startDate || c.dateFrom || c.date;
+        if (!charterDate) return;
+        const quarter = Math.floor(new Date(charterDate).getMonth() / 3);
+        const charterExp = (c.commission || 0) + (c.vat_on_commission || c.vatOnCommission || 0);
+        const income = c.amount || c.totalAmount || c.charterAmount || 0;
+        data[quarter].income += income;
+        data[quarter].charterExpenses += charterExp;
+        data[quarter].expenses += charterExp;
+        data[quarter].charters += 1;
+      });
+
+      invoicesData.forEach(i => {
+        const invoiceDate = i.date || i.invoiceDate || i.createdAt;
+        if (!invoiceDate) return;
+        const quarter = Math.floor(new Date(invoiceDate).getMonth() / 3);
+        const amount = i.amount || 0;
+        data[quarter].invoiceExpenses += amount;
+        data[quarter].expenses += amount;
+      });
+
+      // Calculate profit for each quarter
+      data.forEach(d => {
+        d.profit = d.income - d.expenses;
+      });
+    } else {
+      // Yearly - single aggregation
+      data = [{
+        name: String(selectedYear),
+        income: statistics.totalIncome,
+        expenses: statistics.totalExpenses,
+        profit: statistics.netProfit,
+        charterExpenses: statistics.charterExpenses,
+        invoiceExpenses: statistics.invoiceExpenses,
+        charters: statistics.charterCount
+      }];
+    }
+
+    return data;
+  }, [chartersData, invoicesData, selectedPeriod, selectedYear, statistics, lang]);
+
+  // Per-boat data for bar chart (including invoices)
+  const boatData = React.useMemo(() => {
+    const boatMap: { [key: string]: { name: string; income: number; expenses: number; profit: number; charterExpenses: number; invoiceExpenses: number; charters: number; invoices: number } } = {};
+
+    chartersData.forEach(c => {
+      const boatId = c.boatId || c.vesselId || 'unknown';
+      const boatName = c.boatName || c.vesselName || boatId;
+      if (!boatMap[boatId]) {
+        boatMap[boatId] = { name: boatName, income: 0, expenses: 0, profit: 0, charterExpenses: 0, invoiceExpenses: 0, charters: 0, invoices: 0 };
+      }
+      const charterExp = (c.commission || 0) + (c.vat_on_commission || c.vatOnCommission || 0);
+      boatMap[boatId].income += (c.amount || c.totalAmount || c.charterAmount || 0);
+      boatMap[boatId].charterExpenses += charterExp;
+      boatMap[boatId].expenses += charterExp;
+      boatMap[boatId].charters += 1;
+    });
+
+    invoicesData.forEach(i => {
+      const boatId = i.boatId || i.vesselId || 'unknown';
+      const boatName = i.boatName || i.vesselName || boatId;
+      if (!boatMap[boatId]) {
+        boatMap[boatId] = { name: boatName, income: 0, expenses: 0, profit: 0, charterExpenses: 0, invoiceExpenses: 0, charters: 0, invoices: 0 };
+      }
+      const amount = i.amount || 0;
+      boatMap[boatId].invoiceExpenses += amount;
+      boatMap[boatId].expenses += amount;
+      boatMap[boatId].invoices += 1;
+    });
+
+    // Calculate profit for each boat
+    Object.values(boatMap).forEach(b => {
+      b.profit = b.income - b.expenses;
+    });
+
+    return Object.values(boatMap).sort((a, b) => b.profit - a.profit);
+  }, [chartersData, invoicesData]);
+
+  // Format currency helper
+  const formatCurrency = (value: number) => {
+    return `€${value.toLocaleString('el-GR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  // Export to PDF - Fixed implementation
+  const exportToPDF = async () => {
+    console.log('PDF Export clicked');
+    alert('PDF Export started - check console for progress');
+    setIsExporting('pdf');
+    try {
+      console.log('Importing jsPDF...');
+      const { default: jsPDF } = await import('jspdf');
+      console.log('jsPDF imported successfully');
+      const doc = new jsPDF();
+
+      // Header
+      doc.setFillColor(20, 30, 48);
+      doc.rect(0, 0, 210, 40, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.text('TAILWIND YACHTING', 105, 18, { align: 'center' });
+      doc.setFontSize(12);
+      doc.text('Financial Statistics Report', 105, 28, { align: 'center' });
+
+      // Filters info
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(10);
+      const boatName = selectedBoat === 'all' ? 'All Boats' : boats.find(b => b.id === selectedBoat || String(b.id) === selectedBoat)?.name || selectedBoat;
+      doc.text(`Year: ${selectedYear} | Boat: ${boatName} | Period: ${selectedPeriod}`, 105, 50, { align: 'center' });
+
+      // Summary section
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(14);
+      doc.text('Financial Summary', 20, 65);
+
+      doc.setFontSize(11);
+      const summaryY = 75;
+      const col1 = 20;
+      const col2 = 110;
+
+      doc.setTextColor(20, 184, 166);
+      doc.text(`Total Income: ${formatCurrency(statistics.totalIncome)}`, col1, summaryY);
+      doc.setTextColor(244, 63, 94);
+      doc.text(`Total Expenses: ${formatCurrency(statistics.totalExpenses)}`, col2, summaryY);
+
+      doc.setTextColor(0, 0, 0);
+      doc.text(`  - Commissions: ${formatCurrency(statistics.charterExpenses)}`, col1, summaryY + 8);
+      doc.text(`  - Invoices: ${formatCurrency(statistics.invoiceExpenses)}`, col1, summaryY + 16);
+
+      doc.setTextColor(16, 185, 129);
+      doc.text(`Net Profit: ${formatCurrency(statistics.netProfit)}`, col2, summaryY + 8);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Profit Margin: ${statistics.profitMargin.toFixed(1)}%`, col2, summaryY + 16);
+
+      doc.text(`Charters: ${statistics.charterCount}`, col1, summaryY + 28);
+      doc.text(`Average Value: ${formatCurrency(statistics.avgValue)}`, col2, summaryY + 28);
+
+      if (statistics.bestBoat) {
+        doc.text(`Best Boat: ${statistics.bestBoat.name} (${formatCurrency(statistics.bestBoat.net)})`, col1, summaryY + 36);
+      }
+
+      // Period breakdown
+      let y = summaryY + 55;
+      doc.setFontSize(14);
+      doc.text(`${selectedPeriod === 'monthly' ? 'Monthly' : selectedPeriod === 'quarterly' ? 'Quarterly' : 'Yearly'} Breakdown`, 20, y);
+
+      doc.setFontSize(10);
+      y += 10;
+
+      periodData.forEach((m) => {
+        if (m.income > 0 || m.expenses > 0) {
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${m.name}:`, 20, y);
+          doc.setTextColor(20, 184, 166);
+          doc.text(`Income ${formatCurrency(m.income)}`, 45, y);
+          doc.setTextColor(244, 63, 94);
+          doc.text(`Expenses ${formatCurrency(m.expenses)}`, 95, y);
+          doc.setTextColor(m.profit >= 0 ? 16 : 244, m.profit >= 0 ? 185 : 63, m.profit >= 0 ? 129 : 94);
+          doc.text(`Profit ${formatCurrency(m.profit)}`, 150, y);
+          y += 7;
+          if (y > 280) {
+            doc.addPage();
+            y = 20;
+          }
+        }
+      });
+
+      // Per boat breakdown
+      if (boatData.length > 0 && selectedBoat === 'all') {
+        y += 10;
+        if (y > 250) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(14);
+        doc.setTextColor(0, 0, 0);
+        doc.text('Per Boat Performance', 20, y);
+        y += 10;
+        doc.setFontSize(10);
+
+        boatData.forEach(b => {
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${b.name}:`, 20, y);
+          doc.setTextColor(20, 184, 166);
+          doc.text(`${formatCurrency(b.income)}`, 70, y);
+          doc.setTextColor(244, 63, 94);
+          doc.text(`${formatCurrency(b.expenses)}`, 110, y);
+          doc.setTextColor(b.profit >= 0 ? 16 : 244, b.profit >= 0 ? 185 : 63, b.profit >= 0 ? 129 : 94);
+          doc.text(`${formatCurrency(b.profit)}`, 150, y);
+          y += 7;
+          if (y > 280) {
+            doc.addPage();
+            y = 20;
+          }
+        });
+      }
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Generated: ${new Date().toLocaleString('el-GR')}`, 105, 290, { align: 'center' });
+
+      const filename = `Statistics_${selectedYear}_${selectedBoat === 'all' ? 'AllBoats' : selectedBoat}.pdf`;
+      console.log('Saving PDF as:', filename);
+      doc.save(filename);
+      console.log('PDF saved successfully!');
+    } catch (error) {
+      console.error('PDF Export Error:', error);
+      alert('Error exporting to PDF: ' + (error as Error).message);
+    } finally {
+      setIsExporting(null);
+    }
+  };
+
+  // Export to Word - Fixed implementation
+  const exportToWord = async () => {
+    console.log('Word Export clicked');
+    setIsExporting('word');
+    try {
+      console.log('Importing docx...');
+      const docx = await import('docx');
+      console.log('docx imported successfully');
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType } = docx;
+
+      const boatName = selectedBoat === 'all' ? 'All Boats' : boats.find(b => b.id === selectedBoat || String(b.id) === selectedBoat)?.name || selectedBoat;
+
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: 'TAILWIND YACHTING', bold: true, size: 48, color: '14B8A6' })],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 200 }
+            }),
+            new Paragraph({
+              children: [new TextRun({ text: 'Financial Statistics Report', size: 28, color: '666666' })],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 400 }
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: `Year: ${selectedYear}  |  Boat: ${boatName}  |  Period: ${selectedPeriod}`, size: 20, color: '888888' })
+              ],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 600 }
+            }),
+            new Paragraph({
+              text: 'Financial Summary',
+              heading: HeadingLevel.HEADING_1,
+              spacing: { before: 400, after: 200 }
+            }),
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Total Income', bold: true })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: formatCurrency(statistics.totalIncome), color: '14B8A6' })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Total Expenses', bold: true })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: formatCurrency(statistics.totalExpenses), color: 'F43F5E' })] })] }),
+                  ]
+                }),
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Net Profit', bold: true })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: formatCurrency(statistics.netProfit), color: statistics.netProfit >= 0 ? '10B981' : 'F43F5E' })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Profit Margin', bold: true })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: `${statistics.profitMargin.toFixed(1)}%` })] })] }),
+                  ]
+                }),
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Charters', bold: true })] })] }),
+                    new TableCell({ children: [new Paragraph({ text: String(statistics.charterCount) })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Average Value', bold: true })] })] }),
+                    new TableCell({ children: [new Paragraph({ text: formatCurrency(statistics.avgValue) })] }),
+                  ]
+                }),
+              ]
+            }),
+            new Paragraph({ text: '', spacing: { after: 400 } }),
+            new Paragraph({
+              text: `${selectedPeriod === 'monthly' ? 'Monthly' : selectedPeriod === 'quarterly' ? 'Quarterly' : 'Yearly'} Breakdown`,
+              heading: HeadingLevel.HEADING_1,
+              spacing: { before: 400, after: 200 }
+            }),
+            ...periodData.filter(m => m.income > 0 || m.expenses > 0).map(m =>
+              new Paragraph({
+                children: [
+                  new TextRun({ text: `${m.name}: `, bold: true }),
+                  new TextRun({ text: `Income ${formatCurrency(m.income)}`, color: '14B8A6' }),
+                  new TextRun({ text: '  |  ' }),
+                  new TextRun({ text: `Expenses ${formatCurrency(m.expenses)}`, color: 'F43F5E' }),
+                  new TextRun({ text: '  |  ' }),
+                  new TextRun({ text: `Profit ${formatCurrency(m.profit)}`, color: m.profit >= 0 ? '10B981' : 'F43F5E' })
+                ],
+                spacing: { after: 100 }
+              })
+            ),
+            ...(selectedBoat === 'all' && boatData.length > 0 ? [
+              new Paragraph({ text: '', spacing: { after: 400 } }),
+              new Paragraph({
+                text: 'Per Boat Performance',
+                heading: HeadingLevel.HEADING_1,
+                spacing: { before: 400, after: 200 }
+              }),
+              ...boatData.map(b =>
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: `${b.name}: `, bold: true }),
+                    new TextRun({ text: `Income ${formatCurrency(b.income)}`, color: '14B8A6' }),
+                    new TextRun({ text: '  |  ' }),
+                    new TextRun({ text: `Expenses ${formatCurrency(b.expenses)}`, color: 'F43F5E' }),
+                    new TextRun({ text: '  |  ' }),
+                    new TextRun({ text: `Profit ${formatCurrency(b.profit)}`, color: b.profit >= 0 ? '10B981' : 'F43F5E' }),
+                    new TextRun({ text: `  |  Charters: ${b.charters}` })
+                  ],
+                  spacing: { after: 100 }
+                })
+              )
+            ] : []),
+            new Paragraph({ text: '', spacing: { after: 400 } }),
+            new Paragraph({
+              children: [new TextRun({ text: `Generated: ${new Date().toLocaleString('el-GR')}`, size: 18, color: 'AAAAAA' })],
+              alignment: AlignmentType.CENTER
+            })
+          ]
+        }]
+      });
+
+      console.log('Creating Word blob...');
+      const blob = await Packer.toBlob(doc);
+      console.log('Word blob created, size:', blob.size);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Statistics_${selectedYear}_${selectedBoat === 'all' ? 'AllBoats' : selectedBoat}.docx`;
+      console.log('Downloading Word file:', link.download);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      console.log('Word file downloaded successfully!');
+    } catch (error) {
+      console.error('Word Export Error:', error);
+      alert('Error exporting to Word: ' + (error as Error).message);
+    } finally {
+      setIsExporting(null);
+    }
+  };
+
+  // Export to Excel - New implementation
+  const exportToExcel = async () => {
+    console.log('Excel Export clicked');
+    setIsExporting('excel');
+    try {
+      console.log('Importing xlsx...');
+      const XLSX = await import('xlsx');
+      console.log('xlsx imported successfully');
+
+      // Summary sheet data
+      const summaryData = [
+        ['TAILWIND YACHTING - Financial Statistics'],
+        [''],
+        ['Report Parameters'],
+        ['Year', selectedYear],
+        ['Boat', selectedBoat === 'all' ? 'All Boats' : boats.find(b => b.id === selectedBoat || String(b.id) === selectedBoat)?.name || selectedBoat],
+        ['Period', selectedPeriod],
+        ['Generated', new Date().toLocaleString('el-GR')],
+        [''],
+        ['Financial Summary'],
+        ['Total Income', statistics.totalIncome],
+        ['Total Expenses', statistics.totalExpenses],
+        ['  - Commissions', statistics.charterExpenses],
+        ['  - Invoices', statistics.invoiceExpenses],
+        ['Net Profit', statistics.netProfit],
+        ['Profit Margin', `${statistics.profitMargin.toFixed(1)}%`],
+        [''],
+        ['Performance Metrics'],
+        ['Number of Charters', statistics.charterCount],
+        ['Number of Invoices', statistics.invoiceCount],
+        ['Average Charter Value', statistics.avgValue],
+        ['Best Performing Boat', statistics.bestBoat?.name || 'N/A'],
+        ['Best Boat Profit', statistics.bestBoat?.net || 0]
+      ];
+
+      // Period breakdown data
+      const periodSheetData = [
+        ['Period', 'Income', 'Expenses', 'Profit', 'Charters', 'Commission', 'Invoices'],
+        ...periodData.map(p => [p.name, p.income, p.expenses, p.profit, p.charters, p.charterExpenses, p.invoiceExpenses])
+      ];
+
+      // Per boat data
+      const boatSheetData = [
+        ['Boat', 'Income', 'Expenses', 'Profit', 'Charters', 'Commission', 'Invoices', 'Invoice Count'],
+        ...boatData.map(b => [b.name, b.income, b.expenses, b.profit, b.charters, b.charterExpenses, b.invoiceExpenses, b.invoices])
+      ];
+
+      const wb = XLSX.utils.book_new();
+
+      const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+      const ws2 = XLSX.utils.aoa_to_sheet(periodSheetData);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Period Breakdown');
+
+      if (selectedBoat === 'all' && boatData.length > 0) {
+        const ws3 = XLSX.utils.aoa_to_sheet(boatSheetData);
+        XLSX.utils.book_append_sheet(wb, ws3, 'Per Boat');
+      }
+
+      const filename = `Statistics_${selectedYear}_${selectedBoat === 'all' ? 'AllBoats' : selectedBoat}.xlsx`;
+      console.log('Writing Excel file:', filename);
+      XLSX.writeFile(wb, filename);
+      console.log('Excel file saved successfully!');
+    } catch (error) {
+      console.error('Excel Export Error:', error);
+      alert('Error exporting to Excel: ' + (error as Error).message);
+    } finally {
+      setIsExporting(null);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const hasData = chartersData.length > 0 || invoicesData.length > 0;
+  console.log('StatisticsModal render - hasData:', hasData, 'charters:', chartersData.length, 'invoices:', invoicesData.length);
+
+  return (
+    <div className="fixed inset-0 z-50 min-h-screen text-gray-800 overflow-auto" style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}>
+      {/* Header - Light Blue Gradient */}
+      <div className="p-4 rounded-b-xl shadow-md" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
+        <div className="max-w-7xl mx-auto">
+          {/* Top Row - Back Button and Language Toggle */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-white/90 hover:bg-white text-gray-800 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-all hover:scale-105"
+            >
+              ← {lang === 'el' ? 'Πίσω' : 'Back'}
+            </button>
+            <button
+              onClick={() => setLang(lang === 'el' ? 'en' : 'el')}
+              className="px-4 py-2 bg-white/90 hover:bg-white text-gray-700 rounded-lg text-sm font-bold shadow-sm transition-all hover:scale-105"
+            >
+              {lang === 'el' ? '🇬🇧 EN' : '🇬🇷 EL'}
+            </button>
+          </div>
+
+          {/* Title */}
+          <h1 className="text-2xl font-bold text-blue-800 text-center drop-shadow-md">
+            📊 {lang === 'el' ? 'ΟΙΚΟΝΟΜΙΚΑ ΣΤΑΤΙΣΤΙΚΑ' : 'FINANCIAL STATISTICS'}
+          </h1>
+          <p className="text-blue-700 text-center mt-1">
+            TAILWIND YACHTING
+          </p>
+
+          {/* Export Buttons Row */}
+          <div className="flex items-center justify-center gap-2 mt-4" style={{ position: 'relative', zIndex: 100 }}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('PDF button clicked!');
+                alert('PDF clicked!');
+                exportToPDF();
+              }}
+              disabled={isExporting === 'pdf'}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-red-50 text-red-600 rounded-lg text-sm font-bold transition-all disabled:opacity-50 border-2 border-red-400 shadow-lg cursor-pointer"
+            >
+              {isExporting === 'pdf' ? <span className="animate-spin">⏳</span> : '📄'} PDF
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Word button clicked!');
+                alert('Word clicked!');
+                exportToWord();
+              }}
+              disabled={isExporting === 'word'}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-blue-50 text-blue-600 rounded-lg text-sm font-bold transition-all disabled:opacity-50 border-2 border-blue-400 shadow-lg cursor-pointer"
+            >
+              {isExporting === 'word' ? <span className="animate-spin">⏳</span> : '📝'} Word
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Excel button clicked!');
+                alert('Excel clicked!');
+                exportToExcel();
+              }}
+              disabled={isExporting === 'excel'}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-white hover:bg-green-50 text-green-600 rounded-lg text-sm font-bold transition-all disabled:opacity-50 border-2 border-green-400 shadow-lg cursor-pointer"
+            >
+              {isExporting === 'excel' ? <span className="animate-spin">⏳</span> : '📊'} Excel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto p-4">
+        {/* Filters and Tabs Card */}
+        <div className="rounded-xl p-4 mb-4 border border-blue-300 shadow-md" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
+          {/* Filters - Compact Row */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-blue-700 text-xs font-medium">{t('Έτος', 'Year')}</span>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="bg-white/90 text-gray-800 rounded-lg px-3 py-1.5 border border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm transition-colors shadow-sm"
+              >
+                {availableYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-blue-700 text-xs font-medium">{t('Σκάφος', 'Vessel')}</span>
+              <select
+                value={selectedBoat}
+                onChange={(e) => setSelectedBoat(e.target.value)}
+                className="bg-white/90 text-gray-800 rounded-lg px-3 py-1.5 border border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm max-w-[150px] transition-colors shadow-sm"
+              >
+                <option value="all">{t('Όλα τα σκάφη', 'All vessels')}</option>
+                {boats.map(boat => (
+                  <option key={boat.id} value={boat.id}>{boat.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-blue-700 text-xs font-medium">{t('Περίοδος', 'Period')}</span>
+              <div className="flex bg-white/80 rounded-lg p-0.5 border border-blue-300 shadow-sm">
+                {(['monthly', 'quarterly', 'yearly'] as const).map((period) => (
+                  <button
+                    key={period}
+                    onClick={() => setSelectedPeriod(period)}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                      selectedPeriod === period
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : 'text-gray-600 hover:text-blue-700 hover:bg-blue-100'
+                    }`}
+                  >
+                    {period === 'monthly' ? t('Μήνας', 'Month') : period === 'quarterly' ? t('Τρίμηνο', 'Quarter') : t('Έτος', 'Year')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile Export */}
+            <div className="sm:hidden flex gap-1 ml-auto">
+              <button onClick={exportToPDF} disabled={!hasData} className="p-2 bg-white/80 text-red-600 rounded-lg disabled:opacity-50 border border-red-300 shadow-sm">📄</button>
+              <button onClick={exportToWord} disabled={!hasData} className="p-2 bg-white/80 text-blue-600 rounded-lg disabled:opacity-50 border border-blue-300 shadow-sm">📝</button>
+              <button onClick={exportToExcel} disabled={!hasData} className="p-2 bg-white/80 text-green-600 rounded-lg disabled:opacity-50 border border-green-300 shadow-sm">📊</button>
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="flex gap-1 mt-4 bg-white/60 p-1 rounded-xl w-fit border border-blue-200 shadow-sm">
+            {[
+              { key: 'overview', label: t('Επισκόπηση', 'Overview'), icon: '📋' },
+              { key: 'charts', label: t('Γραφήματα', 'Charts'), icon: '📈' },
+              { key: 'boats', label: t('Σκάφη', 'Vessels'), icon: '⛵' }
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                  activeTab === tab.key
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'text-gray-600 hover:text-blue-700 hover:bg-blue-100'
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <div className="w-12 h-12 border-3 border-blue-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-blue-700 font-medium">{t('Φόρτωση δεδομένων...', 'Loading data...')}</p>
+              </div>
+            </div>
+          ) : !hasData ? (
+            <div className="flex flex-col items-center justify-center h-64 text-center">
+              <div className="w-20 h-20 bg-white/80 rounded-2xl flex items-center justify-center mb-4 border border-blue-200 shadow-md">
+                <span className="text-4xl">📭</span>
+              </div>
+              <p className="text-gray-700 text-lg mb-2 font-medium">{t('Δεν βρέθηκαν δεδομένα', 'No data found')}</p>
+              <p className="text-gray-500 text-sm">{t('Δοκιμάστε να αλλάξετε τα φίλτρα', 'Try changing the filters')}</p>
+            </div>
+          ) : (
+            <>
+              {/* Overview Tab */}
+              {activeTab === 'overview' && (
+                <div className="space-y-6 animate-fadeIn">
+                  {/* Main Stats Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <StatCard
+                      title={t('Συνολικά Έσοδα', 'Total Income')}
+                      value={formatCurrency(statistics.totalIncome)}
+                      icon="💰"
+                      color={CHART_COLORS.income}
+                      delay={0}
+                    />
+                    <StatCard
+                      title={t('Συνολικά Έξοδα', 'Total Expenses')}
+                      value={formatCurrency(statistics.totalExpenses)}
+                      subtitle={`${t('Προμ', 'Comm')}: ${formatCurrency(statistics.charterExpenses)} | ${t('Τιμ', 'Inv')}: ${formatCurrency(statistics.invoiceExpenses)}`}
+                      icon="📉"
+                      color={CHART_COLORS.expenses}
+                      delay={50}
+                    />
+                    <StatCard
+                      title={t('Καθαρό Κέρδος', 'Net Profit')}
+                      value={formatCurrency(statistics.netProfit)}
+                      subtitle={`${t('Περιθώριο', 'Margin')}: ${statistics.profitMargin.toFixed(1)}%`}
+                      icon={statistics.netProfit >= 0 ? "📈" : "📉"}
+                      color={statistics.netProfit >= 0 ? CHART_COLORS.profit : CHART_COLORS.expenses}
+                      delay={100}
+                    />
+                    <StatCard
+                      title={t('Ναυλώσεις', 'Charters')}
+                      value={String(statistics.charterCount)}
+                      subtitle={`${t('Μ.Ο.', 'Avg')}: ${formatCurrency(statistics.avgValue)}`}
+                      icon="⛵"
+                      color="#3B82F6"
+                      delay={150}
+                    />
+                  </div>
+
+                  {/* Quick Overview Charts */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                    {/* Income vs Expenses Donut */}
+                    <div className="bg-white/90 rounded-xl p-4 sm:p-6 border border-blue-200 shadow-md">
+                      <h3 className="text-gray-800 font-semibold mb-4 flex items-center gap-2">
+                        <span className="text-lg">🎯</span> {t('Έσοδα vs Έξοδα', 'Income vs Expenses')}
+                      </h3>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={incomeExpenseData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={90}
+                              paddingAngle={2}
+                              dataKey="value"
+                            >
+                              {incomeExpenseData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend
+                              wrapperStyle={{ paddingTop: '20px' }}
+                              formatter={(value) => <span className="text-gray-700 text-sm font-medium">{value}</span>}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Expense Breakdown */}
+                    <div className="bg-white/90 rounded-xl p-4 sm:p-6 border border-blue-200 shadow-md">
+                      <h3 className="text-gray-800 font-semibold mb-4 flex items-center gap-2">
+                        <span className="text-lg">🥧</span> {t('Κατανομή Κερδοφορίας', 'Profit Distribution')}
+                      </h3>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={pieChartData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={90}
+                              paddingAngle={2}
+                              dataKey="value"
+                            >
+                              {pieChartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip />} />
+                            <Legend
+                              wrapperStyle={{ paddingTop: '20px' }}
+                              formatter={(value) => <span className="text-gray-700 text-sm font-medium">{value}</span>}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Best Performer Card */}
+                  {statistics.bestBoat && (
+                    <div className="bg-gradient-to-r from-amber-100 to-orange-100 rounded-xl p-4 sm:p-6 border border-amber-300 shadow-md">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-amber-200 rounded-xl flex items-center justify-center border border-amber-300">
+                          <span className="text-3xl">🏆</span>
+                        </div>
+                        <div>
+                          <p className="text-amber-700 text-sm font-medium">{t('Κορυφαίο Σκάφος', 'Top Vessel')} {selectedYear}</p>
+                          <p className="text-gray-800 text-xl font-bold">{statistics.bestBoat.name}</p>
+                          <p className="text-gray-600 text-sm">
+                            {t('Έσοδα', 'Income')}: {formatCurrency(statistics.bestBoat.income)} • {t('Κέρδος', 'Profit')}: {formatCurrency(statistics.bestBoat.net)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Charts Tab */}
+              {activeTab === 'charts' && (
+                <div className="space-y-6 animate-fadeIn">
+                  {/* Period Comparison */}
+                  <div className="bg-white/90 rounded-xl p-4 sm:p-6 border border-blue-200 shadow-md">
+                    <h3 className="text-gray-800 font-semibold mb-4 flex items-center gap-2">
+                      <span className="text-lg">📊</span>
+                      {selectedPeriod === 'monthly' ? t('Μηνιαία', 'Monthly') : selectedPeriod === 'quarterly' ? t('Τριμηνιαία', 'Quarterly') : t('Ετήσια', 'Yearly')} {t('Σύγκριση', 'Comparison')}
+                    </h3>
+                    <div className="h-72 sm:h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={periodData} barCategoryGap="15%">
+                          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                          <XAxis
+                            dataKey="name"
+                            stroke="#6B7280"
+                            tick={{ fontSize: 11, fill: '#374151' }}
+                            axisLine={{ stroke: '#D1D5DB' }}
+                          />
+                          <YAxis
+                            stroke="#6B7280"
+                            tickFormatter={(v) => `€${(v/1000).toFixed(0)}k`}
+                            tick={{ fontSize: 11, fill: '#374151' }}
+                            axisLine={{ stroke: '#D1D5DB' }}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            formatter={(value) => <span className="text-gray-700 text-sm font-medium">{value}</span>}
+                          />
+                          <Bar dataKey="income" name={t('Έσοδα', 'Income')} fill={CHART_COLORS.income} radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="expenses" name={t('Έξοδα', 'Expenses')} fill={CHART_COLORS.expenses} radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Profit Trend Line Chart */}
+                  <div className="bg-white/90 rounded-xl p-4 sm:p-6 border border-blue-200 shadow-md">
+                    <h3 className="text-gray-800 font-semibold mb-4 flex items-center gap-2">
+                      <span className="text-lg">📈</span> {t('Τάση Κερδοφορίας', 'Profit Trend')}
+                    </h3>
+                    <div className="h-72 sm:h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={periodData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                          <XAxis
+                            dataKey="name"
+                            stroke="#6B7280"
+                            tick={{ fontSize: 11, fill: '#374151' }}
+                            axisLine={{ stroke: '#D1D5DB' }}
+                          />
+                          <YAxis
+                            stroke="#6B7280"
+                            tickFormatter={(v) => `€${(v/1000).toFixed(0)}k`}
+                            tick={{ fontSize: 11, fill: '#374151' }}
+                            axisLine={{ stroke: '#D1D5DB' }}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            formatter={(value) => <span className="text-gray-700 text-sm font-medium">{value}</span>}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="income"
+                            name={t('Έσοδα', 'Income')}
+                            stroke={CHART_COLORS.income}
+                            strokeWidth={2}
+                            dot={{ fill: CHART_COLORS.income, strokeWidth: 0, r: 4 }}
+                            activeDot={{ r: 6, strokeWidth: 0 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="expenses"
+                            name={t('Έξοδα', 'Expenses')}
+                            stroke={CHART_COLORS.expenses}
+                            strokeWidth={2}
+                            dot={{ fill: CHART_COLORS.expenses, strokeWidth: 0, r: 4 }}
+                            activeDot={{ r: 6, strokeWidth: 0 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="profit"
+                            name={t('Κέρδος', 'Profit')}
+                            stroke={CHART_COLORS.profit}
+                            strokeWidth={3}
+                            dot={{ fill: CHART_COLORS.profit, strokeWidth: 0, r: 5 }}
+                            activeDot={{ r: 7, strokeWidth: 0 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Boats Tab */}
+              {activeTab === 'boats' && (
+                <div className="space-y-6 animate-fadeIn">
+                  {boatData.length > 0 ? (
+                    <>
+                      {/* Boat Comparison Chart */}
+                      <div className="bg-white/90 rounded-xl p-4 sm:p-6 border border-blue-200 shadow-md">
+                        <h3 className="text-gray-800 font-semibold mb-4 flex items-center gap-2">
+                          <span className="text-lg">⛵</span> {t('Σύγκριση ανά Σκάφος', 'Comparison by Vessel')}
+                        </h3>
+                        <div className="h-72 sm:h-96">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={boatData} layout="vertical" barCategoryGap="20%">
+                              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
+                              <XAxis
+                                type="number"
+                                stroke="#6B7280"
+                                tickFormatter={(v) => `€${(v/1000).toFixed(0)}k`}
+                                tick={{ fontSize: 11, fill: '#374151' }}
+                                axisLine={{ stroke: '#D1D5DB' }}
+                              />
+                              <YAxis
+                                type="category"
+                                dataKey="name"
+                                stroke="#6B7280"
+                                width={100}
+                                tick={{ fontSize: 11, fill: '#374151' }}
+                                axisLine={{ stroke: '#D1D5DB' }}
+                              />
+                              <Tooltip content={<CustomTooltip />} />
+                              <Legend
+                                wrapperStyle={{ paddingTop: '20px' }}
+                                formatter={(value) => <span className="text-gray-700 text-sm font-medium">{value}</span>}
+                              />
+                              <Bar dataKey="income" name={t('Έσοδα', 'Income')} fill={CHART_COLORS.income} radius={[0, 4, 4, 0]} />
+                              <Bar dataKey="expenses" name={t('Έξοδα', 'Expenses')} fill={CHART_COLORS.expenses} radius={[0, 4, 4, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      {/* Boat Cards Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {boatData.map((boat, index) => (
+                          <div
+                            key={boat.name}
+                            className="bg-white/90 rounded-xl p-4 border border-blue-200 hover:border-blue-400 transition-all hover:shadow-lg shadow-md"
+                            style={{ animationDelay: `${index * 50}ms` }}
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xl">⛵</span>
+                                <h4 className="text-gray-800 font-semibold">{boat.name}</h4>
+                              </div>
+                              {index === 0 && (
+                                <span className="px-2 py-0.5 bg-amber-200 text-amber-700 text-xs rounded-full font-medium border border-amber-300">🏆 #1</span>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">{t('Έσοδα', 'Income')}</span>
+                                <span className="text-teal-600 font-medium">{formatCurrency(boat.income)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">{t('Έξοδα', 'Expenses')}</span>
+                                <span className="text-red-600 font-medium">{formatCurrency(boat.expenses)}</span>
+                              </div>
+                              <div className="h-px bg-blue-200 my-2"></div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-500">{t('Κέρδος', 'Profit')}</span>
+                                <span className={`font-bold ${boat.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {formatCurrency(boat.profit)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                                <span>{boat.charters} {t('ναυλώσεις', 'charters')}</span>
+                                <span>{boat.invoices} {t('τιμολόγια', 'invoices')}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-64 text-center">
+                      <p className="text-gray-600 font-medium">{t('Επιλέξτε "Όλα τα σκάφη" για σύγκριση', 'Select "All vessels" for comparison')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer - Light Blue */}
+        <div className="px-4 sm:px-6 py-3 border-t border-blue-300 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #90caf9 0%, #64b5f6 100%)' }}>
+          <div className="text-blue-800 text-xs sm:text-sm flex items-center gap-2 font-medium">
+            <span className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></span>
+            <span>{chartersData.length} {t('ναυλώσεις', 'charters')}</span>
+            <span className="text-blue-600">•</span>
+            <span>{invoicesData.length} {t('τιμολόγια', 'invoices')}</span>
+            <span className="text-blue-600">•</span>
+            <span>{selectedYear}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 bg-white/90 hover:bg-white text-blue-700 hover:text-blue-900 rounded-lg text-sm font-bold transition-all shadow-sm hover:scale-105"
+          >
+            {t('Κλείσιμο', 'Close')}
+          </button>
+        </div>
+      </div>
+
+      {/* Animation Styles */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // AdminDashboard Component - FULLSCREEN με ανοιχτά χρώματα
 export default function AdminDashboard({
   boats,
@@ -112,6 +1377,8 @@ export default function AdminDashboard({
   const [tasksMenuExpanded, setTasksMenuExpanded] = useState(false);
   // 💰 Expandable financials menu state
   const [financialsMenuExpanded, setFinancialsMenuExpanded] = useState(false);
+  // 📊 Statistics modal state
+  const [showStatisticsModal, setShowStatisticsModal] = useState(false);
 
   // Task categories for navigation (all same light blue color)
   const taskCategories = [
@@ -587,7 +1854,7 @@ export default function AdminDashboard({
                 {financialsMenuExpanded && (
                   <div className="mt-2 space-y-2">
                     <button
-                      onClick={() => alert('ΣΤΑΤΙΣΤΙΚΑ - Coming soon!')}
+                      onClick={() => setShowStatisticsModal(true)}
                       className="w-full h-10 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-bold transition-colors"
                     >
                       📊 ΣΤΑΤΙΣΤΙΚΑ
@@ -638,6 +1905,13 @@ export default function AdminDashboard({
 
       {/* User Guide Modal */}
       <UserGuide isOpen={showUserGuide} onClose={() => setShowUserGuide(false)} />
+
+      {/* Statistics Modal */}
+      <StatisticsModal
+        isOpen={showStatisticsModal}
+        onClose={() => setShowStatisticsModal(false)}
+        boats={boats}
+      />
     </div>
   );
 }
