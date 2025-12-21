@@ -8,27 +8,27 @@ require_once __DIR__ . '/db_connect.php';
 
 // Auto-create table if it doesn't exist, and add missing columns
 function ensureWinterInventoryTable($pdo) {
-    // Create table if it doesn't exist
+    // Create table if it doesn't exist (all columns NULLABLE except id and vessel_id)
     $pdo->exec("CREATE TABLE IF NOT EXISTS winter_inventory (
         id SERIAL PRIMARY KEY,
         vessel_id INTEGER NOT NULL,
-        vessel_name VARCHAR(255),
-        sections JSONB DEFAULT '{}',
-        custom_sections JSONB DEFAULT '[]',
-        general_notes TEXT,
-        last_saved TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        vessel_name VARCHAR(255) NULL,
+        sections JSONB NULL,
+        custom_sections JSONB NULL,
+        general_notes TEXT NULL,
+        last_saved TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(vessel_id)
     )");
 
-    // Add missing columns if table already exists (PostgreSQL)
+    // Add missing columns if table already exists (PostgreSQL) - all NULLABLE
     $columns = [
-        'vessel_name' => 'VARCHAR(255)',
-        'sections' => "JSONB DEFAULT '{}'",
-        'custom_sections' => "JSONB DEFAULT '[]'",
-        'general_notes' => 'TEXT',
-        'last_saved' => 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+        'vessel_name' => 'VARCHAR(255) NULL',
+        'sections' => 'JSONB NULL',
+        'custom_sections' => 'JSONB NULL',
+        'general_notes' => 'TEXT NULL',
+        'last_saved' => 'TIMESTAMP NULL',
         'created_at' => 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
         'updated_at' => 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
     ];
@@ -38,6 +38,16 @@ function ensureWinterInventoryTable($pdo) {
             $pdo->exec("ALTER TABLE winter_inventory ADD COLUMN IF NOT EXISTS $column $type");
         } catch (PDOException $e) {
             // Column might already exist, ignore error
+        }
+    }
+
+    // Drop NOT NULL constraints if they exist (for existing columns)
+    $nullableColumns = ['vessel_name', 'sections', 'custom_sections', 'general_notes', 'last_saved'];
+    foreach ($nullableColumns as $column) {
+        try {
+            $pdo->exec("ALTER TABLE winter_inventory ALTER COLUMN $column DROP NOT NULL");
+        } catch (PDOException $e) {
+            // Constraint might not exist, ignore error
         }
     }
 
