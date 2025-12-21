@@ -1313,6 +1313,7 @@ export async function getPage2DataHybrid(bookingNumber: string, mode: 'in' | 'ou
 
 /**
  * Save Page 2 data to API (NO localStorage)
+ * 🔥 FIX: Send checklistData directly to API instead of through savePage2Data (which wraps as crewList)
  */
 export async function savePage2DataHybrid(
   bookingNumber: string,
@@ -1320,13 +1321,46 @@ export async function savePage2DataHybrid(
   mode: 'in' | 'out'
 ): Promise<{ success: boolean; synced: boolean }> {
   try {
-    const apiData = {
-      checklistData: data,
-      mode: mode,
-      lastSaved: new Date().toISOString()
-    };
-    const result = await savePage2Data(bookingNumber, apiData as any);
-    return { success: result.success, synced: result.success };
+    // 🔥 FIX: Call API directly with correct structure
+    // The API expects { bookingNumber, checklistData, mode } at top level
+    const response = await fetch(PAGE2_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bookingNumber,
+        checklistData: data,
+        mode: mode
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log('✅ Page 2 checklist data saved to API:', bookingNumber, mode);
+      return { success: true, synced: true };
+    }
+
+    // If POST fails with 409 (already exists), try PUT
+    if (response.status === 409) {
+      console.log('📝 Page 2 data exists, updating via PUT...');
+      const putResponse = await fetch(PAGE2_API_URL, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingNumber,
+          checklistData: data,
+          mode: mode
+        })
+      });
+      const putResult = await putResponse.json();
+      if (putResult.success) {
+        console.log('✅ Page 2 checklist data updated via PUT:', bookingNumber, mode);
+        return { success: true, synced: true };
+      }
+    }
+
+    console.warn('⚠️ Page 2 API save failed:', result.error || result.message);
+    return { success: false, synced: false };
   } catch (error) {
     console.error('❌ Page 2 API save failed:', error);
     return { success: false, synced: false };

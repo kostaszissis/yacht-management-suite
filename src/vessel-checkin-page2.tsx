@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import { DataContext } from './App';
 import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
-import { savePage2DataHybrid, getPage2DataHybrid } from './services/apiService';
+import { savePage2DataHybrid, getPage2DataHybrid, getPage1DataHybrid } from './services/apiService';
 
 // 🔥 IMPORT ΑΠΟ SharedComponents (ΤΑ ΚΟΙΝΑ)
 import {
@@ -21,6 +21,7 @@ import {
   PageHeader,
   TopControls,
   ModeDisplay,
+  formatDate,
   ActionButtons,
   MainsailAgreement,
   SignatureBox,
@@ -315,6 +316,27 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
   const [signatureImage, setSignatureImage] = useState("");
   const [remarks, setRemarks] = useState("");
   const [diversReportFile, setDiversReportFile] = useState(null);
+
+  // 🔥 FIX: Store Page 1 data for header display
+  const [page1Data, setPage1Data] = useState<any>(null);
+
+  // 🔥 FIX: Load Page 1 data for header
+  useEffect(() => {
+    const loadPage1Data = async () => {
+      if (currentBookingNumber) {
+        try {
+          const data = await getPage1DataHybrid(currentBookingNumber);
+          if (data) {
+            console.log('📍 Page 2: Loaded Page 1 data for header:', data);
+            setPage1Data(data);
+          }
+        } catch (error) {
+          console.error('❌ Page 2: Failed to load Page 1 data:', error);
+        }
+      }
+    };
+    loadPage1Data();
+  }, [currentBookingNumber]);
 
   const mainsailRef = useRef(null);
   const diversReportRef = useRef(null);
@@ -909,7 +931,16 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
   const renderBookingFromContext = renderGlobalBookings.find((b: any) =>
     b.bookingNumber === currentBookingNumber || b.code === currentBookingNumber
   );
-  const bookingInfo = renderBookingFromContext || contextData?.data || {};
+  // 🔥 FIX: Merge with Page 1 data (source of truth for vessel/skipper/dates)
+  const baseBookingInfo = renderBookingFromContext || contextData?.data || {};
+  const bookingInfo = {
+    ...baseBookingInfo,
+    vesselName: page1Data?.vesselName || baseBookingInfo?.vesselName,
+    skipperFirstName: page1Data?.skipperFirstName || baseBookingInfo?.skipperFirstName,
+    skipperLastName: page1Data?.skipperLastName || baseBookingInfo?.skipperLastName,
+    checkInDate: page1Data?.checkInDate || baseBookingInfo?.checkInDate,
+    checkOutDate: page1Data?.checkOutDate || baseBookingInfo?.checkOutDate,
+  };
 
   return (
     <div className="min-h-screen p-4" style={{ background: brand.pageBg }}>
@@ -923,7 +954,7 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
               <div className="text-xs text-gray-600">Booking Number</div>
               <div className="text-lg font-bold">{currentBookingNumber || 'N/A'}</div>
               <div className="text-xs text-gray-600 mt-2">Check-in Date</div>
-              <div className="text-base font-semibold">{bookingInfo?.checkInDate || 'N/A'}</div>
+              <div className="text-base font-semibold">{formatDate(bookingInfo?.checkInDate)}</div>
             </div>
             <div className="text-center">
               <div className="text-xs text-gray-600">Yacht</div>
@@ -933,7 +964,7 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
               <div className="text-xs text-gray-600">Skipper</div>
               <div className="text-lg font-bold">{bookingInfo?.skipperFirstName || ''} {bookingInfo?.skipperLastName || ''}</div>
               <div className="text-xs text-gray-600 mt-2">Check-out Date</div>
-              <div className="text-base font-semibold">{bookingInfo?.checkOutDate || 'N/A'}</div>
+              <div className="text-base font-semibold">{formatDate(bookingInfo?.checkOutDate)}</div>
             </div>
           </div>
         </div>

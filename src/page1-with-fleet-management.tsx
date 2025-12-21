@@ -683,10 +683,10 @@ export default function Page1() {
       checkoutDate.setHours(0, 0, 0, 0);
       
       if (checkoutDate > today) {
-        const message = lang === 'el' 
-          ? `❌ Δεν μπορείτε να κάνετε Check-out ακόμα!\n\nΗμερομηνία Check-out: ${form.checkOutDate}\nΣημερινή ημερομηνία: ${today.toISOString().split('T')[0]}\n\nΠαρακαλώ περιμένετε μέχρι την ημερομηνία Check-out.`
-          : `❌ Cannot do Check-out yet!\n\nCheck-out date: ${form.checkOutDate}\nToday: ${today.toISOString().split('T')[0]}\n\nPlease wait until the check-out date.`;
-        
+        const message = lang === 'el'
+          ? `❌ Δεν μπορείτε να κάνετε Check-out ακόμα!\n\nΗμερομηνία Check-out: ${formatDate(form.checkOutDate)}\nΣημερινή ημερομηνία: ${formatDate(today.toISOString().split('T')[0])}\n\nΠαρακαλώ περιμένετε μέχρι την ημερομηνία Check-out.`
+          : `❌ Cannot do Check-out yet!\n\nCheck-out date: ${formatDate(form.checkOutDate)}\nToday: ${formatDate(today.toISOString().split('T')[0])}\n\nPlease wait until the check-out date.`;
+
         alert(message);
         return; // Don't change mode
       }
@@ -1205,9 +1205,9 @@ export default function Page1() {
       checkInDate.setHours(0, 0, 0, 0);
       
       if (checkInDate.getTime() !== today.getTime()) {
-        const message = lang === 'el' 
-          ? `❌ Μπορείτε να προχωρήσετε μόνο την ημέρα Check-in!\n\nΗμερομηνία Check-in: ${form.checkInDate}\nΣημερινή ημερομηνία: ${today.toISOString().split('T')[0]}`
-          : `❌ You can only proceed on Check-in day!\n\nCheck-in date: ${form.checkInDate}\nToday: ${today.toISOString().split('T')[0]}`;
+        const message = lang === 'el'
+          ? `❌ Μπορείτε να προχωρήσετε μόνο την ημέρα Check-in!\n\nΗμερομηνία Check-in: ${formatDate(form.checkInDate)}\nΣημερινή ημερομηνία: ${formatDate(today.toISOString().split('T')[0])}`
+          : `❌ You can only proceed on Check-in day!\n\nCheck-in date: ${formatDate(form.checkInDate)}\nToday: ${formatDate(today.toISOString().split('T')[0])}`;
         
         alert(message);
         return;
@@ -1223,9 +1223,9 @@ export default function Page1() {
       checkoutDate.setHours(0, 0, 0, 0);
       
       if (checkoutDate > today) {
-        const message = lang === 'el' 
-          ? `❌ Δεν μπορείτε να προχωρήσετε στο Check-out ακόμα!\n\nΗμερομηνία Check-out: ${form.checkOutDate}\nΣημερινή ημερομηνία: ${today.toISOString().split('T')[0]}\n\nΠαρακαλώ περιμένετε μέχρι την ημερομηνία Check-out.`
-          : `❌ Cannot proceed with Check-out yet!\n\nCheck-out date: ${form.checkOutDate}\nToday: ${today.toISOString().split('T')[0]}\n\nPlease wait until the check-out date.`;
+        const message = lang === 'el'
+          ? `❌ Δεν μπορείτε να προχωρήσετε στο Check-out ακόμα!\n\nΗμερομηνία Check-out: ${formatDate(form.checkOutDate)}\nΣημερινή ημερομηνία: ${formatDate(today.toISOString().split('T')[0])}\n\nΠαρακαλώ περιμένετε μέχρι την ημερομηνία Check-out.`
+          : `❌ Cannot proceed with Check-out yet!\n\nCheck-out date: ${formatDate(form.checkOutDate)}\nToday: ${formatDate(today.toISOString().split('T')[0])}\n\nPlease wait until the check-out date.`;
         
         alert(message);
         return; // Don't navigate

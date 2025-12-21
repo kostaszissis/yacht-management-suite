@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useContext } from "react";
 import authService from './authService';
-import { savePage4DataHybrid, getPage4DataHybrid, getAllBookings, getFloorplan } from './services/apiService';
+import { savePage4DataHybrid, getPage4DataHybrid, getAllBookings, getFloorplan, getPage1DataHybrid } from './services/apiService';
 import { DataContext } from './App';
 import {
   compressImage,
@@ -365,21 +365,40 @@ export default function Page4({ onNavigate }) {
 
       if (currentBooking) {
         try {
-          // Fetch booking info from API (source of truth)
+          // 🔥 FIX: First get vessel from Page 1 API (where it's actually saved)
+          const page1Data = await getPage1DataHybrid(currentBooking);
+          console.log('📍 Page 1 data loaded:', page1Data);
+
+          // Also fetch booking info from bookings API for other data
           const allBookings = await getAllBookings();
           const booking = allBookings.find((b: any) =>
             b.bookingNumber === currentBooking || b.code === currentBooking
           );
 
-          if (booking) {
+          if (booking || page1Data) {
             setCurrentBookingNumber(currentBooking);
-            setBookingInfo(booking);
 
-            const savedMode = contextData?.mode || booking?.mode || 'in';
+            // 🔥 FIX: Merge booking info, prioritizing Page 1 data (source of truth for vessel/skipper/dates)
+            const mergedBookingInfo = {
+              ...booking,
+              // Override with Page 1 data (where the actual form data is saved)
+              vesselName: page1Data?.vesselName || booking?.vesselName || booking?.vessel,
+              skipperFirstName: page1Data?.skipperFirstName || booking?.skipperFirstName,
+              skipperLastName: page1Data?.skipperLastName || booking?.skipperLastName,
+              checkInDate: page1Data?.checkInDate || booking?.checkInDate,
+              checkOutDate: page1Data?.checkOutDate || booking?.checkOutDate,
+              checkInTime: page1Data?.checkInTime || booking?.checkInTime,
+              checkOutTime: page1Data?.checkOutTime || booking?.checkOutTime,
+            };
+            setBookingInfo(mergedBookingInfo);
+            console.log('📍 Merged booking info:', mergedBookingInfo);
+
+            const savedMode = contextData?.mode || booking?.mode || page1Data?.mode || 'in';
             setMode(savedMode);
 
-            const rawVesselName = booking?.vesselName || booking?.vessel || '';
-            console.log('📍 Raw vessel name:', rawVesselName);
+            // 🔥 FIX: Get vessel name from Page 1 data FIRST (source of truth), then fallback to booking
+            const rawVesselName = mergedBookingInfo.vesselName || '';
+            console.log('📍 Raw vessel name from Page 1:', rawVesselName);
 
         if (rawVesselName) {
           const vesselLower = rawVesselName.toLowerCase();
@@ -430,17 +449,21 @@ export default function Page4({ onNavigate }) {
 
   // Load floorplan from API when vessel changes
   useEffect(() => {
+    // 🔥 FIX: Reset API floorplan immediately when vessel changes
+    // This ensures the local fallback image is used right away while fetching
+    setApiFloorplan(null);
+    setImageError(false);
+
     const loadFloorplanFromAPI = async () => {
       const vesselId = VESSEL_NAME_TO_ID[selectedVessel];
       if (!vesselId) {
         console.log('📍 No vessel ID mapping for:', selectedVessel);
-        setApiFloorplan(null);
         return;
       }
 
       setLoadingFloorplan(true);
       try {
-        console.log('🔄 Loading floorplan from API for vessel ID:', vesselId);
+        console.log('🔄 Loading floorplan from API for vessel ID:', vesselId, 'vessel:', selectedVessel);
         const floorplan = await getFloorplan(vesselId);
 
         if (floorplan && floorplan.background_image) {
@@ -451,12 +474,12 @@ export default function Page4({ onNavigate }) {
           });
           setImageError(false);
         } else {
-          console.log('📍 No API floorplan, using fallback for:', selectedVessel);
-          setApiFloorplan(null);
+          console.log('📍 No API floorplan, using local fallback for:', selectedVessel);
+          // Keep apiFloorplan as null - local VESSEL_FLOORPLANS will be used
         }
       } catch (error) {
         console.error('❌ Error loading floorplan from API:', error);
-        setApiFloorplan(null);
+        // Keep apiFloorplan as null - local VESSEL_FLOORPLANS will be used
       } finally {
         setLoadingFloorplan(false);
       }

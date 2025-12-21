@@ -1,5 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 
+// 🔥 FORMAT DATE: YYYY-MM-DD → DD/MM/YYYY
+export const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  // If already in DD/MM/YYYY format, return as is
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+  // Convert YYYY-MM-DD → DD/MM/YYYY
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+    const [year, month, day] = dateStr.split('T')[0].split('-');
+    return `${day}/${month}/${year}`;
+  }
+  // Try to parse as date and format
+  try {
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+  } catch (e) {}
+  return dateStr;
+};
+
 export const compressSignature = (base64Image) => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -229,7 +252,7 @@ export function BookingInfoBox({ bookingInfo, currentBookingNumber }) {
           <div className="text-xs text-gray-600">Booking Number</div>
           <div className="text-lg font-bold">{currentBookingNumber || 'N/A'}</div>
           <div className="text-xs text-gray-600 mt-2">Check-in Date</div>
-          <div className="text-base font-semibold">{bookingInfo?.checkInDate || 'N/A'}</div>
+          <div className="text-base font-semibold">{formatDate(bookingInfo?.checkInDate)}</div>
         </div>
         <div className="text-center">
           <div className="text-xs text-gray-600">Yacht</div>
@@ -239,7 +262,7 @@ export function BookingInfoBox({ bookingInfo, currentBookingNumber }) {
           <div className="text-xs text-gray-600">Skipper</div>
           <div className="text-lg font-bold">{bookingInfo?.skipperFirstName || ''} {bookingInfo?.skipperLastName || ''}</div>
           <div className="text-xs text-gray-600 mt-2">Check-out Date</div>
-          <div className="text-base font-semibold">{bookingInfo?.checkOutDate || 'N/A'}</div>
+          <div className="text-base font-semibold">{formatDate(bookingInfo?.checkOutDate)}</div>
         </div>
       </div>
     </div>

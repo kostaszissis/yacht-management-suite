@@ -15,7 +15,7 @@ import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import { sendCheckInEmail, sendCheckOutEmail } from './services/emailService';
 import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
-import { saveBooking, getBooking, savePage5DataHybrid, getPage5DataHybrid, getAllBookings } from './services/apiService';
+import { saveBooking, getBooking, savePage5DataHybrid, getPage5DataHybrid, getAllBookings, getPage1DataHybrid } from './services/apiService';
 import { DataContext } from './App';
 
 import {
@@ -1095,17 +1095,31 @@ export default function Page5({ onNavigate }) {
         if (!currentBooking) return;
         setCurrentBookingNumber(currentBooking);
 
+        // 🔥 FIX: First get vessel/skipper data from Page 1 API (source of truth)
+        const page1Data = await getPage1DataHybrid(currentBooking);
+        console.log('📍 Final Page: Loaded Page 1 data:', page1Data);
+
         // Use globalBookings from context instead of localStorage
         const globalBookings = contextData?.globalBookings || [];
         const bookingFromContext = globalBookings.find((b: any) =>
           b.bookingNumber === currentBooking || b.code === currentBooking
         );
-        const data = bookingFromContext || contextData?.data || {};
-        setBookingData(data);
+        const baseData = bookingFromContext || contextData?.data || {};
+
+        // 🔥 FIX: Merge booking info, prioritizing Page 1 data (source of truth for vessel/skipper/dates)
+        const mergedData = {
+          ...baseData,
+          vesselName: page1Data?.vesselName || baseData?.vesselName || baseData?.vessel,
+          skipperFirstName: page1Data?.skipperFirstName || baseData?.skipperFirstName,
+          skipperLastName: page1Data?.skipperLastName || baseData?.skipperLastName,
+          checkInDate: page1Data?.checkInDate || baseData?.checkInDate,
+          checkOutDate: page1Data?.checkOutDate || baseData?.checkOutDate,
+        };
+        setBookingData(mergedData);
 
         // Set language from booking data
-        if (data?.language) {
-          setLang(data.language);
+        if (mergedData?.language) {
+          setLang(mergedData.language);
         }
 
         // 🔥 Try API first for Page 5 data

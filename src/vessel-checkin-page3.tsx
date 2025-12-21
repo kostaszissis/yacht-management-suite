@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useContext } from "react";
 import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
-import { savePage3DataHybrid, getPage3DataHybrid, getAllBookings } from './services/apiService';
+import { savePage3DataHybrid, getPage3DataHybrid, getAllBookings, getPage1DataHybrid } from './services/apiService';
 import { DataContext } from './App';
 import {
   compressImage,
@@ -164,17 +164,31 @@ export default function Page3({ onNavigate }) {
 
       if (currentBooking) {
         try {
-          // Fetch booking info from API (source of truth)
+          // 🔥 FIX: First get vessel/skipper data from Page 1 API (source of truth)
+          const page1Data = await getPage1DataHybrid(currentBooking);
+          console.log('📍 Page 3: Loaded Page 1 data:', page1Data);
+
+          // Fetch booking info from API
           const allBookings = await getAllBookings();
           const booking = allBookings.find((b: any) =>
             b.bookingNumber === currentBooking || b.code === currentBooking
           );
 
-          if (booking) {
+          if (booking || page1Data) {
             setCurrentBookingNumber(currentBooking);
-            setBookingInfo(booking);
 
-            const savedMode = contextData?.mode || booking?.mode || 'in';
+            // 🔥 FIX: Merge booking info, prioritizing Page 1 data (source of truth for vessel/skipper/dates)
+            const mergedBookingInfo = {
+              ...booking,
+              vesselName: page1Data?.vesselName || booking?.vesselName || booking?.vessel,
+              skipperFirstName: page1Data?.skipperFirstName || booking?.skipperFirstName,
+              skipperLastName: page1Data?.skipperLastName || booking?.skipperLastName,
+              checkInDate: page1Data?.checkInDate || booking?.checkInDate,
+              checkOutDate: page1Data?.checkOutDate || booking?.checkOutDate,
+            };
+            setBookingInfo(mergedBookingInfo);
+
+            const savedMode = contextData?.mode || booking?.mode || page1Data?.mode || 'in';
             setMode(savedMode);
             loadDataForMode(currentBooking, savedMode);
 
