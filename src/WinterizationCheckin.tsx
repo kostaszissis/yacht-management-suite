@@ -869,19 +869,33 @@ export default function WinterizationCheckin() {
     localStorage.setItem(`winterization_${vesselKey}_custom_items`, JSON.stringify(customItems));
 
     // Try to save to API
+    let apiSaveSuccess = false;
     try {
+      console.log('🔄 Saving to API...', { vesselId: selectedVessel, sectionsCount: Object.keys(sectionsToSave).length });
       const result = await saveWinterizationCheckin(selectedVessel, sectionsToSave, customSections, generalNotes);
+      console.log('📡 API save result:', result);
       if (result.synced) {
         console.log('✅ Winterization Checkin saved to API');
+        apiSaveSuccess = true;
       } else {
-        console.log('💾 Saved to localStorage, API sync pending');
+        console.warn('⚠️ API sync failed - data only saved to localStorage');
       }
     } catch (error) {
-      console.warn('⚠️ API save failed, data saved to localStorage:', error);
+      console.error('❌ API save failed:', error);
     }
 
     setIsSaving(false);
     setShowSaveMessage(true);
+
+    // Show warning if API save failed
+    if (!apiSaveSuccess) {
+      setTimeout(() => {
+        alert(lang === 'el'
+          ? '⚠️ Προσοχή: Τα δεδομένα αποθηκεύτηκαν τοπικά αλλά ΔΕΝ συγχρονίστηκαν με τη βάση δεδομένων. Ελέγξτε τη σύνδεση δικτύου.'
+          : '⚠️ Warning: Data saved locally but NOT synced to database. Check network connection.');
+      }, 500);
+    }
+
     setTimeout(() => setShowSaveMessage(false), 3000);
   };
 

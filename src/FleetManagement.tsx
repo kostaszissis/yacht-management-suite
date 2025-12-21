@@ -5373,9 +5373,9 @@ function TaskPage({ boat, showMessage }) {
           <h3 className="text-sm font-bold text-gray-800">🔧 Εργαλεία Χειμερινής Συντήρησης</h3>
         </div>
         <div className="grid grid-cols-1 gap-2">
-            {/* Inventory Button */}
+            {/* Χειμερινές Εργασίες Button */}
             <button
-              onClick={() => reactNavigate('/winter-inventory')}
+              onClick={() => reactNavigate('/winterization')}
               className="w-full p-3 bg-gradient-to-r from-sky-400 to-cyan-400 rounded-xl border border-sky-300 hover:border-white transition-all duration-300 hover:shadow-xl hover:shadow-sky-400/40 hover:scale-[1.02] text-left flex items-center justify-between"
             >
               <div className="flex items-center gap-3">

@@ -1028,24 +1028,36 @@ export async function saveCheckinData(
   endpoint: string,
   data: CheckinData
 ): Promise<{ success: boolean; message?: string }> {
+  const apiUrl = `${API_URL}/${endpoint}.php`;
+  console.log(`🔄 API POST to: ${apiUrl}`, { vesselId: data.vesselId, dataKeys: Object.keys(data) });
+
   try {
-    const response = await fetch(`${API_URL}/${endpoint}.php`, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
 
-    const result = await response.json();
+    console.log(`📡 API response status: ${response.status} ${response.statusText}`);
 
-    if (result.success || response.ok) {
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ API HTTP error: ${response.status}`, errorText);
+      return { success: false, message: `HTTP ${response.status}: ${errorText}` };
+    }
+
+    const result = await response.json();
+    console.log(`📡 API response:`, result);
+
+    if (result.success) {
       console.log(`✅ ${endpoint} data saved to API for vessel ${data.vesselId}`);
       return { success: true, message: result.message };
     }
 
-    console.warn(`⚠️ ${endpoint} API save failed:`, result.error);
-    return { success: false, message: result.error };
+    console.warn(`⚠️ ${endpoint} API save failed:`, result.error || result);
+    return { success: false, message: result.error || 'Unknown error' };
   } catch (error) {
-    console.warn(`⚠️ ${endpoint} API save error:`, error);
+    console.error(`❌ ${endpoint} API save error:`, error);
     return { success: false, message: String(error) };
   }
 }
