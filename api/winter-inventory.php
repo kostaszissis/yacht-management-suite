@@ -6,8 +6,9 @@
 
 require_once __DIR__ . '/db_connect.php';
 
-// Auto-create table if it doesn't exist
+// Auto-create table if it doesn't exist, and add missing columns
 function ensureWinterInventoryTable($pdo) {
+    // Create table if it doesn't exist
     $pdo->exec("CREATE TABLE IF NOT EXISTS winter_inventory (
         id SERIAL PRIMARY KEY,
         vessel_id INTEGER NOT NULL,
@@ -20,6 +21,26 @@ function ensureWinterInventoryTable($pdo) {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(vessel_id)
     )");
+
+    // Add missing columns if table already exists (PostgreSQL)
+    $columns = [
+        'vessel_name' => 'VARCHAR(255)',
+        'sections' => "JSONB DEFAULT '{}'",
+        'custom_sections' => "JSONB DEFAULT '[]'",
+        'general_notes' => 'TEXT',
+        'last_saved' => 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+        'created_at' => 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+        'updated_at' => 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+    ];
+
+    foreach ($columns as $column => $type) {
+        try {
+            $pdo->exec("ALTER TABLE winter_inventory ADD COLUMN IF NOT EXISTS $column $type");
+        } catch (PDOException $e) {
+            // Column might already exist, ignore error
+        }
+    }
+
     $pdo->exec("CREATE INDEX IF NOT EXISTS idx_winter_inventory_vessel_id ON winter_inventory(vessel_id)");
 }
 
