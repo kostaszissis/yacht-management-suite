@@ -2,8 +2,8 @@
 // Version changes on every build to force updates
 // localStorage is NEVER touched - only cache is managed
 
-const BUILD_VERSION = 'mjg6bza8';
-const BUILD_DATE = '2025-12-21T20:22:49.952Z';
+const BUILD_VERSION = 'mjg730ck';
+const BUILD_DATE = '2025-12-21T20:43:51.044Z';
 
 const CACHE_VERSION = BUILD_VERSION;
 const CACHE_NAME = 'yacht-manager-' + CACHE_VERSION;

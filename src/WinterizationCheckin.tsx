@@ -405,6 +405,14 @@ export default function WinterizationCheckin() {
                 return defaultItem;
               });
 
+              // 🔥 FIX: Also load custom items from the saved sections
+              const savedCustomItems = apiData.sections[sectionId].items.filter(
+                (si: ChecklistItem) => si.isCustom
+              );
+              savedCustomItems.forEach((customItem: ChecklistItem) => {
+                newSections[sectionId].items.push(customItem);
+              });
+
               if (apiData.sections[sectionId].expanded !== undefined) {
                 newSections[sectionId].expanded = apiData.sections[sectionId].expanded;
               }
@@ -413,16 +421,22 @@ export default function WinterizationCheckin() {
 
           setGeneralNotes(apiData.generalNotes || '');
 
-          // Load custom items from API (cast to any for dynamic properties)
+          // Load custom items from API (legacy support - cast to any for dynamic properties)
           const apiDataAny = apiData as any;
           if (apiDataAny.customItems) {
             Object.keys(apiDataAny.customItems).forEach(sectionId => {
               if (newSections[sectionId] && Array.isArray(apiDataAny.customItems[sectionId])) {
                 apiDataAny.customItems[sectionId].forEach((customItem: ChecklistItem) => {
-                  newSections[sectionId].items.push({
-                    ...customItem,
-                    isCustom: true
-                  });
+                  // Only add if not already present (avoid duplicates)
+                  const exists = newSections[sectionId].items.some(
+                    (item: ChecklistItem) => item.key === customItem.key && item.isCustom
+                  );
+                  if (!exists) {
+                    newSections[sectionId].items.push({
+                      ...customItem,
+                      isCustom: true
+                    });
+                  }
                 });
               }
             });
@@ -825,12 +839,12 @@ export default function WinterizationCheckin() {
     setIsSaving(true);
     const vesselKey = getVesselName(selectedVessel);
 
-    // Prepare sections data (only default items with their checked/qty/comments)
+    // Prepare sections data (ALL items including custom items)
     const sectionsToSave: { [key: string]: { expanded: boolean; items: ChecklistItem[] } } = {};
     Object.keys(sections).forEach(sectionId => {
       sectionsToSave[sectionId] = {
         expanded: sections[sectionId].expanded,
-        items: sections[sectionId].items.filter((item: ChecklistItem) => !item.isCustom)
+        items: sections[sectionId].items  // Include ALL items (both default and custom)
       };
     });
 
