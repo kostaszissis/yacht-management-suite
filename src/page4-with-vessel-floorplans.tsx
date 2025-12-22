@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useContext } from "react";
+import { useLocation } from 'react-router-dom';
 import authService from './authService';
 import { savePage4DataHybrid, getPage4DataHybrid, getAllBookings, getFloorplan, getPage1DataHybrid } from './services/apiService';
 import { DataContext } from './App';
@@ -269,6 +270,9 @@ const getHotspotsForVesselFallback = (vesselId) => {
 };
 
 export default function Page4({ onNavigate }) {
+  // 🔥 FIX: Use location to detect when page is navigated to
+  const location = useLocation();
+
   const [lang, setLang] = useState("en");
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [mode, setMode] = useState("in");
@@ -445,7 +449,7 @@ export default function Page4({ onNavigate }) {
     };
 
     loadBookingFromAPI();
-  }, [contextData?.bookingNumber, contextData?.mode]);
+  }, [contextData?.bookingNumber, contextData?.mode, location.key]);  // 🔥 FIX: Added location.key to re-run when page is navigated to
 
   // Load floorplan from API when vessel changes
   useEffect(() => {
