@@ -15,7 +15,7 @@ import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import { sendCheckInEmail, sendCheckOutEmail } from './services/emailService';
 import authService from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
-import { saveBooking, getBooking, savePage5DataHybrid, getPage5DataHybrid, getAllBookings, getPage1DataHybrid } from './services/apiService';
+import { saveBooking, getBooking, savePage5DataHybrid, getPage5DataHybrid, getAllBookings, getPage1DataHybrid, getPage2DataHybrid, getPage3DataHybrid, getPage4DataHybrid } from './services/apiService';
 import { DataContext } from './App';
 
 import {
@@ -253,11 +253,159 @@ function getItemLabel(key, lang = 'en') {
   return ITEM_LABELS[key]?.[lang] || key;
 }
 
-function getAllItems(lang = 'en') {
-  // DEPRECATED: This function needs refactoring to use API data
-  // Page data should come from API via getPage2DataHybrid, getPage3DataHybrid, getPage4DataHybrid
-  console.warn('⚠️ getAllItems: localStorage for bookings removed - page data should be loaded via API');
-  return [];
+// Transform items array into CompleteInventory format
+function transformItemsToInventory(items: any[], page: string, section: string, lang: string = 'en'): any[] {
+  if (!items || !Array.isArray(items)) return [];
+
+  return items.map(item => ({
+    page,
+    section,
+    name: getItemLabel(item.key, lang) || item.key,
+    qty: item.qty || 1,
+    inOk: item.inOk || false,
+    out: item.out || null,
+    price: item.price || '0'
+  }));
+}
+
+// Transform Page 2 data to inventory items
+function transformPage2Data(data: any, lang: string = 'en'): any[] {
+  if (!data) return [];
+  const results: any[] = [];
+
+  // Main equipment items
+  if (data.items && Array.isArray(data.items)) {
+    results.push(...transformItemsToInventory(data.items, 'Page 2', lang === 'el' ? 'Κύριος Εξοπλισμός' : 'Main Equipment', lang));
+  }
+
+  // Hull items
+  if (data.hullItems && Array.isArray(data.hullItems)) {
+    results.push(...transformItemsToInventory(data.hullItems, 'Page 2', lang === 'el' ? 'Κύτος' : 'Hull', lang));
+  }
+
+  // Dinghy items
+  if (data.dinghyItems && Array.isArray(data.dinghyItems)) {
+    results.push(...transformItemsToInventory(data.dinghyItems, 'Page 2', lang === 'el' ? 'Λέμβος' : 'Dinghy', lang));
+  }
+
+  return results;
+}
+
+// Transform Page 3 data to inventory items
+function transformPage3Data(data: any, lang: string = 'en'): any[] {
+  if (!data) return [];
+  const results: any[] = [];
+
+  // Safety items
+  if (data.safetyItems && Array.isArray(data.safetyItems)) {
+    results.push(...transformItemsToInventory(data.safetyItems, 'Page 3', lang === 'el' ? 'Εξοπλισμός Ασφαλείας' : 'Safety Equipment', lang));
+  }
+
+  // Cabin items
+  if (data.cabinItems && Array.isArray(data.cabinItems)) {
+    results.push(...transformItemsToInventory(data.cabinItems, 'Page 3', lang === 'el' ? 'Καμπίνα' : 'Cabin', lang));
+  }
+
+  // Optional items
+  if (data.optionalItems && Array.isArray(data.optionalItems)) {
+    results.push(...transformItemsToInventory(data.optionalItems, 'Page 3', lang === 'el' ? 'Προαιρετικά' : 'Optional', lang));
+  }
+
+  return results;
+}
+
+// Transform Page 4 data to inventory items
+function transformPage4Data(data: any, lang: string = 'en'): any[] {
+  if (!data) return [];
+  const results: any[] = [];
+
+  // Navigation items
+  if (data.navItems && Array.isArray(data.navItems)) {
+    results.push(...transformItemsToInventory(data.navItems, 'Page 4', lang === 'el' ? 'Πλοήγηση' : 'Navigation', lang));
+  }
+
+  // Safety items
+  if (data.safetyItems && Array.isArray(data.safetyItems)) {
+    results.push(...transformItemsToInventory(data.safetyItems, 'Page 4', lang === 'el' ? 'Ασφάλεια' : 'Safety', lang));
+  }
+
+  // Generator items
+  if (data.genItems && Array.isArray(data.genItems)) {
+    results.push(...transformItemsToInventory(data.genItems, 'Page 4', lang === 'el' ? 'Γεννήτρια' : 'Generator', lang));
+  }
+
+  // Deck items
+  if (data.deckItems && Array.isArray(data.deckItems)) {
+    results.push(...transformItemsToInventory(data.deckItems, 'Page 4', lang === 'el' ? 'Κατάστρωμα' : 'Deck', lang));
+  }
+
+  // Front deck items
+  if (data.fdeckItems && Array.isArray(data.fdeckItems)) {
+    results.push(...transformItemsToInventory(data.fdeckItems, 'Page 4', lang === 'el' ? 'Πλώρη' : 'Front Deck', lang));
+  }
+
+  // Dinghy items
+  if (data.dinghyItems && Array.isArray(data.dinghyItems)) {
+    results.push(...transformItemsToInventory(data.dinghyItems, 'Page 4', lang === 'el' ? 'Λέμβος' : 'Dinghy', lang));
+  }
+
+  // Fenders items
+  if (data.fendersItems && Array.isArray(data.fendersItems)) {
+    results.push(...transformItemsToInventory(data.fendersItems, 'Page 4', lang === 'el' ? 'Μπαλόνια' : 'Fenders', lang));
+  }
+
+  // Boathook items
+  if (data.boathookItems && Array.isArray(data.boathookItems)) {
+    results.push(...transformItemsToInventory(data.boathookItems, 'Page 4', lang === 'el' ? 'Γάντζος' : 'Boathook', lang));
+  }
+
+  // Main items (if present)
+  if (data.items && Array.isArray(data.items)) {
+    results.push(...transformItemsToInventory(data.items, 'Page 4', lang === 'el' ? 'Γενικά' : 'General', lang));
+  }
+
+  return results;
+}
+
+// Load all inventory items from Pages 2, 3, 4
+async function loadAllInventoryItems(bookingNumber: string, mode: 'in' | 'out', lang: string = 'en'): Promise<any[]> {
+  const allItems: any[] = [];
+
+  try {
+    // Load Page 2 data
+    const page2Data = await getPage2DataHybrid(bookingNumber, mode);
+    if (page2Data) {
+      console.log('📦 Page 2 data loaded:', page2Data);
+      allItems.push(...transformPage2Data(page2Data, lang));
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to load Page 2 data:', error);
+  }
+
+  try {
+    // Load Page 3 data
+    const page3Data = await getPage3DataHybrid(bookingNumber, mode);
+    if (page3Data) {
+      console.log('📦 Page 3 data loaded:', page3Data);
+      allItems.push(...transformPage3Data(page3Data, lang));
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to load Page 3 data:', error);
+  }
+
+  try {
+    // Load Page 4 data
+    const page4Data = await getPage4DataHybrid(bookingNumber, mode);
+    if (page4Data) {
+      console.log('📦 Page 4 data loaded:', page4Data);
+      allItems.push(...transformPage4Data(page4Data, lang));
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to load Page 4 data:', error);
+  }
+
+  console.log(`📋 Total inventory items loaded: ${allItems.length}`);
+  return allItems;
 }
 
 function getDamagePhotos(mode) {
@@ -1076,24 +1224,25 @@ export default function Page5({ onNavigate }) {
   
   useEffect(() => {
     const loadData = async () => {
-      const items = getAllItems(lang);
-      setAllItems(items);
-
-      if (mode === 'out') {
-        const damaged = items.filter(item => item.out === 'not');
-        setDamageItems(damaged);
-        const damagePhotos = getDamagePhotos(mode);
-        setAllPhotos(damagePhotos);
-      } else {
-        const photos = getAllPhotos();
-        setAllPhotos(photos);
-      }
-
       try {
         // Get booking from context (API is source of truth)
         const currentBooking = contextData?.bookingNumber || localStorage.getItem('currentBooking');
         if (!currentBooking) return;
         setCurrentBookingNumber(currentBooking);
+
+        // 🔥 FIX: Load inventory items from Pages 2, 3, 4 via API
+        const inventoryItems = await loadAllInventoryItems(currentBooking, mode as 'in' | 'out', lang);
+        setAllItems(inventoryItems);
+
+        if (mode === 'out') {
+          const damaged = inventoryItems.filter(item => item.out === 'not');
+          setDamageItems(damaged);
+          const damagePhotos = getDamagePhotos(mode);
+          setAllPhotos(damagePhotos);
+        } else {
+          const photos = getAllPhotos();
+          setAllPhotos(photos);
+        }
 
         // 🔥 FIX: First get vessel/skipper data from Page 1 API (source of truth)
         const page1Data = await getPage1DataHybrid(currentBooking);

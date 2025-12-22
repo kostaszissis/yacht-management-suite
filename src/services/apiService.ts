@@ -1127,13 +1127,13 @@ export async function saveWinterizationCheckin(vesselId: number, sections: any, 
 export async function getWinterInventory(vesselId: number): Promise<CheckinData | null> {
   const vesselName = VESSEL_NAMES[vesselId] || '';
   const localKey = `winter_inventory_${vesselName.replace(/\s+/g, '_').toLowerCase()}`;
-  return getCheckinDataHybrid('winterization-checkin', vesselId, localKey);
+  return getCheckinDataHybrid('winter-inventory', vesselId, localKey);
 }
 
 export async function saveWinterInventory(vesselId: number, sections: any, customSections: any, generalNotes: string): Promise<{ success: boolean; synced: boolean }> {
   const vesselName = VESSEL_NAMES[vesselId] || '';
   const localKey = `winter_inventory_${vesselName.replace(/\s+/g, '_').toLowerCase()}`;
-  return saveCheckinDataHybrid('winterization-checkin', {
+  return saveCheckinDataHybrid('winter-inventory', {
     vesselId,
     vesselName,
     sections,
