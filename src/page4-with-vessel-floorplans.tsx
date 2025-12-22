@@ -1139,10 +1139,14 @@ export default function Page4({ onNavigate }) {
                   
                   {!imageError ? (
                     <img
-                      src={apiFloorplan?.background_image || VESSEL_FLOORPLANS[selectedVessel]}
+                      src={apiFloorplan?.background_image || VESSEL_FLOORPLANS[selectedVessel] || VESSEL_FLOORPLANS['bob']}
                       alt={selectedVessel + ' floorplan'}
                       className="absolute inset-0 w-full h-full object-contain rounded-lg"
-                      onError={() => setImageError(true)}
+                      onError={(e) => {
+                        console.error('❌ Floorplan image failed to load:', e.currentTarget.src);
+                        setImageError(true);
+                      }}
+                      onLoad={() => console.log('✅ Floorplan image loaded:', selectedVessel)}
                     />
                   ) : (
                     <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
