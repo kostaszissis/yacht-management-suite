@@ -107,13 +107,12 @@ try {
                         ? json_decode($booking['booking_data'], true)
                         : $booking['booking_data'];
 
-                    $result[] = [
+                    $result[] = array_merge([
                         'bookingCode' => $booking['booking_number'],
                         'charterCode' => $booking['booking_number'],
                         'code' => $booking['booking_number'],
                         'id' => $booking['booking_number'],
-                        ...(is_array($bookingData) ? $bookingData : [])
-                    ];
+                    ], is_array($bookingData) ? $bookingData : []);
                 }
 
                 echo json_encode([
