@@ -1678,7 +1678,7 @@ export default function AdminDashboard({
                     </button>
                     {/* Χειμερινές Εργασίες */}
                     <button
-                      onClick={() => reactNavigate('/winterization')}
+                      onClick={() => reactNavigate('/winter-inventory')}
                       className="w-full h-10 rounded-lg flex items-center gap-2 px-3 text-slate-700 transition-all duration-300 hover:scale-[1.02] hover:shadow-md text-left"
                       style={{ background: 'linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 50%, #81d4fa 100%)' }}
                     >
