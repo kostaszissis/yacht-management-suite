@@ -5434,7 +5434,10 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
   // 🔥 FIX 9: Added 5 skipper fields
   const [newCharter, setNewCharter] = useState({
-    code: '', startDate: '', endDate: '', startTime: '', endTime: '', amount: '', commissionPercent: '',
+    code: '', startDate: '', endDate: '', startTime: '', endTime: '', amount: '',
+    commissionPercent: '20',
+    hasForeignBroker: false,
+    foreignBrokerPercent: '20',
     departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
     skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
   });
@@ -5795,11 +5798,34 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
   const calculateFinancials = () => {
     const amount = parseFloat(newCharter.amount) || 0;
-    const commissionPercent = parseFloat(newCharter.commissionPercent) || 0;
-    const commission = (amount * commissionPercent) / 100;
-    const vat = commission * 0.24;
-    const netIncome = amount - commission - vat;
-    return { amount, commission, vat, netIncome };
+    const netFare = amount / 1.12; // Remove 12% VAT from gross fare
+    const hasForeignBroker = newCharter.hasForeignBroker;
+    const foreignBrokerPercent = parseFloat(newCharter.foreignBrokerPercent) || 20;
+    const commissionPercent = parseFloat(newCharter.commissionPercent) || (hasForeignBroker ? 10 : 20);
+
+    let foreignCommission = 0;
+    let greekCommissionBase = netFare;
+
+    if (hasForeignBroker) {
+      foreignCommission = netFare * (foreignBrokerPercent / 100);
+      greekCommissionBase = netFare - foreignCommission;
+    }
+
+    const greekCommission = greekCommissionBase * (commissionPercent / 100);
+    const vatOnGreekCommission = greekCommission * 0.24;
+    const totalExpense = foreignCommission + greekCommission + vatOnGreekCommission;
+    const netIncome = amount - totalExpense;
+
+    return {
+      amount,
+      netFare,
+      foreignCommission,
+      greekCommission,
+      vatOnGreekCommission,
+      totalExpense,
+      netIncome,
+      hasForeignBroker
+    };
   };
 
   const financials = calculateFinancials();
@@ -6005,8 +6031,11 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       ownerCode: boat.ownerCode || '',
       amount: financials.amount,
       commissionPercent: parseFloat(newCharter.commissionPercent) || 0,
-      commission: financials.commission,
-      vat_on_commission: financials.vat,
+      hasForeignBroker: newCharter.hasForeignBroker,
+      foreignBrokerPercent: parseFloat(newCharter.foreignBrokerPercent) || 20,
+      foreignCommission: financials.foreignCommission || 0,
+      commission: financials.greekCommission,
+      vat_on_commission: financials.vatOnGreekCommission,
       status: newCharter.status,
       bookingStatus: newCharter.status,
       // 🔥 Keep existing payment data when editing, reset when adding
@@ -6628,8 +6657,49 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       className="w-full px-3 py-3 bg-gray-600 text-white text-lg font-bold rounded-lg border-2 border-green-500 focus:border-green-400 focus:outline-none"
                     />
                   </div>
+
+                  {/* Foreign Broker Section */}
+                  <div className="mb-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-orange-400 mb-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newCharter.hasForeignBroker}
+                        onChange={(e) => {
+                          setNewCharter(prev => ({
+                            ...prev,
+                            hasForeignBroker: e.target.checked,
+                            commissionPercent: e.target.checked ? '10' : '20'
+                          }));
+                        }}
+                        className="w-4 h-4 accent-orange-500"
+                      />
+                      Με ξένο πράκτορα (Foreign Broker)
+                    </label>
+
+                    {newCharter.hasForeignBroker && (
+                      <div className="ml-6 space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-orange-300 mb-1">
+                            Foreign Broker Commission (%)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            name="foreignBrokerPercent"
+                            value={newCharter.foreignBrokerPercent}
+                            onChange={handleFormChange}
+                            placeholder="20"
+                            className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border-2 border-orange-500 focus:border-orange-400 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-red-400 mb-2">Προμήθεια (%) *</label>
+                    <label className="block text-sm font-medium text-red-400 mb-2">
+                      {newCharter.hasForeignBroker ? 'Tailwind Commission (%)' : 'Προμήθεια (%)'} *
+                    </label>
                     <input
                       type="number"
                       step="0.01"
@@ -6648,13 +6718,21 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                     />
                   </div>
                   <div className="pt-3 border-t-2 border-gray-600 space-y-2">
+                    {financials.hasForeignBroker && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-orange-400 font-medium">Foreign Broker Commission:</span>
+                        <span className="text-orange-400 font-bold text-lg">-{financials.foreignCommission.toFixed(2)}€</span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center">
-                      <span className="text-red-400 font-medium">Commission (Expense):</span>
-                      <span className="text-red-400 font-bold text-lg">-{financials.commission.toFixed(2)}€</span>
+                      <span className="text-red-400 font-medium">
+                        {financials.hasForeignBroker ? 'Tailwind Commission:' : 'Commission (Expense):'}
+                      </span>
+                      <span className="text-red-400 font-bold text-lg">-{financials.greekCommission.toFixed(2)}€</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-red-400 font-medium">VAT on Commission (24%):</span>
-                      <span className="text-red-400 font-bold text-lg">-{financials.vat.toFixed(2)}€</span>
+                      <span className="text-red-400 font-bold text-lg">-{financials.vatOnGreekCommission.toFixed(2)}€</span>
                     </div>
                     <div className="pt-3 border-t-2 border-teal-500 flex justify-between items-center">
                       <span className="text-teal-400 font-bold text-xl">NET INCOME:</span>
