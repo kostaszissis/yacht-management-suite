@@ -3,10 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import authService, { getOwnerByBoatId } from './authService';
 import AdminDashboard from './AdminDashboard';
 import { codeMatches, textMatches } from './utils/searchUtils';
-import { saveBookingSync, getBookingSync, syncToFleetFormat, fleetToSyncFormat } from './utils/bookingSyncUtils';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
-import { saveBooking, getVessels, getBookingsByVessel, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking, getAllBookings, getTasksByVessel, saveTask, deleteTask, migrateTasksFromLocalStorage, getInvoicesByVessel, saveInvoice, deleteInvoice, migrateInvoicesFromLocalStorage, checkDuplicateCharterCode, checkDateOverlap } from './services/apiService';
+import { saveBooking, getVessels, getBookingsByVessel, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking, getAllBookings, getTasksByVessel, saveTask, deleteTask, migrateTasksFromLocalStorage, getInvoicesByVessel, saveInvoice, deleteInvoice, migrateInvoicesFromLocalStorage, checkDuplicateCharterCode, checkDateOverlap, savePage1DataHybrid } from './services/apiService';
 // 🔥 FIX 23: Charter Party DOCX generation
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -5440,22 +5439,25 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
   });
 
-  // 🔥 DEBUG: Log Page 1 bookings when loading
-  useEffect(() => {
-    const page1Bookings = items.filter(c => c.source === 'page1' || c.status === 'Draft');
-    const confirmedBookings = items.filter(c => c.status === 'Confirmed');
-    console.log('📋 CHARTER PAGE DEBUG:', {
-      total: items.length,
-      page1Bookings: page1Bookings.length,
-      confirmedBookings: confirmedBookings.length,
-      page1Details: page1Bookings.map(c => ({
-        code: c.code,
-        status: c.status,
-        source: c.source,
-        vesselName: c.vesselName
-      }))
-    });
-  }, [items]);
+  // 🔥 NEW: Validation error states
+  const [charterCodeError, setCharterCodeError] = useState('');
+  const [doubleBookingError, setDoubleBookingError] = useState('');
+  const [dateRangeError, setDateRangeError] = useState('');
+
+  // 🔥 NEW: Extras states for charter form
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
+  const [customExtras, setCustomExtras] = useState<string[]>([]);
+
+  // 🔥 NEW: Refs for validation scroll and highlight
+  const charterCodeRef = useRef<HTMLDivElement>(null);
+  const datesRef = useRef<HTMLDivElement>(null);
+  const skipperInfoRef = useRef<HTMLDivElement>(null);
+
+  const isOwnerUser = authService.isOwner();
+  const canViewCharters = true;
+  const canEditCharters = (authService.isAdmin() || authService.isBooking()) && !isOwnerUser;
+  const canViewFinancials = authService.canViewFinancials() || isOwnerUser;
+  const canAcceptCharter = isOwnerUser || authService.isAdmin();
 
   // 🔥 Filter charters based on selected filter
   const filteredItems = useMemo(() => {
@@ -5474,72 +5476,6 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     items.filter(c => c.source === 'page1' || c.status === 'Draft').length,
     [items]
   );
-
-  // 🔥 NEW: Validation error states
-  const [charterCodeError, setCharterCodeError] = useState('');
-  const [doubleBookingError, setDoubleBookingError] = useState('');
-  const [dateRangeError, setDateRangeError] = useState('');
-
-  // 🔥 NEW: Refs for validation scroll and highlight
-  const charterCodeRef = useRef<HTMLDivElement>(null);
-  const datesRef = useRef<HTMLDivElement>(null);
-  const skipperInfoRef = useRef<HTMLDivElement>(null);
-
-  const isOwnerUser = authService.isOwner();
-  const canViewCharters = true;
-  const canEditCharters = (authService.isAdmin() || authService.isBooking()) && !isOwnerUser;
-  const canViewFinancials = authService.canViewFinancials() || isOwnerUser;
-  const canAcceptCharter = isOwnerUser || authService.isAdmin();
-
-  // 🔥 TWO-WAY SYNC: Load sync data from Page 1 when add form opens
-  useEffect(() => {
-    if (showAddForm) {
-      const syncData = getBookingSync();
-      if (syncData && syncData.lastUpdatedBy === 'page1') {
-        const fleetData = syncToFleetFormat(syncData);
-        if (fleetData) {
-          console.log('📥 FLEET: Loading sync data from Page 1:', fleetData);
-          // Only populate fields that are empty in current form
-          setNewCharter(prev => ({
-            ...prev,
-            code: prev.code || fleetData.code,
-            startDate: prev.startDate || fleetData.startDate,
-            startTime: prev.startTime || fleetData.startTime,
-            endDate: prev.endDate || fleetData.endDate,
-            endTime: prev.endTime || fleetData.endTime,
-            skipperFirstName: prev.skipperFirstName || fleetData.skipperFirstName,
-            skipperLastName: prev.skipperLastName || fleetData.skipperLastName,
-            skipperAddress: prev.skipperAddress || fleetData.skipperAddress,
-            skipperEmail: prev.skipperEmail || fleetData.skipperEmail,
-            skipperPhone: prev.skipperPhone || fleetData.skipperPhone,
-          }));
-        }
-      }
-    }
-  }, [showAddForm]);
-
-  // 🔥 TWO-WAY SYNC: Save newCharter data to sync storage whenever it changes
-  useEffect(() => {
-    // Debug: Log exactly what we're trying to save
-    console.log('🔄 FLEET SYNC - Values:', {
-      showAddForm,
-      boatName: boat?.name,
-      code: newCharter.code,
-      startDate: newCharter.startDate,
-      endDate: newCharter.endDate,
-      skipperFirstName: newCharter.skipperFirstName
-    });
-
-    // Only save if we have meaningful data and form is open
-    if (showAddForm && (newCharter.code || newCharter.startDate)) {
-      const syncData = fleetToSyncFormat(newCharter, boat?.name);
-      console.log('🔄 FLEET SYNC - Converted syncData:', syncData);
-      saveBookingSync(syncData, 'fleetManagement');
-    }
-  }, [showAddForm, newCharter.code, newCharter.startDate, newCharter.startTime,
-      newCharter.endDate, newCharter.endTime, newCharter.skipperFirstName,
-      newCharter.skipperLastName, newCharter.skipperAddress,
-      newCharter.skipperEmail, newCharter.skipperPhone, boat?.name]);
 
   const handleFormChange = (e) => {
     const { name, value, type } = e.target;
@@ -6089,7 +6025,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       updatedBy: authService.getCurrentUser()?.name,
       updatedAt: new Date().toISOString(),
       // 🔥 Keep source info when editing
-      source: isEditMode ? editingCharter.source : undefined
+      source: isEditMode ? editingCharter.source : undefined,
+      // 🔥 NEW: Extras
+      extras: selectedExtras
     };
 
     // 🔥 FIX 6: Debug logging
@@ -6111,6 +6049,32 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       console.log('✅ Charter synced to API:', apiResult);
     } catch (error) {
       console.error('❌ API sync error (charter saved locally):', error);
+    }
+
+    // 🔥 Save Page 1 data so Page 4 floorplan can access vessel info
+    try {
+      const page1Data = {
+        bookingNumber: charter.code,
+        vesselCategory: boat.type || 'Catamaran',
+        vesselName: boat.name,
+        vesselId: boat.id,
+        checkInDate: charter.startDate,
+        checkInTime: charter.startTime || '17:00',
+        checkOutDate: charter.endDate,
+        checkOutTime: charter.endTime || '09:00',
+        skipperFirstName: charter.skipperFirstName || '',
+        skipperLastName: charter.skipperLastName || '',
+        skipperAddress: charter.skipperAddress || '',
+        skipperEmail: charter.skipperEmail || '',
+        skipperPhone: charter.skipperPhone || '',
+        departure: charter.departure || 'ALIMOS MARINA',
+        arrival: charter.arrival || 'ALIMOS MARINA',
+        source: 'fleetManagement' as const
+      };
+      await savePage1DataHybrid(charter.code, page1Data);
+      console.log('✅ Page 1 data saved for floorplan:', page1Data);
+    } catch (error) {
+      console.error('❌ Page 1 data sync error:', error);
     }
 
     // 🔥 FIX 13 + FIX 38: Send email when new charter is created (skip email on edit unless status changed)
@@ -6578,6 +6542,70 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                 </div>
               </div>
 
+              {/* EXTRAS Section */}
+              <div className="bg-gray-700 p-4 rounded-lg border-2 border-orange-500 mb-4">
+                <h3 className="text-lg font-bold text-orange-400 mb-3">EXTRAS:</h3>
+                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                  {[
+                    'Cabin Conversion', 'Crew Change', 'Cook/Hostess + provisions',
+                    'Damage Waiver', 'Extra linen', 'Safety Net', 'SUP',
+                    'Charter Pack 42', 'Charter Pack 43-45', 'Charter Pack 46-49',
+                    'Charter Pack Cat 42', 'Charter Pack Cat 46', 'Charter Pack 50-55',
+                    'Early Embarkation 14:00', 'Welcome Pack', 'Skipper + provisions',
+                    'Outboard Engine', 'Pets Allowed 6kg', 'Transfer Service',
+                    'Nespresso', 'One way Mykonos', 'One way Athens', 'Late check-in',
+                    'Life Vest', 'Fishing Gear', 'Sea Scooter', 'Beach Towel', 'Wifi Router'
+                  ].map((extra) => (
+                    <label key={extra} className="flex items-center gap-2 text-sm text-gray-200 cursor-pointer hover:bg-gray-600 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedExtras.includes(extra)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedExtras([...selectedExtras, extra]);
+                          } else {
+                            setSelectedExtras(selectedExtras.filter(x => x !== extra));
+                          }
+                        }}
+                        className="w-4 h-4 accent-orange-500"
+                      />
+                      {extra}
+                    </label>
+                  ))}
+                  {customExtras.map((extra) => (
+                    <label key={extra} className="flex items-center gap-2 text-sm text-green-300 cursor-pointer hover:bg-gray-600 p-1 rounded">
+                      <input
+                        type="checkbox"
+                        checked={selectedExtras.includes(extra)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedExtras([...selectedExtras, extra]);
+                          } else {
+                            setSelectedExtras(selectedExtras.filter(x => x !== extra));
+                          }
+                        }}
+                        className="w-4 h-4 accent-green-500"
+                      />
+                      {extra}
+                      <button onClick={() => setCustomExtras(customExtras.filter(x => x !== extra))} className="text-red-400 ml-auto">✕</button>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-3">
+                  <input
+                    type="text"
+                    placeholder="Προσθήκη νέου extra..."
+                    className="flex-1 px-3 py-2 bg-gray-600 text-white rounded border border-gray-500"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                        setCustomExtras([...customExtras, e.currentTarget.value.trim()]);
+                        e.currentTarget.value = '';
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
               <div className="bg-gray-700 p-4 rounded-lg border-2 border-teal-500">
                 <h3 className="text-lg font-bold text-teal-400 mb-3">FINANCIAL TERMS:</h3>
                 <div className="space-y-3">
@@ -6659,21 +6687,21 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
         </div>
       )}
 
-      {/* 🔥 Filter Tabs for Page 1 bookings */}
-      <div className="flex gap-2 mb-4 flex-wrap">
+      {/* 🔥 Filter tabs for charter list */}
+      <div className="flex gap-2 mb-3">
         <button
           onClick={() => setCharterFilter('all')}
-          className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
             charterFilter === 'all'
               ? 'bg-teal-600 text-white'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
         >
-          Όλοι ({items.length})
+          Όλα ({items.length})
         </button>
         <button
           onClick={() => setCharterFilter('page1')}
-          className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
             charterFilter === 'page1'
               ? 'bg-blue-600 text-white'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -6683,7 +6711,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
         </button>
         <button
           onClick={() => setCharterFilter('confirmed')}
-          className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
             charterFilter === 'confirmed'
               ? 'bg-green-600 text-white'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -6719,16 +6747,16 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       (charter.status === 'Rejected' || charter.status === 'Cancelled' || charter.status === 'Canceled') ? 'text-red-400' :
                       'text-yellow-400'
                     }>{charter.status}</span>
-                    {/* Badge for Draft status or source=page1 (from Page 1 check-in) */}
-                    {(charter.status === 'Draft' || charter.source === 'page1') && (
-                      <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/50">
-                        📝 Από Check-in
-                      </span>
-                    )}
                     {/* Badge if financial details are missing */}
                     {(!charter.amount || charter.amount === 0) && charter.status !== 'Cancelled' && charter.status !== 'Canceled' && (
                       <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded border border-orange-500/50">
                         💰 Χρειάζεται Ποσό
+                      </span>
+                    )}
+                    {/* 🔥 Badge for charters from Page 1 Check-in */}
+                    {(charter.source === 'page1' || charter.status === 'Draft') && (
+                      <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded border border-blue-500/50">
+                        📝 Από Check-in
                       </span>
                     )}
                   </p>
