@@ -500,8 +500,9 @@ export async function checkDateOverlap(
       const existingStart = new Date(booking.startDate || booking.start_date);
       const existingEnd = new Date(booking.endDate || booking.end_date);
 
-      // Check for overlap: (start1 <= end2) AND (end1 >= start2)
-      if (newStart <= existingEnd && newEnd >= existingStart) {
+      // Check for overlap: (start1 < end2) AND (end1 > start2)
+      // Using strict inequality to ALLOW back-to-back charters (e.g., 5-12 Dec and 12-19 Dec)
+      if (newStart < existingEnd && newEnd > existingStart) {
         console.log('❌ [API Validation] Found overlapping booking:', booking.code,
           `(${booking.startDate} - ${booking.endDate})`);
         return { hasOverlap: true, overlappingBooking: booking };

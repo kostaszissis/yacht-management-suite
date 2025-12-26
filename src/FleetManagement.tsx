@@ -5629,8 +5629,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       const existingStart = new Date(charter.startDate);
       const existingEnd = new Date(charter.endDate);
 
-      // Check for overlap: (start1 <= end2) AND (end1 >= start2)
-      return newStart <= existingEnd && newEnd >= existingStart;
+      // Check for overlap: (start1 < end2) AND (end1 > start2)
+      // Using strict inequality to ALLOW back-to-back charters (e.g., 5-12 Dec and 12-19 Dec)
+      return newStart < existingEnd && newEnd > existingStart;
     });
 
     return hasOverlap;
