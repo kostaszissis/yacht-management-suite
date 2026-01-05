@@ -2625,13 +2625,12 @@ function ActivityLogModal({ onClose }) {
 
   const formatDate = (timestamp) => {
     const date = new Date(timestamp);
-    return date.toLocaleString('el-GR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes} - ${day}/${month}/${year}`;
   };
 
   const filteredLogs = filter === 'all' 
@@ -3599,6 +3598,8 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
   const [vessels, setVessels] = useState([]);
   // 🔥 Auto-refresh: Track last update time
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  // 🔥 Charter details popup state
+  const [selectedBookingForPopup, setSelectedBookingForPopup] = useState<any>(null);
 
   const isOwnerUser = authService.isOwner();
   const isTechnicalUser = authService.isTechnical();
@@ -3935,9 +3936,9 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
             return (
               <button
                 key={index}
-                disabled={!canEditBookings || !isBooked}
-                onClick={() => canEditBookings && isBooked && cycleBookingStatus(week.booking)}
-                className={`w-full p-4 rounded-lg shadow-lg border-2 ${colorClass} ${canEditBookings && isBooked ? 'hover:opacity-80 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02] cursor-pointer transform-gpu' : 'cursor-default'} transition-all duration-300`}
+                disabled={!isBooked}
+                onClick={() => isBooked && setSelectedBookingForPopup(week.booking)}
+                className={`w-full p-4 rounded-lg shadow-lg border-2 ${colorClass} ${isBooked ? 'hover:opacity-80 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02] cursor-pointer transform-gpu' : 'cursor-default'} transition-all duration-300`}
                 style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
               >
                 <div className="flex justify-between items-center">
@@ -3974,6 +3975,82 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
           })}
         </div>
       </div>
+
+      {/* Charter Detail Popup */}
+      {selectedBookingForPopup && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSelectedBookingForPopup(null)}>
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-white" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Charter Details</h3>
+              <button onClick={() => setSelectedBookingForPopup(null)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+
+            <div className="bg-gray-700 p-4 rounded-lg mb-4 space-y-2 border border-gray-600">
+              <div className="flex justify-between"><span className="text-gray-300">CODE:</span><span className="font-bold">{selectedBookingForPopup.code}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">YACHT:</span><span className="font-bold">{boat.name || boat.id}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">FROM:</span><span className="font-bold">{selectedBookingForPopup.startTime && `${selectedBookingForPopup.startTime} - `}{selectedBookingForPopup.startDate ? new Date(selectedBookingForPopup.startDate).toLocaleDateString('en-GB') : ''}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">TO:</span><span className="font-bold">{selectedBookingForPopup.endTime && `${selectedBookingForPopup.endTime} - `}{selectedBookingForPopup.endDate ? new Date(selectedBookingForPopup.endDate).toLocaleDateString('en-GB') : ''}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">DEPARTURE:</span><span className="font-bold">{selectedBookingForPopup.departure || 'ALIMOS MARINA'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">ARRIVAL:</span><span className="font-bold">{selectedBookingForPopup.arrival || 'ALIMOS MARINA'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">STATUS:</span><span className="font-bold">{selectedBookingForPopup.status?.toUpperCase()}</span></div>
+            </div>
+
+            {/* Skipper info */}
+            {(selectedBookingForPopup.skipperFirstName || selectedBookingForPopup.skipperLastName) && (
+              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+                <h4 className="font-bold text-lg mb-2">SKIPPER:</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-300">Name:</span><span className="font-bold">{selectedBookingForPopup.skipperFirstName} {selectedBookingForPopup.skipperLastName}</span></div>
+                  {selectedBookingForPopup.skipperEmail && <div className="flex justify-between"><span className="text-gray-300">Email:</span><span>{selectedBookingForPopup.skipperEmail}</span></div>}
+                  {selectedBookingForPopup.skipperPhone && <div className="flex justify-between"><span className="text-gray-300">Phone:</span><span>{selectedBookingForPopup.skipperPhone}</span></div>}
+                  {selectedBookingForPopup.skipperAddress && <div className="flex justify-between"><span className="text-gray-300">Address:</span><span>{selectedBookingForPopup.skipperAddress}</span></div>}
+                </div>
+              </div>
+            )}
+
+            {/* EXTRAS section */}
+            {selectedBookingForPopup.extras && selectedBookingForPopup.extras.length > 0 && (
+              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+                <h4 className="font-bold text-lg mb-2">EXTRAS:</h4>
+                <div className="space-y-1">
+                  {selectedBookingForPopup.extras.map((extra: string, idx: number) => (
+                    <div key={idx} className="flex items-center text-green-400">
+                      <span className="mr-2">✓</span>
+                      <span>{extra}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* NOTES section */}
+            {selectedBookingForPopup.notes && selectedBookingForPopup.notes.trim() && (
+              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+                <h4 className="font-bold text-lg mb-2 text-blue-400">ΣΗΜΕΙΩΣΕΙΣ:</h4>
+                <p className="text-gray-300 whitespace-pre-wrap">{selectedBookingForPopup.notes}</p>
+              </div>
+            )}
+
+            {/* Financial info - only for non-technical users */}
+            {canViewFinancials && (
+              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+                <h4 className="font-bold text-lg mb-2">FINANCIAL TERMS:</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-green-400"><span>Charter Fee:</span><span className="font-bold">{selectedBookingForPopup.amount?.toFixed(2)}€</span></div>
+                  <div className="flex justify-between text-red-400"><span>Commission:</span><span className="font-bold">-{selectedBookingForPopup.commission?.toFixed(2)}€</span></div>
+                  <div className="flex justify-between text-red-400"><span>VAT (24%):</span><span className="font-bold">-{selectedBookingForPopup.vat_on_commission?.toFixed(2)}€</span></div>
+                  <hr className="border-gray-600" />
+                  <div className="flex justify-between text-xl font-bold"><span>NET INCOME:</span><span className="text-teal-400">{((selectedBookingForPopup.amount || 0) - (selectedBookingForPopup.commission || 0) - (selectedBookingForPopup.vat_on_commission || 0)).toFixed(2)}€</span></div>
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => setSelectedBookingForPopup(null)} className="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4354,7 +4431,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
                       <div className="flex-1">
                         <h3 className="text-lg font-bold text-teal-400">{doc.title}</h3>
                         <p className="text-sm text-gray-400">{doc.fileName}</p>
-                        <p className="text-xs text-gray-500">📅 {new Date(doc.uploadedAt).toLocaleDateString('el-GR')} {doc.uploadedBy && ` • 👤 ${doc.uploadedBy}`}</p>
+                        <p className="text-xs text-gray-500">📅 {new Date(doc.uploadedAt).toLocaleDateString('en-GB')} {doc.uploadedBy && ` • 👤 ${doc.uploadedBy}`}</p>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => handleDownloadDocument(doc)} className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg" title="Download">{icons.download}</button>
@@ -5182,7 +5259,7 @@ function TaskPage({ boat, showMessage }) {
           </div>
           {winterizationData.lastSaved && (
             <div className="mt-2 text-xs text-gray-400">
-              📅 Τελευταία ενημέρωση: {new Date(winterizationData.lastSaved).toLocaleDateString('el-GR')}
+              📅 Τελευταία ενημέρωση: {new Date(winterizationData.lastSaved).toLocaleDateString('en-GB')}
             </div>
           )}
           {!winterizationData.lastSaved && (
@@ -5334,7 +5411,7 @@ function TaskPage({ boat, showMessage }) {
                       )}
                       {item.lastUpdatedBy && (
                         <div className="mt-1 text-xs text-gray-600">
-                          👤 {item.lastUpdatedBy} • {new Date(item.lastUpdatedAt!).toLocaleDateString('el-GR')}
+                          👤 {item.lastUpdatedBy} • {new Date(item.lastUpdatedAt!).toLocaleDateString('en-GB')}
                         </div>
                       )}
                     </div>
@@ -5450,6 +5527,8 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   // 🔥 NEW: Extras states for charter form
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [customExtras, setCustomExtras] = useState<string[]>([]);
+  // 🔥 NEW: Notes state for charter form
+  const [charterNotes, setCharterNotes] = useState<string>('');
 
   // 🔥 NEW: Refs for validation scroll and highlight
   const charterCodeRef = useRef<HTMLDivElement>(null);
@@ -6057,7 +6136,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       // 🔥 Keep source info when editing
       source: isEditMode ? editingCharter.source : undefined,
       // 🔥 NEW: Extras
-      extras: selectedExtras
+      extras: selectedExtras,
+      // 🔥 NEW: Notes
+      notes: charterNotes
     };
 
     // 🔥 FIX 6: Debug logging
@@ -6133,6 +6214,8 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
     });
     setEditingCharter(null); // 🔥 Clear edit mode
+    setSelectedExtras([]); // 🔥 Reset extras
+    setCharterNotes(''); // 🔥 Reset notes
     setShowAddForm(false);
     showMessage(isEditMode ? '✅ Ο ναύλος ενημερώθηκε.' : '✅ Ο ναύλος προστέθηκε.', 'success');
   };
@@ -6291,6 +6374,8 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
     // 🔥 Load extras when editing
     setSelectedExtras(charter.extras || []);
+    // 🔥 Load notes when editing
+    setCharterNotes(charter.notes || '');
 
     // Close detail modal and show form
     setSelectedCharter(null);
@@ -6639,6 +6724,18 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                 </div>
               </div>
 
+              {/* NOTES Section */}
+              <div className="bg-gray-700 p-4 rounded-lg border-2 border-blue-500">
+                <h3 className="text-lg font-bold text-blue-400 mb-3">ΣΗΜΕΙΩΣΕΙΣ / NOTES:</h3>
+                <textarea
+                  value={charterNotes}
+                  onChange={(e) => setCharterNotes(e.target.value)}
+                  placeholder="Σημειώσεις για τη βάση..."
+                  className="w-full px-3 py-2 bg-gray-600 text-white rounded border border-gray-500 focus:border-blue-500 focus:outline-none min-h-[100px] resize-y"
+                  rows={4}
+                />
+              </div>
+
               <div className="bg-gray-700 p-4 rounded-lg border-2 border-teal-500">
                 <h3 className="text-lg font-bold text-teal-400 mb-3">FINANCIAL TERMS:</h3>
                 <div className="space-y-3">
@@ -6819,7 +6916,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                 <div>
                   <h3 className="text-lg font-bold text-teal-400">{charter.code}</h3>
                   <p className="text-sm text-gray-400">
-                    {charter.startDate ? new Date(charter.startDate).toLocaleDateString('el-GR') : ''} - {charter.endDate ? new Date(charter.endDate).toLocaleDateString('el-GR') : ''}
+                    {charter.startDate ? new Date(charter.startDate).toLocaleDateString('en-GB') : ''} - {charter.endDate ? new Date(charter.endDate).toLocaleDateString('en-GB') : ''}
                   </p>
                   <p className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
                     Status: <span className={
@@ -7193,6 +7290,14 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           </div>
         )}
 
+        {/* NOTES section */}
+        {charter.notes && charter.notes.trim() && (
+          <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+            <h4 className="font-bold text-lg mb-3 text-blue-400">ΣΗΜΕΙΩΣΕΙΣ:</h4>
+            <p className="text-gray-300 whitespace-pre-wrap">{charter.notes}</p>
+          </div>
+        )}
+
         {canViewFinancials && (
           <>
             <h4 className="font-bold text-lg mb-3">FINANCIAL TERMS:</h4>
@@ -7325,7 +7430,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
             <div className="space-y-2 mb-3">
               {payments.map((p, index) => (
                 <div key={index} className="flex justify-between items-center bg-gray-700 p-2 rounded border border-gray-600">
-                  <span className="text-sm">{new Date(p.date + 'T00:00:00').toLocaleDateString('el-GR')}</span>
+                  <span className="text-sm">{new Date(p.date + 'T00:00:00').toLocaleDateString('en-GB')}</span>
                   <span className="text-sm font-semibold">{p.amount.toFixed(2)}€</span>
                   <button onClick={() => removePayment(index)} className="text-red-500 hover:text-red-400">{icons.x}</button>
                 </div>
@@ -7752,7 +7857,7 @@ function InvoiceSection({ boatId, canEditFinancials, showMessage, invoices, setI
                 <div>
                   <h3 className="text-lg font-bold text-teal-400">{invoice.code}</h3>
                   <p className="text-sm text-gray-300">{invoice.description}</p>
-                  <p className="text-sm text-gray-400">{invoice.date ? new Date(invoice.date).toLocaleDateString('el-GR') : ''}</p>
+                  <p className="text-sm text-gray-400">{invoice.date ? new Date(invoice.date).toLocaleDateString('en-GB') : ''}</p>
                   {invoice.fileName && <p className="text-xs text-gray-500 mt-1">📎 {invoice.fileName}</p>}
                 </div>
                 <span className="text-xl font-bold text-red-400">{invoice.amount?.toFixed(2)}€</span>
@@ -7929,7 +8034,9 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedBoatForPopup, setSelectedBoatForPopup] = useState<any>(null);
+
   const isTechnicalUser = authService.isTechnical();
   const canViewFinancials = !isTechnicalUser; // TECHNICAL δεν βλέπει οικονομικά
 
@@ -8138,7 +8245,10 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
                     return (
                        <td key={index} className={`p-2 border border-sky-300 text-center ${bgColor} relative`}>
                          {isBooked ? (
-                           <div className={textColor}>
+                           <div
+                             className={`${textColor} cursor-pointer hover:opacity-80`}
+                             onClick={() => { setSelectedBooking(booking); setSelectedBoatForPopup(boat); }}
+                           >
                              {/* 🔥 Red light - μόνο αν βλέπει οικονομικά και είναι ΑΝΕΞΟΦΛΗΤΟ */}
                              {canViewFinancials && paymentInfo?.showLight && (
                                <div className={`absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full shadow-lg shadow-red-500/50 ${paymentInfo.lightBlink ? 'animate-pulse' : ''}`}></div>
@@ -8164,6 +8274,82 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
           </tbody>
         </table>
       </div>
+
+      {/* Charter Detail Popup for all users (Technical users see limited info) */}
+      {selectedBooking && selectedBoatForPopup && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => { setSelectedBooking(null); setSelectedBoatForPopup(null); }}>
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-white" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Charter Details</h3>
+              <button onClick={() => { setSelectedBooking(null); setSelectedBoatForPopup(null); }} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+
+            <div className="bg-gray-700 p-4 rounded-lg mb-4 space-y-2 border border-gray-600">
+              <div className="flex justify-between"><span className="text-gray-300">CODE:</span><span className="font-bold">{selectedBooking.code}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">YACHT:</span><span className="font-bold">{selectedBoatForPopup.name || selectedBoatForPopup.id}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">FROM:</span><span className="font-bold">{selectedBooking.startTime && `${selectedBooking.startTime} - `}{selectedBooking.startDate ? new Date(selectedBooking.startDate).toLocaleDateString('en-GB') : ''}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">TO:</span><span className="font-bold">{selectedBooking.endTime && `${selectedBooking.endTime} - `}{selectedBooking.endDate ? new Date(selectedBooking.endDate).toLocaleDateString('en-GB') : ''}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">DEPARTURE:</span><span className="font-bold">{selectedBooking.departure || 'ALIMOS MARINA'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">ARRIVAL:</span><span className="font-bold">{selectedBooking.arrival || 'ALIMOS MARINA'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">STATUS:</span><span className="font-bold">{selectedBooking.status?.toUpperCase()}</span></div>
+            </div>
+
+            {/* Skipper info */}
+            {(selectedBooking.skipperFirstName || selectedBooking.skipperLastName) && (
+              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+                <h4 className="font-bold text-lg mb-2">SKIPPER:</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between"><span className="text-gray-300">Name:</span><span className="font-bold">{selectedBooking.skipperFirstName} {selectedBooking.skipperLastName}</span></div>
+                  {selectedBooking.skipperEmail && <div className="flex justify-between"><span className="text-gray-300">Email:</span><span>{selectedBooking.skipperEmail}</span></div>}
+                  {selectedBooking.skipperPhone && <div className="flex justify-between"><span className="text-gray-300">Phone:</span><span>{selectedBooking.skipperPhone}</span></div>}
+                  {selectedBooking.skipperAddress && <div className="flex justify-between"><span className="text-gray-300">Address:</span><span>{selectedBooking.skipperAddress}</span></div>}
+                </div>
+              </div>
+            )}
+
+            {/* EXTRAS section */}
+            {selectedBooking.extras && selectedBooking.extras.length > 0 && (
+              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+                <h4 className="font-bold text-lg mb-2">EXTRAS:</h4>
+                <div className="space-y-1">
+                  {selectedBooking.extras.map((extra: string, idx: number) => (
+                    <div key={idx} className="flex items-center text-green-400">
+                      <span className="mr-2">✓</span>
+                      <span>{extra}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* NOTES section */}
+            {selectedBooking.notes && selectedBooking.notes.trim() && (
+              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+                <h4 className="font-bold text-lg mb-2 text-blue-400">ΣΗΜΕΙΩΣΕΙΣ:</h4>
+                <p className="text-gray-300 whitespace-pre-wrap">{selectedBooking.notes}</p>
+              </div>
+            )}
+
+            {/* Financial info - only for non-technical users */}
+            {canViewFinancials && (
+              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+                <h4 className="font-bold text-lg mb-2">FINANCIAL TERMS:</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-green-400"><span>Charter Fee:</span><span className="font-bold">{selectedBooking.amount?.toFixed(2)}€</span></div>
+                  <div className="flex justify-between text-red-400"><span>Commission:</span><span className="font-bold">-{selectedBooking.commission?.toFixed(2)}€</span></div>
+                  <div className="flex justify-between text-red-400"><span>VAT (24%):</span><span className="font-bold">-{selectedBooking.vat_on_commission?.toFixed(2)}€</span></div>
+                  <hr className="border-gray-600" />
+                  <div className="flex justify-between text-xl font-bold"><span>NET INCOME:</span><span className="text-teal-400">{((selectedBooking.amount || 0) - (selectedBooking.commission || 0) - (selectedBooking.vat_on_commission || 0)).toFixed(2)}€</span></div>
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => { setSelectedBooking(null); setSelectedBoatForPopup(null); }} className="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-4 rounded-lg">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
