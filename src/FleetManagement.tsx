@@ -6289,6 +6289,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     // Set editing mode
     setEditingCharter(charter);
 
+    // 🔥 Load extras when editing
+    setSelectedExtras(charter.extras || []);
+
     // Close detail modal and show form
     setSelectedCharter(null);
     setShowAddForm(true);
@@ -7174,6 +7177,21 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
             </div>
           )}
         </div>
+
+        {/* EXTRAS section */}
+        {charter.extras && charter.extras.length > 0 && (
+          <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+            <h4 className="font-bold text-lg mb-3">EXTRAS:</h4>
+            <div className="space-y-1">
+              {charter.extras.map((extra: string, idx: number) => (
+                <div key={idx} className="flex items-center text-green-400">
+                  <span className="mr-2">✓</span>
+                  <span>{extra}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {canViewFinancials && (
           <>
