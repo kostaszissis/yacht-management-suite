@@ -708,20 +708,20 @@ export default function Page1() {
     console.log('🔄 Mode changed to:', newMode);
   };
 
-  const handleSelectBooking = (bookingNumber: string) => {
-    setCurrentBookingNumber(bookingNumber);
+  const handleSelectBooking = (bookingCode: string) => {
+    setCurrentBookingNumber(bookingCode);
 
-    const booking = (globalBookings || []).find(b => b.bookingNumber === bookingNumber);
+    const booking = (globalBookings || []).find(b => b.bookingCode === bookingCode);
 
     if (booking) {
       setForm({
-        bookingNumber: booking.bookingNumber || '',
+        bookingNumber: booking.bookingCode || '',
         vesselCategory: booking.vesselCategory || '',
         vesselName: booking.vesselName || '',
-        checkInDate: booking.checkInDate || booking.startDate || '',
-        checkInTime: booking.checkInTime || booking.startTime || '',
-        checkOutDate: booking.checkOutDate || booking.endDate || '',
-        checkOutTime: booking.checkOutTime || booking.endTime || '',
+        checkInDate: booking.startDate || '',
+        checkInTime: booking.startTime || '',
+        checkOutDate: booking.endDate || '',
+        checkOutTime: booking.endTime || '',
         skipperFirstName: booking.skipperFirstName || '',
         skipperLastName: booking.skipperLastName || '',
         skipperAddress: booking.skipperAddress || '',
@@ -1919,7 +1919,7 @@ export default function Page1() {
                   {displayedBookings.map((booking) => (
                     <div
                       key={booking.bookingNumber}
-                      onClick={() => handleSelectBooking(booking.bookingNumber)}
+                      onClick={() => handleSelectBooking(booking.bookingCode)}
                       className={`p-4 border-2 rounded-lg cursor-pointer hover:bg-blue-50 transition-all ${
                         booking.bookingNumber === currentBookingNumber
                           ? 'border-blue-500 bg-blue-50'
