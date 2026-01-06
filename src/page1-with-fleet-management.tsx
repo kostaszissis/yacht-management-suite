@@ -48,18 +48,17 @@ const I18N = {
   en: {
     title: "CHECK-IN / CHECK-OUT REPORT",
     bookingNumber: "1. BOOKING NUMBER",
-    vesselSection: "2. Vessel Selection",
     category: "Category",
     vessel: "Vessel",
-    dateIn: "3. Date of Check-in",
+    dateIn: "2. Date of Check-in",
     timeIn: "Time of Check-in",
-    dateOut: "4. Date of Check-out",
+    dateOut: "3. Date of Check-out",
     timeOut: "Time of Check-out",
-    firstName: "5. Skipper's First Name",
+    firstName: "4. Skipper's First Name",
     lastName: "Skipper's Last Name",
-    address: "6. Skipper's Address",
-    email: "7. Skipper's Email Address",
-    phone: "8. Skipper's Mobile Number",
+    address: "5. Skipper's Address",
+    email: "6. Skipper's Email Address",
+    phone: "7. Skipper's Mobile Number",
     selectCategory: "-- Select Category --",
     selectVessel: "-- Select Vessel --",
     selectCatFirst: "Select category first",
@@ -98,18 +97,17 @@ const I18N = {
   el: {
     title: "ΑΝΑΦΟΡΑ ΕΠΙΒΙΒΑΣΗΣ / ΑΠΟΒΙΒΑΣΗΣ",
     bookingNumber: "1. ΑΡΙΘΜΟΣ ΚΡΑΤΗΣΗΣ",
-    vesselSection: "2. Επιλογή Σκάφους",
     category: "Κατηγορία",
     vessel: "Σκάφος",
-    dateIn: "3. Ημερομηνία Επιβίβασης",
+    dateIn: "2. Ημερομηνία Επιβίβασης",
     timeIn: "Ώρα Επιβίβασης",
-    dateOut: "4. Ημερομηνία Αποβίβασης",
+    dateOut: "3. Ημερομηνία Αποβίβασης",
     timeOut: "Ώρα Αποβίβασης",
-    firstName: "5. Όνομα Κυβερνήτη",
+    firstName: "4. Όνομα Κυβερνήτη",
     lastName: "Επώνυμο Κυβερνήτη",
-    address: "6. Διεύθυνση Κυβερνήτη",
-    email: "7. Email Κυβερνήτη",
-    phone: "8. Κινητό Κυβερνήτη",
+    address: "5. Διεύθυνση Κυβερνήτη",
+    email: "6. Email Κυβερνήτη",
+    phone: "7. Κινητό Κυβερνήτη",
     selectCategory: "-- Επιλέξτε Κατηγορία --",
     selectVessel: "-- Επιλέξτε Σκάφος --",
     selectCatFirst: "Πρώτα επιλέξτε κατηγορία",
@@ -440,8 +438,6 @@ export default function Page1() {
   const [fleet, setFleet] = useState(() => FleetService.getBoatsByCategory());
   const [showFleet, setShowFleet] = useState(false);
   const [catName, setCatName] = useState("");
-  const [vesselCat, setVesselCat] = useState("");
-  const [vesselName, setVesselName] = useState("");
 
   // 🔥 NEW: Validation error states
   const [bookingCodeError, setBookingCodeError] = useState('');
@@ -712,77 +708,35 @@ export default function Page1() {
     console.log('🔄 Mode changed to:', newMode);
   };
 
-  const handleSelectBooking = (bookingNumber) => {
+  const handleSelectBooking = (bookingNumber: string) => {
     setCurrentBookingNumber(bookingNumber);
-    const data = loadBookingData(bookingNumber);
-    
-    if (data) {
-      setForm(data);
-      setMode(data.mode || 'in');
+
+    const booking = (globalBookings || []).find(b => b.bookingNumber === bookingNumber);
+
+    if (booking) {
+      setForm({
+        bookingNumber: booking.bookingNumber || '',
+        vesselCategory: booking.vesselCategory || '',
+        vesselName: booking.vesselName || '',
+        checkInDate: booking.checkInDate || booking.startDate || '',
+        checkInTime: booking.checkInTime || booking.startTime || '',
+        checkOutDate: booking.checkOutDate || booking.endDate || '',
+        checkOutTime: booking.checkOutTime || booking.endTime || '',
+        skipperFirstName: booking.skipperFirstName || '',
+        skipperLastName: booking.skipperLastName || '',
+        skipperAddress: booking.skipperAddress || '',
+        skipperEmail: booking.skipperEmail || '',
+        skipperPhone: booking.skipperPhone || '',
+        phoneCountryCode: booking.phoneCountryCode || '+30',
+        vesselId: booking.vesselId || booking.vesselName || '',
+      });
+      setMode(booking.mode || 'in');
     }
-    
+
     setShowBookingSelector(false);
     setShowAllBookings(false);
-    console.log('✅ Switched to booking:', bookingNumber);
   };
   
-  const handleCreateNewBooking = () => {
-    if (!isEmployee) {
-      alert(lang === 'el' ? 'Απαιτείται σύνδεση υπαλλήλου!' : 'Employee login required!');
-      return;
-    }
-    
-    // Clear current booking
-    setCurrentBookingNumber('');
-    localStorage.removeItem('currentBooking');
-    
-    // Clear form
-    setForm({
-      bookingNumber: "",
-      vesselCategory: "",
-      vesselName: "",
-      checkInDate: "",
-      checkInTime: "",
-      checkOutDate: "",
-      checkOutTime: "",
-      skipperFirstName: "",
-      skipperLastName: "",
-      skipperAddress: "",
-      skipperEmail: "",
-      skipperPhone: "",
-      phoneCountryCode: "+30",
-    });
-    
-    // Reset mode to check-in
-    setMode('in');
-    
-    // 🔥 UPDATE CONTEXT: Clear booking number
-    if (updateData) {
-      updateData({ 
-        bookingNumber: '',
-        mode: 'in'
-      });
-    }
-    
-    // Dispatch event to clear all pages
-    window.dispatchEvent(new CustomEvent('bookingChanged', { 
-      detail: { bookingNumber: '' } 
-    }));
-    
-    // Clear duplicate warning
-    setDuplicateBooking(null);
-    
-    setShowBookingSelector(false);
-    setShowAllBookings(false);
-    
-    // 🔥 AUTO-FOCUS στο booking number field
-    setTimeout(() => {
-      bookingInputRef.current?.focus();
-    }, 100);
-    
-    console.log('🆕 New booking created - all data cleared');
-  };
-
   const handleClearAllData = () => {
     if (!currentEmployee?.canClearData) {
       alert(lang === 'el' ? 'Δεν έχετε δικαίωμα!' : 'No permission!');
@@ -1457,14 +1411,6 @@ export default function Page1() {
                 <span className="text-blue-500">▼</span>
               </button>
               
-              {isEmployee && (
-                <button
-                  onClick={handleCreateNewBooking}
-                  className="w-full mt-2 px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-all duration-200 font-medium"
-                >
-                  {t.createNewBooking}
-                </button>
-              )}
             </div>
 
             <div className="flex items-center justify-center">
@@ -1534,162 +1480,27 @@ export default function Page1() {
 
           <div className="space-y-6 text-lg" style={{ color: brand.black }}>
             
-            <div ref={bookingRef} className="border-2 rounded-xl p-4 relative transition-all duration-300" 
-              style={{ 
-                borderColor: bookingComplete ? brand.successBorder : brand.blue, 
-                background: bookingComplete ? brand.successBg : 'transparent' 
+            <div ref={bookingRef} className="border-2 rounded-xl p-4 relative transition-all duration-300"
+              style={{
+                borderColor: bookingComplete ? brand.successBorder : brand.blue,
+                background: bookingComplete ? brand.successBg : 'transparent'
               }}>
               <label className="block font-semibold cursor-pointer">
                 {t.bookingNumber} <span className="text-red-500">*</span>
-                {!isEmployee && <span className="ml-2 text-sm bg-orange-500 text-white px-2 py-1 rounded">Employee Login Required</span>}
-                {mode === 'out' && <span className="ml-2 text-sm bg-gray-500 text-white px-2 py-1 rounded">🔒 Read-only in check-out</span>}
+                <span className="ml-2 text-sm bg-gray-500 text-white px-2 py-1 rounded">
+                  {lang === 'el' ? '🔒 Επιλέξτε από λίστα' : '🔒 Select from list'}
+                </span>
               </label>
-              <div className="relative">
-                <input
-                  ref={bookingInputRef}
-                  aria-label={stripNumber(t.bookingNumber)}
-                  name="bookingNumber"
-                  value={form.bookingNumber}
-                  onChange={handleChange}
-                  onKeyDown={handleFormKeyDown}
-                  disabled={!isEmployee || mode === 'out'}
-                  onFocus={() => {
-                    if (isEmployee && mode === 'in') {
-                      speakLabel(t.bookingNumber);
-                      setShowSuggestions(prev => ({ ...prev, bookingNumber: true }));
-                    }
-                  }}
-                  onBlur={() => {
-                    if (form.bookingNumber && form.bookingNumber.trim()) {
-                      checkDuplicateBookingCode(form.bookingNumber.trim());
-                    }
-                    setTimeout(() => setShowSuggestions(prev => ({ ...prev, bookingNumber: false })), 200);
-                  }}
-                  className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${
-                    bookingCodeError || duplicateBooking
-                      ? 'border-red-500 bg-red-50'
-                      : filledClass(!!form.bookingNumber)
-                  } ${!isEmployee || mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  placeholder={!isEmployee ? 'Employee login required' : mode === 'out' ? 'Read-only' : (lang==='el' ? 'Πληκτρολογήστε αριθμό κράτησης' : 'Enter booking number')}
-                />
-
-                {/* 🔥 NEW: BOOKING CODE ERROR */}
-                {bookingCodeError && (
-                  <div className="mt-3 p-3 bg-red-100 border-2 border-red-500 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">❌</span>
-                      <p className="font-bold text-red-800">{bookingCodeError}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* 🔥 DUPLICATE WARNING */}
-                {duplicateBooking && (
-                  <div className="mt-3 p-4 bg-orange-100 border-2 border-orange-500 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">⚠️</span>
-                      <div className="flex-1">
-                        <p className="font-bold text-orange-800 mb-2">
-                          {lang === 'el' 
-                            ? `Το booking "${duplicateBooking.bookingNumber}" υπάρχει ήδη!` 
-                            : `Booking "${duplicateBooking.bookingNumber}" already exists!`}
-                        </p>
-                        <div className="text-sm text-orange-700 mb-3 space-y-1">
-                          <p>🚢 {duplicateBooking.data.vesselCategory} - {duplicateBooking.data.vesselName}</p>
-                          <p>📅 {duplicateBooking.data.checkInDate} → {duplicateBooking.data.checkOutDate}</p>
-                          <p>👤 {duplicateBooking.data.skipperFirstName} {duplicateBooking.data.skipperLastName}</p>
-                        </div>
-                        <button
-                          onClick={handleLoadExistingBooking}
-                          className="w-full px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded transition-all"
-                        >
-                          {lang === 'el' 
-                            ? '📂 Άνοιγμα υπάρχοντος booking' 
-                            : '📂 Load existing booking'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {showSuggestions.bookingNumber && isEmployee && mode === 'in' && !duplicateBooking && (
-                  <div className="absolute z-10 w-full bg-white border border-blue-400 rounded mt-1 max-h-40 overflow-y-auto shadow-lg">
-                    <div className="text-xs font-semibold px-3 py-2 bg-gray-100">{t.recentEntries}</div>
-                    {getFilteredSuggestions('bookingNumber', form.bookingNumber).map((s, i) => (
-                      <SuggestionItem key={i} suggestion={s} fieldName="bookingNumber" />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div ref={vesselRef} className="border-2 rounded-xl p-4 space-y-3 transition-all duration-300" 
-              style={{ 
-                borderColor: vesselComplete ? brand.successBorder : brand.blue, 
-                background: vesselComplete ? brand.successBg : 'transparent' 
-              }}>
-              <label className="block font-semibold cursor-pointer" onClick={()=>speakLabel(t.vesselSection)}>
-                {t.vesselSection} <span className="text-red-500">*</span>
-                {!isEmployee && <span className="ml-2 text-sm bg-orange-500 text-white px-2 py-1 rounded">Employee Login Required</span>}
-                {mode === 'out' && <span className="ml-2 text-sm bg-gray-500 text-white px-2 py-1 rounded">🔒 Read-only</span>}
-              </label>
-              <div className="text-sm mt-1">
-                {currentEmployee?.canManageFleet ? (
-                  <button type="button" onClick={() => setShowFleet(true)} className="underline text-blue-600">
-                    {lang === 'el' ? 'Διαχείριση στόλου (προσθήκη κατηγοριών/σκαφών)' : 'Manage fleet (add categories/vessels)'}
-                  </button>
-                ) : isEmployee ? (
-                  <span className="text-gray-500">
-                    {lang === 'el' ? '🔒 Δεν έχετε δικαίωμα διαχείρισης στόλου' : '🔒 No fleet management permission'}
-                  </span>
-                ) : (
-                  <span className="text-orange-500">
-                    {lang === 'el' ? '🔐 Απαιτείται σύνδεση υπαλλήλου' : '🔐 Employee login required'}
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <span className="text-sm block mb-1">{t.category}</span>
-                  <select
-                    aria-label={t.category}
-                    name="vesselCategory"
-                    value={form.vesselCategory}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setForm({ ...form, vesselCategory: val, vesselName: "" });
-                      if (val === 'Catamaran') speak(I18N[lang].cat);
-                      if (val === 'Monohull') speak(I18N[lang].mono);
-                    }}
-                    onKeyDown={handleFormKeyDown}
-                    onFocus={()=>speakLabel(t.category)}
-                    disabled={!isEmployee || mode === 'out'}
-                    className={`w-full border rounded p-2 transition-all duration-300 ${filledClass(!!form.vesselCategory)} ${!isEmployee || mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}>
-                    <option value="">{t.selectCategory}</option>
-                    {Object.keys(fleet||{}).map(c=> (<option key={c} value={c}>{c}</option>))}
-                  </select>
-                </div>
-                <div>
-                  <span className="text-sm block mb-1">{t.vessel}</span>
-                  <select
-                    aria-label={t.vessel}
-                    name="vesselName"
-                    value={form.vesselName}
-                    onChange={handleChange}
-                    onKeyDown={handleFormKeyDown}
-                    onFocus={()=>speakLabel(t.vessel)}
-                    className={`w-full border rounded p-2 transition-all duration-300 ${filledClass(!!form.vesselName)} ${!isEmployee || mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                    disabled={!form.vesselCategory || !isEmployee || mode === 'out'}>
-                    <option value="">{form.vesselCategory ? t.selectVessel : t.selectCatFirst}</option>
-                    {(fleet?.[form.vesselCategory]||[]).map(v => (<option key={v} value={v}>{v}</option>))}
-                  </select>
-                </div>
-              </div>
-              {form.vesselName && (
-                <div className="text-sm bg-blue-50 p-2 rounded">
-                  {t.selected} <span className="font-medium">{form.vesselCategory} — {form.vesselName}</span>
-                </div>
-              )}
+              <input
+                ref={bookingInputRef}
+                aria-label={stripNumber(t.bookingNumber)}
+                name="bookingNumber"
+                value={form.bookingNumber}
+                readOnly
+                disabled
+                className={`w-full border rounded p-2 mt-2 transition-all duration-300 ${filledClass(!!form.bookingNumber)} bg-gray-100 cursor-not-allowed`}
+                placeholder={lang === 'el' ? 'Επιλέξτε κράτηση από τη λίστα παραπάνω' : 'Select a booking from the list above'}
+              />
             </div>
 
             <div ref={checkInRef} className="border-2 rounded-xl p-4 transition-all duration-300" 
@@ -2102,14 +1913,6 @@ export default function Page1() {
                   <p className="text-lg mb-4">
                     {showAllBookings ? t.noBookings : (lang === 'el' ? 'Δεν υπάρχουν check-outs σήμερα' : 'No check-outs today')}
                   </p>
-                  {isEmployee && (
-                    <button
-                      onClick={handleCreateNewBooking}
-                      className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium"
-                    >
-                      {t.createNewBooking}
-                    </button>
-                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -2192,41 +1995,6 @@ export default function Page1() {
                       if(!name) return; 
                       if (!fleet[name]) setFleet({...fleet, [name]: []}); 
                       setCatName(''); 
-                    }}>
-                    {lang==='el' ? 'Προσθήκη' : 'Add'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block font-semibold mb-1">
-                  {lang==='el' ? 'Νέο σκάφος σε κατηγορία' : 'New vessel in category'}
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  <select 
-                    value={vesselCat} 
-                    onChange={e=>setVesselCat(e.target.value)} 
-                    className="border rounded p-2">
-                    <option value="">{lang==='el' ? 'Επιλέξτε κατηγορία' : 'Select category'}</option>
-                    {Object.keys(fleet||{}).map(c=> <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <input 
-                    value={vesselName} 
-                    onChange={e=>setVesselName(e.target.value)} 
-                    className="border rounded p-2" 
-                    placeholder={lang==='el' ? 'όνομα σκάφους' : 'Vessel name'} 
-                  />
-                  <button 
-                    type="button" 
-                    className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600" 
-                    onClick={() => { 
-                      const c = (vesselCat||'').trim(); 
-                      const v = (vesselName||'').trim(); 
-                      if(!c||!v) return; 
-                      const list = (fleet[c]||[]).slice(); 
-                      if(!list.includes(v)) list.push(v); 
-                      setFleet({...fleet, [c]: list}); 
-                      setVesselName(''); 
                     }}>
                     {lang==='el' ? 'Προσθήκη' : 'Add'}
                   </button>
