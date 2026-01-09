@@ -109,6 +109,7 @@ interface CharterData {
   amount?: number;
   commission?: number;
   vat_on_commission?: number;
+  foreignBrokerPercent?: number;
   status?: string;
 }
 
@@ -138,9 +139,17 @@ export const generateOwnerCharterEmailHTML = (
 ): string => {
   const charterCode = charter.code || charter.charterCode || 'N/A';
   const year = new Date().getFullYear();
-  const charterAmount = charter.amount || 0;
+  const grossAmount = charter.amount || 0;
   const commission = charter.commission || 0;
   const vatOnCommission = charter.vat_on_commission || 0;
+  const foreignBrokerPercent = charter.foreignBrokerPercent || 0;
+
+  // Calculate net fare (without 12% VAT)
+  const netFare = grossAmount / 1.12;
+  // Calculate foreign broker commission (percentage of net fare)
+  const foreignBrokerCommission = netFare * (foreignBrokerPercent / 100);
+  // Amount received by foreign broker (what goes to our bank)
+  const charterAmount = grossAmount - foreignBrokerCommission;
   const netIncome = charterAmount - commission - vatOnCommission;
   const ownerCompany = owner?.company || owner?.name || owner?.ownerCompany || boat.ownerCompany || 'OWNER';
   const ownerName = owner?.name || '-';
@@ -555,9 +564,17 @@ export const sendOwnerCharterEmail = async (
     }
 
     // Calculate financial terms for legacy API fields
-    const charterAmount = charter.amount || 0;
+    const grossAmount = charter.amount || 0;
     const commission = charter.commission || 0;
     const vatOnCommission = charter.vat_on_commission || 0;
+    const foreignBrokerPercent = charter.foreignBrokerPercent || 0;
+
+    // Calculate net fare (without 12% VAT)
+    const netFare = grossAmount / 1.12;
+    // Calculate foreign broker commission (percentage of net fare)
+    const foreignBrokerCommission = netFare * (foreignBrokerPercent / 100);
+    // Amount received by foreign broker (what goes to our bank)
+    const charterAmount = grossAmount - foreignBrokerCommission;
     const netIncome = charterAmount - commission - vatOnCommission;
 
     // Send email via API
