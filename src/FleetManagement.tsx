@@ -2898,7 +2898,7 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
                           <div>
                             <span className="font-bold text-white">{charter.code || charter.charterCode || `#${idx + 1}`}</span>
                             <span className="text-gray-500 text-xs ml-2">
-                              {charter.startDate} - {charter.endDate}
+                              {charter.startDate ? charter.startDate.split('-').reverse().join('/') : ''} - {charter.endDate ? charter.endDate.split('-').reverse().join('/') : ''}
                             </span>
                           </div>
                           <span className="text-green-400 font-bold">
@@ -3538,7 +3538,7 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
                         <div className="flex justify-between items-center">
                           <div>
                             <div className="font-bold text-white">{charter.code}</div>
-                            <div className="text-xs text-gray-400">{charter.startDate} - {charter.endDate}</div>
+                            <div className="text-xs text-gray-400">{charter.startDate ? charter.startDate.split('-').reverse().join('/') : ''} - {charter.endDate ? charter.endDate.split('-').reverse().join('/') : ''}</div>
                           </div>
                           <div className="text-right">
                             <div className="font-bold text-green-400">{charter.amount?.toFixed(2)}€</div>
@@ -7252,8 +7252,8 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
         <div className="bg-gray-700 p-4 rounded-lg mb-4 space-y-2 border border-gray-600">
           <div className="flex justify-between"><span className="text-gray-300">YACHT:</span><span className="font-bold">{boat.name || boat.id}</span></div>
-          <div className="flex justify-between"><span className="text-gray-300">FROM:</span><span className="font-bold">{charter.startDate}{charter.startTime && ` @ ${charter.startTime}`}</span></div>
-          <div className="flex justify-between"><span className="text-gray-300">TO:</span><span className="font-bold">{charter.endDate}{charter.endTime && ` @ ${charter.endTime}`}</span></div>
+          <div className="flex justify-between"><span className="text-gray-300">FROM:</span><span className="font-bold">{charter.startDate ? charter.startDate.split('-').reverse().join('/') : ''}{charter.startTime && ` @ ${charter.startTime}`}</span></div>
+          <div className="flex justify-between"><span className="text-gray-300">TO:</span><span className="font-bold">{charter.endDate ? charter.endDate.split('-').reverse().join('/') : ''}{charter.endTime && ` @ ${charter.endTime}`}</span></div>
           <div className="flex justify-between"><span className="text-gray-300">DEPARTURE:</span><span className="font-bold">{charter.departure || 'ALIMOS MARINA'}</span></div>
           <div className="flex justify-between"><span className="text-gray-300">ARRIVAL:</span><span className="font-bold">{charter.arrival || 'ALIMOS MARINA'}</span></div>
           {/* Status badge for Draft bookings */}
