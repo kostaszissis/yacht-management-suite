@@ -5511,7 +5511,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
   // 🔥 FIX 9: Added 5 skipper fields
   const [newCharter, setNewCharter] = useState({
-    code: '', startDate: '', endDate: '', startTime: '', endTime: '', amount: '',
+    code: '', startDate: '', endDate: '', startTime: '17:00', endTime: '09:00', amount: '',
     commissionPercent: '20',
     hasForeignBroker: false,
     foreignBrokerPercent: '20',
@@ -5928,6 +5928,13 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   // 🔥 FIX 6: Add saveBooking API sync
   // 🔥 NEW: Handles both ADD and EDIT modes
   const handleAddCharter = async () => {
+    // Check if code has at least one number
+    const hasNumber = /\d/.test(newCharter.code || '');
+    if (!hasNumber) {
+      alert('Παρακαλώ εισάγετε αριθμό ναύλου (π.χ. CHARTER PARTY NO 65)');
+      return;
+    }
+
     const isEditMode = !!editingCharter;
     console.log('🔥 handleAddCharter called - MODE:', isEditMode ? 'EDIT' : 'ADD');
     console.log('canEditCharters:', canEditCharters);
@@ -6209,7 +6216,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
     // 🔥 Reset form and state
     setNewCharter({
-      code: '', startDate: '', endDate: '', startTime: '', endTime: '', amount: '', commissionPercent: '',
+      code: '', startDate: '', endDate: '', startTime: '17:00', endTime: '09:00', amount: '', commissionPercent: '',
       departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
       skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
     });
@@ -6501,7 +6508,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
               setShowAddForm(false);
               setEditingCharter(null);
               setNewCharter({
-                code: '', startDate: '', endDate: '', startTime: '', endTime: '', amount: '', commissionPercent: '',
+                code: '', startDate: '', endDate: '', startTime: '17:00', endTime: '09:00', amount: '', commissionPercent: '',
                 departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
                 skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
               });
