@@ -65,95 +65,371 @@ export async function sendCharterEmail(
 }
 
 // =====================================================
-// CHECK-IN EMAIL
+// CHECK-IN EMAIL (Using same approach as sendOwnerCharterEmail)
 // =====================================================
 export async function sendCheckInEmail(
   customerEmail: string,
   bookingData: any,
-  pdfBlob: Blob
+  _pdfBlob: Blob // Kept for backwards compatibility, not used
 ): Promise<{ success: boolean; results: any[] }> {
   try {
-    // Convert PDF to base64
-    const pdfBase64 = await blobToBase64(pdfBlob);
+    console.log('📧 ========== CHECK-IN EMAIL START ==========');
 
-    const recipients = [EMAIL_RECIPIENTS.company, EMAIL_RECIPIENTS.baseManager];
-    if (customerEmail) recipients.unshift(customerEmail);
+    // Build recipients list
+    const recipients: string[] = [EMAIL_RECIPIENTS.company, EMAIL_RECIPIENTS.baseManager];
+    if (customerEmail && !recipients.includes(customerEmail)) {
+      recipients.unshift(customerEmail);
+    }
 
-    const response = await fetch(`${EMAIL_SERVER_URL}/send-checkin-email`, {
+    // Extract booking details
+    const bookingNumber = bookingData.bookingNumber || 'N/A';
+    const vesselName = bookingData.vesselName || bookingData.selectedVessel || 'N/A';
+    const skipperName = `${bookingData.skipperFirstName || ''} ${bookingData.skipperLastName || ''}`.trim() || 'N/A';
+    const checkInDate = formatDateForEmail(bookingData.checkInDate) || 'N/A';
+    const checkOutDate = formatDateForEmail(bookingData.checkOutDate) || 'N/A';
+    const checkInTime = bookingData.checkInTime || '';
+    const skipperEmail = bookingData.skipperEmail || '';
+    const skipperPhone = bookingData.skipperPhone || '';
+
+    // Email subject
+    const subject = `✅ CHECK-IN COMPLETED - ${vesselName} - Booking ${bookingNumber}`;
+
+    // Generate HTML email content
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px;">✅ CHECK-IN COMPLETED</h1>
+      <p style="color: #b0c4de; margin: 10px 0 0 0; font-size: 14px;">TAILWIND YACHTING</p>
+    </div>
+
+    <!-- Content -->
+    <div style="padding: 30px;">
+
+      <!-- Booking Info Box -->
+      <div style="background-color: #f8f9fa; border-left: 4px solid #1e3a5f; padding: 20px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
+        <h2 style="color: #1e3a5f; margin: 0 0 15px 0; font-size: 18px;">📋 Booking Details</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #666; width: 140px;">Booking Number:</td>
+            <td style="padding: 8px 0; color: #333; font-weight: bold;">${bookingNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Vessel:</td>
+            <td style="padding: 8px 0; color: #333; font-weight: bold;">${vesselName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Skipper:</td>
+            <td style="padding: 8px 0; color: #333; font-weight: bold;">${skipperName}</td>
+          </tr>
+          ${skipperEmail ? `<tr>
+            <td style="padding: 8px 0; color: #666;">Email:</td>
+            <td style="padding: 8px 0; color: #333;">${skipperEmail}</td>
+          </tr>` : ''}
+          ${skipperPhone ? `<tr>
+            <td style="padding: 8px 0; color: #666;">Phone:</td>
+            <td style="padding: 8px 0; color: #333;">${skipperPhone}</td>
+          </tr>` : ''}
+        </table>
+      </div>
+
+      <!-- Dates Box -->
+      <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+        <div style="flex: 1; background-color: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
+          <p style="color: #2e7d32; margin: 0 0 5px 0; font-size: 12px; text-transform: uppercase;">Check-In Date</p>
+          <p style="color: #1b5e20; margin: 0; font-size: 18px; font-weight: bold;">${checkInDate}</p>
+          ${checkInTime ? `<p style="color: #388e3c; margin: 5px 0 0 0; font-size: 14px;">${checkInTime}</p>` : ''}
+        </div>
+        <div style="flex: 1; background-color: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+          <p style="color: #e65100; margin: 0 0 5px 0; font-size: 12px; text-transform: uppercase;">Check-Out Date</p>
+          <p style="color: #bf360c; margin: 0; font-size: 18px; font-weight: bold;">${checkOutDate}</p>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div style="background-color: #e8f5e9; border: 2px solid #4caf50; padding: 20px; border-radius: 8px; text-align: center;">
+        <p style="color: #2e7d32; margin: 0; font-size: 16px; font-weight: bold;">
+          ✅ Check-in has been successfully completed
+        </p>
+        <p style="color: #666; margin: 10px 0 0 0; font-size: 12px;">
+          ${new Date().toLocaleString('el-GR', { dateStyle: 'full', timeStyle: 'short' })}
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #1e3a5f; padding: 20px; text-align: center;">
+      <p style="color: #b0c4de; margin: 0; font-size: 12px;">TAILWIND YACHTING</p>
+      <p style="color: #7a9cbf; margin: 5px 0 0 0; font-size: 11px;">Leukosias 37, Alimos | +30 6978196009 | info@tailwindyachting.com</p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+
+    // Plain text version
+    const textContent = `CHECK-IN COMPLETED - TAILWIND YACHTING
+
+Booking Number: ${bookingNumber}
+Vessel: ${vesselName}
+Skipper: ${skipperName}
+${skipperEmail ? `Email: ${skipperEmail}` : ''}
+${skipperPhone ? `Phone: ${skipperPhone}` : ''}
+
+Check-In: ${checkInDate} ${checkInTime}
+Check-Out: ${checkOutDate}
+
+Status: ✅ Check-in has been successfully completed
+Time: ${new Date().toLocaleString('el-GR')}
+
+---
+TAILWIND YACHTING
+Leukosias 37, Alimos
++30 6978196009
+info@tailwindyachting.com`;
+
+    // Email payload (same format as sendOwnerCharterEmail)
+    const emailPayload = {
+      to: recipients,
+      subject: subject,
+      html: htmlContent,
+      text: textContent
+    };
+
+    console.log('📧 Sending check-in email to:', recipients);
+    console.log('📧 Subject:', subject);
+
+    const response = await fetch('https://yachtmanagementsuite.com/email/send-email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bookingData: {
-          bookingNumber: bookingData.bookingNumber || '',
-          vesselName: bookingData.vesselName || bookingData.selectedVessel || '',
-          skipperName: `${bookingData.skipperFirstName || ''} ${bookingData.skipperLastName || ''}`.trim(),
-          checkInDate: bookingData.checkInDate || '',
-          checkOutDate: bookingData.checkOutDate || ''
-        },
-        pdfBase64,
-        mode: 'in',
-        recipients
-      })
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(emailPayload)
     });
 
-    const result = await response.json();
-    
-    if (result.success) {
-      console.log('✅ Check-in emails sent successfully');
-      return { success: true, results: [{ success: true }] };
-    } else {
-      console.error('❌ Check-in email failed:', result.error);
-      return { success: false, results: [{ success: false, error: result.error }] };
+    console.log('📧 Response status:', response.status);
+
+    if (!response.ok) {
+      const responseText = await response.text();
+      console.error('📧 ❌ Check-in email API error:', response.status, responseText);
+      return { success: false, results: [{ success: false, error: responseText }] };
     }
+
+    const responseData = await response.text();
+    console.log('📧 ✅ Check-in email sent successfully!');
+    console.log('📧 ========== CHECK-IN EMAIL END ==========');
+    return { success: true, results: [{ success: true }] };
+
   } catch (error) {
-    console.error('❌ Check-in email error:', error);
+    console.error('📧 ❌ Check-in email error:', error);
     return { success: false, results: [{ success: false, error }] };
   }
 }
 
+// Helper function to format date
+function formatDateForEmail(dateStr: string): string {
+  if (!dateStr) return '';
+  if (dateStr.includes('/')) return dateStr;
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    return `${day}/${month}/${year}`;
+  }
+  return dateStr;
+}
+
 // =====================================================
-// CHECK-OUT EMAIL
+// CHECK-OUT EMAIL (Using same approach as sendOwnerCharterEmail)
 // =====================================================
 export async function sendCheckOutEmail(
   customerEmail: string,
   bookingData: any,
-  pdfBlob: Blob
+  _pdfBlob: Blob // Kept for backwards compatibility, not used
 ): Promise<{ success: boolean; results: any[] }> {
   try {
-    // Convert PDF to base64
-    const pdfBase64 = await blobToBase64(pdfBlob);
+    console.log('📧 ========== CHECK-OUT EMAIL START ==========');
 
-    const recipients = [EMAIL_RECIPIENTS.company, EMAIL_RECIPIENTS.baseManager];
-    if (customerEmail) recipients.unshift(customerEmail);
+    // Build recipients list
+    const recipients: string[] = [EMAIL_RECIPIENTS.company, EMAIL_RECIPIENTS.baseManager];
+    if (customerEmail && !recipients.includes(customerEmail)) {
+      recipients.unshift(customerEmail);
+    }
 
-    const response = await fetch(`${EMAIL_SERVER_URL}/send-checkin-email`, {
+    // Extract booking details
+    const bookingNumber = bookingData.bookingNumber || 'N/A';
+    const vesselName = bookingData.vesselName || bookingData.selectedVessel || 'N/A';
+    const skipperName = `${bookingData.skipperFirstName || ''} ${bookingData.skipperLastName || ''}`.trim() || 'N/A';
+    const checkInDate = formatDateForEmail(bookingData.checkInDate) || 'N/A';
+    const checkOutDate = formatDateForEmail(bookingData.checkOutDate) || 'N/A';
+    const checkOutTime = bookingData.checkOutTime || '';
+    const skipperEmail = bookingData.skipperEmail || '';
+    const skipperPhone = bookingData.skipperPhone || '';
+
+    // Email subject
+    const subject = `🏁 CHECK-OUT COMPLETED - ${vesselName} - Booking ${bookingNumber}`;
+
+    // Generate HTML email content
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px;">🏁 CHECK-OUT COMPLETED</h1>
+      <p style="color: #b0c4de; margin: 10px 0 0 0; font-size: 14px;">TAILWIND YACHTING</p>
+    </div>
+
+    <!-- Content -->
+    <div style="padding: 30px;">
+
+      <!-- Booking Info Box -->
+      <div style="background-color: #f8f9fa; border-left: 4px solid #1e3a5f; padding: 20px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
+        <h2 style="color: #1e3a5f; margin: 0 0 15px 0; font-size: 18px;">📋 Booking Details</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #666; width: 140px;">Booking Number:</td>
+            <td style="padding: 8px 0; color: #333; font-weight: bold;">${bookingNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Vessel:</td>
+            <td style="padding: 8px 0; color: #333; font-weight: bold;">${vesselName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Skipper:</td>
+            <td style="padding: 8px 0; color: #333; font-weight: bold;">${skipperName}</td>
+          </tr>
+          ${skipperEmail ? `<tr>
+            <td style="padding: 8px 0; color: #666;">Email:</td>
+            <td style="padding: 8px 0; color: #333;">${skipperEmail}</td>
+          </tr>` : ''}
+          ${skipperPhone ? `<tr>
+            <td style="padding: 8px 0; color: #666;">Phone:</td>
+            <td style="padding: 8px 0; color: #333;">${skipperPhone}</td>
+          </tr>` : ''}
+        </table>
+      </div>
+
+      <!-- Dates Box -->
+      <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+        <div style="flex: 1; background-color: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+          <p style="color: #1565c0; margin: 0 0 5px 0; font-size: 12px; text-transform: uppercase;">Check-In Date</p>
+          <p style="color: #0d47a1; margin: 0; font-size: 18px; font-weight: bold;">${checkInDate}</p>
+        </div>
+        <div style="flex: 1; background-color: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+          <p style="color: #e65100; margin: 0 0 5px 0; font-size: 12px; text-transform: uppercase;">Check-Out Date</p>
+          <p style="color: #bf360c; margin: 0; font-size: 18px; font-weight: bold;">${checkOutDate}</p>
+          ${checkOutTime ? `<p style="color: #e65100; margin: 5px 0 0 0; font-size: 14px;">${checkOutTime}</p>` : ''}
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div style="background-color: #e3f2fd; border: 2px solid #1976d2; padding: 20px; border-radius: 8px; text-align: center;">
+        <p style="color: #1565c0; margin: 0; font-size: 16px; font-weight: bold;">
+          🏁 Check-out has been successfully completed
+        </p>
+        <p style="color: #666; margin: 10px 0 0 0; font-size: 12px;">
+          ${new Date().toLocaleString('el-GR', { dateStyle: 'full', timeStyle: 'short' })}
+        </p>
+      </div>
+
+      <!-- Thank You Message -->
+      <div style="margin-top: 25px; text-align: center;">
+        <p style="color: #1e3a5f; font-size: 16px; margin: 0;">
+          Thank you for sailing with us! 🌊⛵
+        </p>
+        <p style="color: #666; font-size: 14px; margin: 10px 0 0 0;">
+          We hope to see you again soon.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #1e3a5f; padding: 20px; text-align: center;">
+      <p style="color: #b0c4de; margin: 0; font-size: 12px;">TAILWIND YACHTING</p>
+      <p style="color: #7a9cbf; margin: 5px 0 0 0; font-size: 11px;">Leukosias 37, Alimos | +30 6978196009 | info@tailwindyachting.com</p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+
+    // Plain text version
+    const textContent = `CHECK-OUT COMPLETED - TAILWIND YACHTING
+
+Booking Number: ${bookingNumber}
+Vessel: ${vesselName}
+Skipper: ${skipperName}
+${skipperEmail ? `Email: ${skipperEmail}` : ''}
+${skipperPhone ? `Phone: ${skipperPhone}` : ''}
+
+Check-In: ${checkInDate}
+Check-Out: ${checkOutDate} ${checkOutTime}
+
+Status: 🏁 Check-out has been successfully completed
+Time: ${new Date().toLocaleString('el-GR')}
+
+Thank you for sailing with us!
+We hope to see you again soon.
+
+---
+TAILWIND YACHTING
+Leukosias 37, Alimos
++30 6978196009
+info@tailwindyachting.com`;
+
+    // Email payload (same format as sendOwnerCharterEmail)
+    const emailPayload = {
+      to: recipients,
+      subject: subject,
+      html: htmlContent,
+      text: textContent
+    };
+
+    console.log('📧 Sending check-out email to:', recipients);
+    console.log('📧 Subject:', subject);
+
+    const response = await fetch('https://yachtmanagementsuite.com/email/send-email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bookingData: {
-          bookingNumber: bookingData.bookingNumber || '',
-          vesselName: bookingData.vesselName || bookingData.selectedVessel || '',
-          skipperName: `${bookingData.skipperFirstName || ''} ${bookingData.skipperLastName || ''}`.trim(),
-          checkInDate: bookingData.checkInDate || '',
-          checkOutDate: bookingData.checkOutDate || ''
-        },
-        pdfBase64,
-        mode: 'out',
-        recipients
-      })
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(emailPayload)
     });
 
-    const result = await response.json();
-    
-    if (result.success) {
-      console.log('✅ Check-out emails sent successfully');
-      return { success: true, results: [{ success: true }] };
-    } else {
-      console.error('❌ Check-out email failed:', result.error);
-      return { success: false, results: [{ success: false, error: result.error }] };
+    console.log('📧 Response status:', response.status);
+
+    if (!response.ok) {
+      const responseText = await response.text();
+      console.error('📧 ❌ Check-out email API error:', response.status, responseText);
+      return { success: false, results: [{ success: false, error: responseText }] };
     }
+
+    console.log('📧 ✅ Check-out email sent successfully!');
+    console.log('📧 ========== CHECK-OUT EMAIL END ==========');
+    return { success: true, results: [{ success: true }] };
+
   } catch (error) {
-    console.error('❌ Check-out email error:', error);
+    console.error('📧 ❌ Check-out email error:', error);
     return { success: false, results: [{ success: false, error }] };
   }
 }

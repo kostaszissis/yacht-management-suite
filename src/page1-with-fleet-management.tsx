@@ -1064,6 +1064,9 @@ export default function Page1() {
   };
 
   const validateAndScroll = () => {
+    // Employees can navigate without filling all fields
+    if (isEmployee) return true;
+
     if (!form.bookingNumber) {
       bookingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       highlightElement(bookingRef);
@@ -1149,9 +1152,9 @@ export default function Page1() {
 
   const handleNext = () => {
     if (!validateAndScroll()) return;
-    
-    // 🔥 CHECK: Can only proceed on check-in day
-    if (mode === 'in' && form.checkInDate) {
+
+    // 🔥 CHECK: Can only proceed on check-in day (employees bypass this)
+    if (!isEmployee && mode === 'in' && form.checkInDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
@@ -1168,8 +1171,8 @@ export default function Page1() {
       }
     }
     
-    // 🔥 CHECK: Don't allow Check-out if checkout date is in the future
-    if (mode === 'out' && form.checkOutDate) {
+    // 🔥 CHECK: Don't allow Check-out if checkout date is in the future (employees bypass this)
+    if (!isEmployee && mode === 'out' && form.checkOutDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
