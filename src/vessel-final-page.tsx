@@ -1709,6 +1709,7 @@ export default function Page5({ onNavigate }) {
       }
       
       const pdfBlob = pdfDoc.output('blob');
+      console.log('PDF Blob size:', pdfBlob?.size || 0);
       const emailResult = await sendEmailWithPDF(bookingData, pdfBlob, mode, lang, page5AdditionalData);
       
       if (emailResult.success) {

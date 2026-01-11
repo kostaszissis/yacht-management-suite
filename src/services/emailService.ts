@@ -77,8 +77,8 @@ export async function sendCheckInEmail(
     console.log('📧 ========== CHECK-IN EMAIL START ==========');
 
     // Convert PDF to base64 for attachment
-    const pdfDataUrl = await blobToBase64(pdfBlob);
-    const pdfBase64 = pdfDataUrl.split(',')[1]; // Remove the "data:...;base64," prefix
+    const pdfBase64 = await blobToBase64(pdfBlob);
+    console.log('PDF Base64 length:', pdfBase64?.length || 0);
 
     console.log('📧 DEBUG - customerEmail:', customerEmail);
     console.log('📧 DEBUG - bookingData keys:', Object.keys(bookingData || {}));
