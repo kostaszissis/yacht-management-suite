@@ -65,15 +65,42 @@ export async function sendCharterEmail(
 }
 
 // =====================================================
-// CHECK-IN EMAIL (Using same approach as sendOwnerCharterEmail)
+// CHECK-IN EMAIL - MATCHES PDF TEMPLATE EXACTLY
 // =====================================================
 export async function sendCheckInEmail(
   customerEmail: string,
   bookingData: any,
-  _pdfBlob: Blob // Kept for backwards compatibility, not used
+  pdfBlob: Blob,
+  additionalData?: any
 ): Promise<{ success: boolean; results: any[] }> {
   try {
     console.log('📧 ========== CHECK-IN EMAIL START ==========');
+
+    // Convert PDF to base64 for attachment
+    const pdfDataUrl = await blobToBase64(pdfBlob);
+    const pdfBase64 = pdfDataUrl.split(',')[1]; // Remove the "data:...;base64," prefix
+
+    console.log('📧 DEBUG - customerEmail:', customerEmail);
+    console.log('📧 DEBUG - bookingData keys:', Object.keys(bookingData || {}));
+    console.log('📧 DEBUG - additionalData keys:', additionalData ? Object.keys(additionalData) : 'undefined');
+    console.log('📧 DEBUG - Charter fields:', {
+      bookingNumber: bookingData?.bookingNumber,
+      bookingCode: bookingData?.bookingCode,
+      code: bookingData?.code,
+      charterCode: bookingData?.charterCode
+    });
+    console.log('📧 DEBUG - Signature fields in bookingData:', {
+      skipperSignature: bookingData?.skipperSignature ? 'EXISTS' : 'undefined',
+      customerSignature: bookingData?.customerSignature ? 'EXISTS' : 'undefined',
+      employeeSignature: bookingData?.employeeSignature ? 'EXISTS' : 'undefined',
+      staffSignature: bookingData?.staffSignature ? 'EXISTS' : 'undefined'
+    });
+    console.log('📧 DEBUG - Signature fields in additionalData:', {
+      skipperSignature: additionalData?.skipperSignature ? 'EXISTS' : 'undefined',
+      customerSignature: additionalData?.customerSignature ? 'EXISTS' : 'undefined',
+      employeeSignature: additionalData?.employeeSignature ? 'EXISTS' : 'undefined',
+      staffSignature: additionalData?.staffSignature ? 'EXISTS' : 'undefined'
+    });
 
     // Build recipients list
     const recipients: string[] = [EMAIL_RECIPIENTS.company, EMAIL_RECIPIENTS.baseManager];
@@ -81,20 +108,242 @@ export async function sendCheckInEmail(
       recipients.unshift(customerEmail);
     }
 
-    // Extract booking details
-    const bookingNumber = bookingData.bookingNumber || 'N/A';
-    const vesselName = bookingData.vesselName || bookingData.selectedVessel || 'N/A';
-    const skipperName = `${bookingData.skipperFirstName || ''} ${bookingData.skipperLastName || ''}`.trim() || 'N/A';
-    const checkInDate = formatDateForEmail(bookingData.checkInDate) || 'N/A';
-    const checkOutDate = formatDateForEmail(bookingData.checkOutDate) || 'N/A';
-    const checkInTime = bookingData.checkInTime || '';
+    // Extract booking details - bookingNumber is where Page1 stores the charter code
+    const charterParty = bookingData.bookingNumber || bookingData.bookingCode || bookingData.code || bookingData.charterCode || '';
+    console.log('📧 DEBUG CHECKIN - charterParty extracted:', charterParty);
+    const vesselName = bookingData.vesselName || bookingData.selectedVessel || bookingData.vessel || '';
+    const skipperFirstName = bookingData.skipperFirstName || '';
+    const skipperLastName = bookingData.skipperLastName || '';
+    const skipperName = `${skipperFirstName} ${skipperLastName}`.trim();
+    const skipperAddress = bookingData.skipperAddress || '';
     const skipperEmail = bookingData.skipperEmail || '';
-    const skipperPhone = bookingData.skipperPhone || '';
+    const skipperPhone = bookingData.skipperPhone ? `${bookingData.phoneCountryCode || ''} ${bookingData.skipperPhone}`.trim() : '';
+    const checkInDate = formatDateForEmail(bookingData.checkInDate) || '';
+    const checkOutDate = formatDateForEmail(bookingData.checkOutDate) || '';
+    const checkInTime = bookingData.checkInTime || '';
+    const checkOutTime = bookingData.checkOutTime || '';
+
+    // Extract additional data
+    const inventoryItems = additionalData?.allItems || [];
+    const agreements = additionalData?.agreements || {};
+    const notes = additionalData?.notes || '';
+    const warningAccepted = additionalData?.warningAccepted || false;
+    const timestamp = additionalData?.timestamp || new Date().toISOString();
+
+    // Colors matching PDF
+    const COLORS = {
+      navy: '#0B1D51',
+      gold: '#C6A664',
+      grey: '#6B7280',
+      lightGrey: '#E8E8E8',
+      black: '#1A1A1A',
+      green: '#10B981',
+      red: '#EF4444',
+      orange: '#D97706'
+    };
+
+    // Generate Agreements HTML
+    let agreementsHTML = '';
+    const agreementsList = [
+      { key: 'return', label: 'Return Condition Acknowledgement' },
+      { key: 'terms', label: 'Terms & Conditions' },
+      { key: 'privacy', label: 'Privacy Policy Consent' },
+      { key: 'warning', label: 'Important Notice Acceptance' }
+    ];
+
+    const acceptedAgreements = agreementsList.filter(a => agreements[a.key]);
+    if (acceptedAgreements.length > 0) {
+      agreementsHTML = `
+      <!-- Agreements Section -->
+      <div style="margin-top: 25px;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 14px; color: ${COLORS.navy}; font-weight: normal;">Agreements</span>
+        </div>
+        <div style="border-bottom: 2px solid ${COLORS.gold}; margin-bottom: 15px;"></div>
+        ${acceptedAgreements.map(a => `
+          <div style="display: flex; align-items: center; margin-bottom: 8px;">
+            <div style="width: 16px; height: 16px; background-color: ${COLORS.green}; border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; margin-right: 8px;">
+              <span style="color: white; font-size: 12px; font-weight: bold;">✓</span>
+            </div>
+            <span style="font-size: 13px; color: ${COLORS.black};">${a.label}</span>
+          </div>
+        `).join('')}
+      </div>`;
+    }
+
+    // Generate Important Notice HTML
+    const importantNoticeHTML = `
+    <!-- Important Notice Section -->
+    <div style="margin-top: 25px; border: 4px solid ${COLORS.orange}; padding: 20px;">
+      <div style="display: flex; align-items: center; margin-bottom: 15px;">
+        <span style="font-size: 20px; margin-right: 10px;">⚠</span>
+        <span style="font-size: 14px; color: ${COLORS.orange}; font-weight: bold;">IMPORTANT NOTICE - MANDATORY READING</span>
+      </div>
+
+      <p style="font-size: 11px; color: ${COLORS.black}; line-height: 1.5; margin: 0 0 10px 0;">
+        If check-in is completed by the company's specialized staff, signed by the customer and the check-in manager, and no damage or clogging is detected on the yacht
+      </p>
+
+      <div style="background-color: #FEE2E2; padding: 10px; margin: 10px 0;">
+        <p style="font-size: 10px; color: #DC2626; font-weight: bold; margin: 0; line-height: 1.4;">
+          (if there is any damage, the base manager is obliged to report it so that the customer knows, writes it in the comments and takes a photo)
+        </p>
+      </div>
+
+      <p style="font-size: 11px; color: ${COLORS.black}; line-height: 1.5; margin: 10px 0;">
+        or toilet clogging, the company and the base have no responsibility after check-in.
+      </p>
+
+      <div style="background-color: #FEFCE8; padding: 10px; margin: 10px 0;">
+        <p style="font-size: 10px; color: ${COLORS.black}; font-weight: bold; margin: 0; line-height: 1.4;">
+          Upon return, the customer must pay for any damage without any excuse. The customer is responsible for any damage that occurs after check-in. They must take care of the yacht and return it in the condition they received it.
+        </p>
+      </div>
+
+      <p style="font-size: 11px; font-weight: bold; color: ${COLORS.black}; text-align: center; margin: 15px 0 10px 0;">
+        Thank you in advance.
+      </p>
+
+      ${warningAccepted ? `
+      <div style="display: flex; align-items: center; margin-top: 15px;">
+        <div style="width: 16px; height: 16px; background-color: ${COLORS.green}; border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; margin-right: 8px;">
+          <span style="color: white; font-size: 12px; font-weight: bold;">✓</span>
+        </div>
+        <span style="font-size: 10px; color: ${COLORS.black}; font-weight: bold;">✓ I have read and accept</span>
+      </div>
+      ` : ''}
+    </div>`;
+
+    // Generate Inventory HTML - Show ALL items with status
+    let inventoryHTML = '';
+    if (inventoryItems.length > 0) {
+      // Group by section
+      let currentSection = '';
+      let tableRows = '';
+
+      inventoryItems.forEach((item: any) => {
+        const sectionKey = `${item.page || ''} - ${item.section || ''}`;
+        if (sectionKey !== currentSection && item.page && item.section) {
+          currentSection = sectionKey;
+          tableRows += `
+            <tr>
+              <td colspan="5" style="background-color: ${COLORS.lightGrey}; padding: 6px 8px; font-size: 9px; font-weight: bold; color: ${COLORS.navy};">
+                ${item.page} - ${item.section}
+              </td>
+            </tr>`;
+        }
+
+        // Determine if item is OK or not OK
+        const isOK = item.inOk || item.in === 'ok';
+        const statusHTML = isOK
+          ? `<span style="color: ${COLORS.green}; font-size: 14px; font-weight: bold;">✓</span>`
+          : `<span style="color: ${COLORS.red}; font-size: 14px; font-weight: bold;">✗</span>`;
+
+        tableRows += `
+          <tr>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 9px; color: ${COLORS.grey};">${item.page || ''}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.black};">${item.name || ''}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.black}; text-align: center;">${item.qty || 1}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; text-align: center;">
+              ${statusHTML}
+            </td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.grey}; text-align: right;">€${(parseFloat(item.price) || 0).toFixed(2)}</td>
+          </tr>`;
+      });
+
+      inventoryHTML = `
+      <!-- Complete Inventory Section -->
+      <div style="margin-top: 25px;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 14px; color: ${COLORS.navy}; font-weight: normal;">Complete Inventory</span>
+        </div>
+        <div style="border-bottom: 2px solid ${COLORS.gold}; margin-bottom: 15px;"></div>
+
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="padding: 6px 8px; text-align: left; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">PAGE</th>
+              <th style="padding: 6px 8px; text-align: left; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">ITEM</th>
+              <th style="padding: 6px 8px; text-align: center; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">QTY</th>
+              <th style="padding: 6px 8px; text-align: center; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">CHECK-IN</th>
+              <th style="padding: 6px 8px; text-align: right; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">RATE</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+      </div>`;
+    }
+
+    // Generate Notes HTML
+    let notesHTML = '';
+    if (notes) {
+      notesHTML = `
+      <!-- Additional Remarks Section -->
+      <div style="margin-top: 25px;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 14px; color: ${COLORS.navy}; font-weight: normal;">Additional Remarks</span>
+        </div>
+        <div style="border-bottom: 2px solid ${COLORS.gold}; margin-bottom: 15px;"></div>
+        <p style="font-size: 10px; color: ${COLORS.black}; line-height: 1.5; margin: 0; white-space: pre-wrap;">${notes}</p>
+      </div>`;
+    }
+
+    // Generate Signatures HTML with actual signature images
+    let signaturesHTML = '';
+    let skipperSigData = additionalData?.skipperSignature;
+    let employeeSigData = additionalData?.employeeSignature;
+
+    console.log('📧 DEBUG CHECKIN - skipperSigData type:', typeof skipperSigData);
+    console.log('📧 DEBUG CHECKIN - skipperSigData preview:', typeof skipperSigData === 'string' ? skipperSigData.substring(0, 80) : JSON.stringify(skipperSigData)?.substring(0, 80));
+    console.log('📧 DEBUG CHECKIN - employeeSigData type:', typeof employeeSigData);
+    console.log('📧 DEBUG CHECKIN - employeeSigData preview:', typeof employeeSigData === 'string' ? employeeSigData.substring(0, 80) : JSON.stringify(employeeSigData)?.substring(0, 80));
+
+    // Extract signature data if it's an object
+    if (skipperSigData && typeof skipperSigData === 'object') {
+      console.log('📧 DEBUG CHECKIN - skipperSigData is object, keys:', Object.keys(skipperSigData));
+      skipperSigData = skipperSigData.url || skipperSigData.data || skipperSigData;
+    }
+    if (employeeSigData && typeof employeeSigData === 'object') {
+      console.log('📧 DEBUG CHECKIN - employeeSigData is object, keys:', Object.keys(employeeSigData));
+      employeeSigData = employeeSigData.url || employeeSigData.data || employeeSigData;
+    }
+
+    // Check if signatures are valid base64 or data URLs
+    const hasSkipperSig = skipperSigData && typeof skipperSigData === 'string' && skipperSigData.length > 100;
+    const hasEmployeeSig = employeeSigData && typeof employeeSigData === 'string' && employeeSigData.length > 100;
+    console.log('📧 DEBUG CHECKIN - hasSkipperSig:', hasSkipperSig, 'length:', skipperSigData?.length || 0);
+    console.log('📧 DEBUG CHECKIN - hasEmployeeSig:', hasEmployeeSig, 'length:', employeeSigData?.length || 0);
+
+    // Always show signatures section with both boxes
+    signaturesHTML = `
+    <!-- Signatures Section -->
+    <div style="margin-top: 25px;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="width: 50%; vertical-align: top; padding-right: 10px;">
+            <p style="font-size: 9px; color: ${COLORS.grey}; margin: 0 0 5px 0;">Skipper's Signature</p>
+            ${hasSkipperSig
+              ? `<img src="${skipperSigData}" style="max-width: 200px; max-height: 80px; border: 1px solid ${COLORS.lightGrey};" alt="Skipper Signature" />`
+              : `<div style="border: 1px solid ${COLORS.lightGrey}; height: 60px; background-color: #fafafa;"></div>`
+            }
+          </td>
+          <td style="width: 50%; vertical-align: top; padding-left: 10px;">
+            <p style="font-size: 9px; color: ${COLORS.grey}; margin: 0 0 5px 0;">Employee's Signature</p>
+            ${hasEmployeeSig
+              ? `<img src="${employeeSigData}" style="max-width: 200px; max-height: 80px; border: 1px solid ${COLORS.lightGrey};" alt="Employee Signature" />`
+              : `<div style="border: 1px solid ${COLORS.lightGrey}; height: 60px; background-color: #fafafa;"></div>`
+            }
+          </td>
+        </tr>
+      </table>
+    </div>`;
 
     // Email subject
-    const subject = `✅ CHECK-IN COMPLETED - ${vesselName} - Booking ${bookingNumber}`;
+    const subject = `✅ CHECK-IN COMPLETED - ${vesselName || 'Vessel'} - ${charterParty || 'Charter'}`;
 
-    // Generate HTML email content
+    // Generate HTML email content matching PDF exactly
     const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -102,74 +351,114 @@ export async function sendCheckInEmail(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+<body style="margin: 0; padding: 20px; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
+  <div style="max-width: 700px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
 
     <!-- Header -->
-    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 30px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 24px;">✅ CHECK-IN COMPLETED</h1>
-      <p style="color: #b0c4de; margin: 10px 0 0 0; font-size: 14px;">TAILWIND YACHTING</p>
+    <div style="text-align: center; margin-bottom: 10px;">
+      <h1 style="font-size: 28px; color: ${COLORS.navy}; margin: 0; font-weight: normal;">TAILWIND YACHTING</h1>
+      <p style="font-size: 14px; color: ${COLORS.grey}; margin: 8px 0 0 0;">Check-in Report - Page 5</p>
     </div>
 
-    <!-- Content -->
-    <div style="padding: 30px;">
+    <!-- Gold separator line -->
+    <div style="border-bottom: 2px solid ${COLORS.gold}; margin: 15px 0;"></div>
 
-      <!-- Booking Info Box -->
-      <div style="background-color: #f8f9fa; border-left: 4px solid #1e3a5f; padding: 20px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
-        <h2 style="color: #1e3a5f; margin: 0 0 15px 0; font-size: 18px;">📋 Booking Details</h2>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 8px 0; color: #666; width: 140px;">Booking Number:</td>
-            <td style="padding: 8px 0; color: #333; font-weight: bold;">${bookingNumber}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #666;">Vessel:</td>
-            <td style="padding: 8px 0; color: #333; font-weight: bold;">${vesselName}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #666;">Skipper:</td>
-            <td style="padding: 8px 0; color: #333; font-weight: bold;">${skipperName}</td>
-          </tr>
-          ${skipperEmail ? `<tr>
-            <td style="padding: 8px 0; color: #666;">Email:</td>
-            <td style="padding: 8px 0; color: #333;">${skipperEmail}</td>
-          </tr>` : ''}
-          ${skipperPhone ? `<tr>
-            <td style="padding: 8px 0; color: #666;">Phone:</td>
-            <td style="padding: 8px 0; color: #333;">${skipperPhone}</td>
-          </tr>` : ''}
-        </table>
-      </div>
+    <!-- Info Row 1: Charter Party, Yacht, Skipper -->
+    <table style="width: 100%; margin-bottom: 15px;">
+      <tr>
+        <td style="width: 33%; vertical-align: top;">
+          ${charterParty ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">CHARTER PARTY</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${charterParty}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${vesselName ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">YACHT</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${vesselName}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${skipperName ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">SKIPPER</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${skipperName}</p>
+          ` : ''}
+        </td>
+      </tr>
+    </table>
 
-      <!-- Dates Box -->
-      <div style="display: flex; gap: 15px; margin-bottom: 25px;">
-        <div style="flex: 1; background-color: #e8f5e9; padding: 15px; border-radius: 8px; text-align: center;">
-          <p style="color: #2e7d32; margin: 0 0 5px 0; font-size: 12px; text-transform: uppercase;">Check-In Date</p>
-          <p style="color: #1b5e20; margin: 0; font-size: 18px; font-weight: bold;">${checkInDate}</p>
-          ${checkInTime ? `<p style="color: #388e3c; margin: 5px 0 0 0; font-size: 14px;">${checkInTime}</p>` : ''}
-        </div>
-        <div style="flex: 1; background-color: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
-          <p style="color: #e65100; margin: 0 0 5px 0; font-size: 12px; text-transform: uppercase;">Check-Out Date</p>
-          <p style="color: #bf360c; margin: 0; font-size: 18px; font-weight: bold;">${checkOutDate}</p>
-        </div>
-      </div>
+    <!-- Grey separator -->
+    <div style="border-bottom: 1px solid ${COLORS.lightGrey}; margin: 10px 0;"></div>
 
-      <!-- Status -->
-      <div style="background-color: #e8f5e9; border: 2px solid #4caf50; padding: 20px; border-radius: 8px; text-align: center;">
-        <p style="color: #2e7d32; margin: 0; font-size: 16px; font-weight: bold;">
-          ✅ Check-in has been successfully completed
-        </p>
-        <p style="color: #666; margin: 10px 0 0 0; font-size: 12px;">
-          ${new Date().toLocaleString('el-GR', { dateStyle: 'full', timeStyle: 'short' })}
-        </p>
-      </div>
+    <!-- Info Row 2: Address, Email, Phone -->
+    <table style="width: 100%; margin-bottom: 15px;">
+      <tr>
+        <td style="width: 33%; vertical-align: top;">
+          ${skipperAddress ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">ADDRESS</p>
+          <p style="font-size: 10px; color: ${COLORS.black}; margin: 0;">${skipperAddress}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${skipperEmail ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">EMAIL</p>
+          <p style="font-size: 10px; color: ${COLORS.black}; margin: 0;">${skipperEmail}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${skipperPhone ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">PHONE</p>
+          <p style="font-size: 10px; color: ${COLORS.black}; margin: 0;">${skipperPhone}</p>
+          ` : ''}
+        </td>
+      </tr>
+    </table>
 
-    </div>
+    <!-- Grey separator -->
+    <div style="border-bottom: 1px solid ${COLORS.lightGrey}; margin: 10px 0;"></div>
+
+    <!-- Info Row 3: Check-in, Check-out, Mode -->
+    <table style="width: 100%; margin-bottom: 15px;">
+      <tr>
+        <td style="width: 33%; vertical-align: top;">
+          ${checkInDate ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">CHECK-IN</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${checkInDate}${checkInTime ? ' ' + checkInTime : ''}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${checkOutDate ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">CHECK-OUT</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${checkOutDate}${checkOutTime ? ' ' + checkOutTime : ''}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">MODE</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">Check-in</p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Grey separator -->
+    <div style="border-bottom: 1px solid ${COLORS.lightGrey}; margin: 10px 0;"></div>
+
+    ${agreementsHTML}
+
+    ${importantNoticeHTML}
+
+    ${inventoryHTML}
+
+    ${notesHTML}
+
+    ${signaturesHTML}
 
     <!-- Footer -->
-    <div style="background-color: #1e3a5f; padding: 20px; text-align: center;">
-      <p style="color: #b0c4de; margin: 0; font-size: 12px;">TAILWIND YACHTING</p>
-      <p style="color: #7a9cbf; margin: 5px 0 0 0; font-size: 11px;">Leukosias 37, Alimos | +30 6978196009 | info@tailwindyachting.com</p>
+    <div style="margin-top: 40px; text-align: center; padding-top: 20px; border-top: 1px solid ${COLORS.lightGrey};">
+      <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0;">Leukosias 37, Alimos</p>
+      <p style="font-size: 8px; color: ${COLORS.grey}; margin: 4px 0;">www.tailwindyachting.com</p>
+      <p style="font-size: 8px; color: ${COLORS.grey}; margin: 4px 0;">Tel: +30 6978196009</p>
+      <p style="font-size: 8px; color: ${COLORS.grey}; margin: 4px 0;">info@tailwindyachting.com | charter@tailwindyachting.com | accounting@tailwindyachting.com</p>
+      <p style="font-size: 7px; color: ${COLORS.grey}; margin: 10px 0 0 0;">Document generated on ${new Date(timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
     </div>
 
   </div>
@@ -177,36 +466,53 @@ export async function sendCheckInEmail(
 </html>`;
 
     // Plain text version
-    const textContent = `CHECK-IN COMPLETED - TAILWIND YACHTING
+    const textContent = `TAILWIND YACHTING
+Check-in Report - Page 5
+========================
 
-Booking Number: ${bookingNumber}
-Vessel: ${vesselName}
-Skipper: ${skipperName}
-${skipperEmail ? `Email: ${skipperEmail}` : ''}
-${skipperPhone ? `Phone: ${skipperPhone}` : ''}
+${charterParty ? `CHARTER PARTY: ${charterParty}` : ''}
+${vesselName ? `YACHT: ${vesselName}` : ''}
+${skipperName ? `SKIPPER: ${skipperName}` : ''}
 
-Check-In: ${checkInDate} ${checkInTime}
-Check-Out: ${checkOutDate}
+${skipperAddress ? `ADDRESS: ${skipperAddress}` : ''}
+${skipperEmail ? `EMAIL: ${skipperEmail}` : ''}
+${skipperPhone ? `PHONE: ${skipperPhone}` : ''}
 
-Status: ✅ Check-in has been successfully completed
-Time: ${new Date().toLocaleString('el-GR')}
+${checkInDate ? `CHECK-IN: ${checkInDate}${checkInTime ? ' ' + checkInTime : ''}` : ''}
+${checkOutDate ? `CHECK-OUT: ${checkOutDate}${checkOutTime ? ' ' + checkOutTime : ''}` : ''}
+MODE: Check-in
+
+${inventoryItems.length > 0 ? `COMPLETE INVENTORY
+------------------
+${inventoryItems.map((item: any) => {
+  const isOK = item.inOk || item.in === 'ok';
+  const status = isOK ? '✓' : '✗';
+  return `${status} ${item.name || ''} (Qty: ${item.qty || 1}) - €${(parseFloat(item.price) || 0).toFixed(2)}`;
+}).join('\n')}
+` : ''}
+
+${notes ? `ADDITIONAL REMARKS
+------------------
+${notes}
+` : ''}
+
+IMPORTANT NOTICE
+----------------
+If check-in is completed and no damage or toilet clogging is detected, the company and base have no responsibility after check-in.
+${warningAccepted ? '✓ Customer has read and accepted' : ''}
 
 ---
-TAILWIND YACHTING
 Leukosias 37, Alimos
-+30 6978196009
-info@tailwindyachting.com`;
+www.tailwindyachting.com
+Tel: +30 6978196009
+info@tailwindyachting.com | charter@tailwindyachting.com | accounting@tailwindyachting.com
+Document generated on ${new Date(timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
 
-    // Email payload (same format as sendOwnerCharterEmail)
-    const emailPayload = {
-      to: recipients,
-      subject: subject,
-      html: htmlContent,
-      text: textContent
-    };
-
-    console.log('📧 Sending check-in email to:', recipients);
-    console.log('📧 Subject:', subject);
+    // Send email
+    console.log('📧 DEBUG - About to send email to:', recipients);
+    console.log('📧 DEBUG - Subject:', subject);
+    console.log('📧 DEBUG - HTML length:', htmlContent.length);
+    console.log('📧 DEBUG - Text length:', textContent.length);
 
     const response = await fetch('https://yachtmanagementsuite.com/email/send-email', {
       method: 'POST',
@@ -215,10 +521,18 @@ info@tailwindyachting.com`;
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(emailPayload)
+      body: JSON.stringify({
+        to: recipients,
+        subject: subject,
+        html: htmlContent,
+        text: textContent,
+        attachments: [{
+          filename: 'check-in-report.pdf',
+          content: pdfBase64,
+          contentType: 'application/pdf'
+        }]
+      })
     });
-
-    console.log('📧 Response status:', response.status);
 
     if (!response.ok) {
       const responseText = await response.text();
@@ -226,14 +540,14 @@ info@tailwindyachting.com`;
       return { success: false, results: [{ success: false, error: responseText }] };
     }
 
-    const responseData = await response.text();
     console.log('📧 ✅ Check-in email sent successfully!');
-    console.log('📧 ========== CHECK-IN EMAIL END ==========');
     return { success: true, results: [{ success: true }] };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('📧 ❌ Check-in email error:', error);
-    return { success: false, results: [{ success: false, error }] };
+    console.error('📧 ❌ Error message:', error?.message);
+    console.error('📧 ❌ Error stack:', error?.stack);
+    return { success: false, results: [{ success: false, error: error?.message || error }] };
   }
 }
 
@@ -250,15 +564,20 @@ function formatDateForEmail(dateStr: string): string {
 }
 
 // =====================================================
-// CHECK-OUT EMAIL (Using same approach as sendOwnerCharterEmail)
+// CHECK-OUT EMAIL - MATCHES PDF TEMPLATE EXACTLY
 // =====================================================
 export async function sendCheckOutEmail(
   customerEmail: string,
   bookingData: any,
-  _pdfBlob: Blob // Kept for backwards compatibility, not used
+  pdfBlob: Blob,
+  additionalData?: any
 ): Promise<{ success: boolean; results: any[] }> {
   try {
     console.log('📧 ========== CHECK-OUT EMAIL START ==========');
+
+    // Convert PDF to base64 for attachment
+    const pdfDataUrl = await blobToBase64(pdfBlob);
+    const pdfBase64 = pdfDataUrl.split(',')[1]; // Remove the "data:...;base64," prefix
 
     // Build recipients list
     const recipients: string[] = [EMAIL_RECIPIENTS.company, EMAIL_RECIPIENTS.baseManager];
@@ -266,20 +585,326 @@ export async function sendCheckOutEmail(
       recipients.unshift(customerEmail);
     }
 
-    // Extract booking details
-    const bookingNumber = bookingData.bookingNumber || 'N/A';
-    const vesselName = bookingData.vesselName || bookingData.selectedVessel || 'N/A';
-    const skipperName = `${bookingData.skipperFirstName || ''} ${bookingData.skipperLastName || ''}`.trim() || 'N/A';
-    const checkInDate = formatDateForEmail(bookingData.checkInDate) || 'N/A';
-    const checkOutDate = formatDateForEmail(bookingData.checkOutDate) || 'N/A';
-    const checkOutTime = bookingData.checkOutTime || '';
+    // Extract booking details - bookingNumber is where Page1 stores the charter code
+    const charterParty = bookingData.bookingNumber || bookingData.bookingCode || bookingData.code || bookingData.charterCode || '';
+    const vesselName = bookingData.vesselName || bookingData.selectedVessel || bookingData.vessel || '';
+    const skipperFirstName = bookingData.skipperFirstName || '';
+    const skipperLastName = bookingData.skipperLastName || '';
+    const skipperName = `${skipperFirstName} ${skipperLastName}`.trim();
+    const skipperAddress = bookingData.skipperAddress || '';
     const skipperEmail = bookingData.skipperEmail || '';
-    const skipperPhone = bookingData.skipperPhone || '';
+    const skipperPhone = bookingData.skipperPhone ? `${bookingData.phoneCountryCode || ''} ${bookingData.skipperPhone}`.trim() : '';
+    const checkInDate = formatDateForEmail(bookingData.checkInDate) || '';
+    const checkOutDate = formatDateForEmail(bookingData.checkOutDate) || '';
+    const checkInTime = bookingData.checkInTime || '';
+    const checkOutTime = bookingData.checkOutTime || '';
+
+    // Extract additional data
+    const allItems = additionalData?.allItems || [];
+    const agreements = additionalData?.agreements || {};
+    const notes = additionalData?.notes || '';
+    const warningAccepted = additionalData?.warningAccepted || false;
+    const paymentAuthAccepted = additionalData?.paymentAuthAccepted || false;
+    const timestamp = additionalData?.timestamp || new Date().toISOString();
+
+    // Filter damaged items (out === 'not')
+    const damagedItems = allItems.filter((item: any) => item.out === 'not');
+    const hasDamages = damagedItems.length > 0;
+
+    // Colors matching PDF
+    const COLORS = {
+      navy: '#0B1D51',
+      gold: '#C6A664',
+      grey: '#6B7280',
+      lightGrey: '#E8E8E8',
+      black: '#1A1A1A',
+      green: '#10B981',
+      red: '#EF4444',
+      orange: '#D97706'
+    };
+
+    // Generate Agreements HTML
+    let agreementsHTML = '';
+    const agreementsList = [
+      { key: 'return', label: 'Return Condition Acknowledgement' },
+      { key: 'terms', label: 'Terms & Conditions' },
+      { key: 'privacy', label: 'Privacy Policy Consent' },
+      { key: 'warning', label: 'Important Notice Acceptance' }
+    ];
+
+    // Add payment auth for check-out
+    if (paymentAuthAccepted) {
+      agreementsList.push({ key: 'paymentAuth', label: 'Payment Authorization' });
+    }
+
+    const acceptedAgreements = agreementsList.filter(a =>
+      a.key === 'paymentAuth' ? paymentAuthAccepted : agreements[a.key]
+    );
+
+    if (acceptedAgreements.length > 0) {
+      agreementsHTML = `
+      <!-- Agreements Section -->
+      <div style="margin-top: 25px;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 14px; color: ${COLORS.navy}; font-weight: normal;">Agreements</span>
+        </div>
+        <div style="border-bottom: 2px solid ${COLORS.gold}; margin-bottom: 15px;"></div>
+        ${acceptedAgreements.map(a => `
+          <div style="display: flex; align-items: center; margin-bottom: 8px;">
+            <div style="width: 16px; height: 16px; background-color: ${COLORS.green}; border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; margin-right: 8px;">
+              <span style="color: white; font-size: 12px; font-weight: bold;">✓</span>
+            </div>
+            <span style="font-size: 13px; color: ${COLORS.black};">${a.label}</span>
+          </div>
+        `).join('')}
+      </div>`;
+    }
+
+    // Generate Important Notice HTML
+    const importantNoticeHTML = `
+    <!-- Important Notice Section -->
+    <div style="margin-top: 25px; border: 4px solid ${COLORS.orange}; padding: 20px;">
+      <div style="display: flex; align-items: center; margin-bottom: 15px;">
+        <span style="font-size: 20px; margin-right: 10px;">⚠</span>
+        <span style="font-size: 14px; color: ${COLORS.orange}; font-weight: bold;">IMPORTANT NOTICE - MANDATORY READING</span>
+      </div>
+
+      <p style="font-size: 11px; color: ${COLORS.black}; line-height: 1.5; margin: 0 0 10px 0;">
+        If check-in is completed by the company's specialized staff, signed by the customer and the check-in manager, and no damage or clogging is detected on the yacht
+      </p>
+
+      <div style="background-color: #FEE2E2; padding: 10px; margin: 10px 0;">
+        <p style="font-size: 10px; color: #DC2626; font-weight: bold; margin: 0; line-height: 1.4;">
+          (if there is any damage, the base manager is obliged to report it so that the customer knows, writes it in the comments and takes a photo)
+        </p>
+      </div>
+
+      <p style="font-size: 11px; color: ${COLORS.black}; line-height: 1.5; margin: 10px 0;">
+        or toilet clogging, the company and the base have no responsibility after check-in.
+      </p>
+
+      <div style="background-color: #FEFCE8; padding: 10px; margin: 10px 0;">
+        <p style="font-size: 10px; color: ${COLORS.black}; font-weight: bold; margin: 0; line-height: 1.4;">
+          Upon return, the customer must pay for any damage without any excuse. The customer is responsible for any damage that occurs after check-in. They must take care of the yacht and return it in the condition they received it.
+        </p>
+      </div>
+
+      <p style="font-size: 11px; font-weight: bold; color: ${COLORS.black}; text-align: center; margin: 15px 0 10px 0;">
+        Thank you in advance.
+      </p>
+
+      ${warningAccepted ? `
+      <div style="display: flex; align-items: center; margin-top: 15px;">
+        <div style="width: 16px; height: 16px; background-color: ${COLORS.green}; border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; margin-right: 8px;">
+          <span style="color: white; font-size: 12px; font-weight: bold;">✓</span>
+        </div>
+        <span style="font-size: 10px; color: ${COLORS.black}; font-weight: bold;">✓ I have read and accept</span>
+      </div>
+      ` : ''}
+    </div>`;
+
+    // Generate Damage Report HTML (for check-out)
+    let damageReportHTML = '';
+    if (hasDamages) {
+      let totalAmount = 0;
+      const damageRows = damagedItems.map((item: any) => {
+        const qty = item.qty || 1;
+        const unitPrice = parseFloat(item.price) || 0;
+        const total = qty * unitPrice;
+        totalAmount += total;
+
+        return `
+          <tr>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 9px; color: ${COLORS.grey};">${item.page || ''}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.black};">${item.name || ''}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.black}; text-align: center;">${qty}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.black}; text-align: center;">€${unitPrice.toFixed(2)}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.red}; font-weight: bold; text-align: right;">€${total.toFixed(2)}</td>
+          </tr>`;
+      }).join('');
+
+      damageReportHTML = `
+      <!-- Damage Report Section -->
+      <div style="margin-top: 25px;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 14px; color: ${COLORS.red}; font-weight: bold;">DAMAGE REPORT</span>
+        </div>
+        <div style="border-bottom: 2px solid ${COLORS.red}; margin-bottom: 15px;"></div>
+
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="padding: 6px 8px; text-align: left; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">PAGE</th>
+              <th style="padding: 6px 8px; text-align: left; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">ITEM</th>
+              <th style="padding: 6px 8px; text-align: center; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">QTY</th>
+              <th style="padding: 6px 8px; text-align: center; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">UNIT PRICE</th>
+              <th style="padding: 6px 8px; text-align: right; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${damageRows}
+          </tbody>
+        </table>
+
+        <!-- Total with VAT -->
+        <div style="margin-top: 15px; background-color: #FEE2E2; border: 2px solid ${COLORS.red}; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; font-weight: bold; color: ${COLORS.red};">TOTAL WITH VAT:</span>
+          <span style="font-size: 14px; font-weight: bold; color: ${COLORS.red};">€${totalAmount.toFixed(2)}</span>
+        </div>
+      </div>`;
+    }
+
+    // Generate Payment Authorization HTML (for check-out)
+    let paymentAuthHTML = '';
+    if (paymentAuthAccepted) {
+      paymentAuthHTML = `
+      <!-- Payment Authorization Section -->
+      <div style="margin-top: 25px;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 14px; color: ${COLORS.navy}; font-weight: bold;">Payment Authorization *</span>
+        </div>
+
+        <p style="font-size: 10px; color: ${COLORS.black}; line-height: 1.5; margin: 10px 0;">
+          The customer authorizes us to charge the pre-authorized amount on their card for any damages incurred.
+        </p>
+
+        <div style="display: flex; align-items: center; margin-top: 10px;">
+          <div style="width: 16px; height: 16px; background-color: ${COLORS.green}; border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; margin-right: 8px;">
+            <span style="color: white; font-size: 12px; font-weight: bold;">✓</span>
+          </div>
+          <span style="font-size: 10px; color: ${COLORS.black}; font-weight: bold;">✓ I authorize payment</span>
+        </div>
+
+        <p style="font-size: 9px; color: ${COLORS.grey}; font-style: italic; text-align: center; margin-top: 10px;">
+          * The skipper signature below covers this authorization
+        </p>
+      </div>`;
+    }
+
+    // Generate Complete Inventory HTML - Show ALL items with status
+    let inventoryHTML = '';
+    if (allItems.length > 0) {
+      // Group by section
+      let currentSection = '';
+      let tableRows = '';
+
+      allItems.forEach((item: any) => {
+        const sectionKey = `${item.page || ''} - ${item.section || ''}`;
+        if (sectionKey !== currentSection && item.page && item.section) {
+          currentSection = sectionKey;
+          tableRows += `
+            <tr>
+              <td colspan="5" style="background-color: ${COLORS.lightGrey}; padding: 6px 8px; font-size: 9px; font-weight: bold; color: ${COLORS.navy};">
+                ${item.page} - ${item.section}
+              </td>
+            </tr>`;
+        }
+
+        // Determine if item is OK or not OK on check-out
+        const isOK = item.out === 'ok' || item.outOk;
+        const statusHTML = isOK
+          ? `<span style="color: ${COLORS.green}; font-size: 14px; font-weight: bold;">✓</span>`
+          : `<span style="color: ${COLORS.red}; font-size: 14px; font-weight: bold;">✗</span>`;
+
+        tableRows += `
+          <tr>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 9px; color: ${COLORS.grey};">${item.page || ''}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.black};">${item.name || ''}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.black}; text-align: center;">${item.qty || 1}</td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; text-align: center;">
+              ${statusHTML}
+            </td>
+            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.grey}; text-align: right;">€${(parseFloat(item.price) || 0).toFixed(2)}</td>
+          </tr>`;
+      });
+
+      inventoryHTML = `
+      <!-- Complete Inventory Section -->
+      <div style="margin-top: 25px;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 14px; color: ${COLORS.navy}; font-weight: normal;">Complete Inventory</span>
+        </div>
+        <div style="border-bottom: 2px solid ${COLORS.gold}; margin-bottom: 15px;"></div>
+
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th style="padding: 6px 8px; text-align: left; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">PAGE</th>
+              <th style="padding: 6px 8px; text-align: left; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">ITEM</th>
+              <th style="padding: 6px 8px; text-align: center; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">QTY</th>
+              <th style="padding: 6px 8px; text-align: center; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">CHECK-OUT</th>
+              <th style="padding: 6px 8px; text-align: right; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">RATE</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+      </div>`;
+    }
+
+    // Generate Notes HTML
+    let notesHTML = '';
+    if (notes) {
+      notesHTML = `
+      <!-- Additional Remarks Section -->
+      <div style="margin-top: 25px;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 14px; color: ${COLORS.navy}; font-weight: normal;">Additional Remarks</span>
+        </div>
+        <div style="border-bottom: 2px solid ${COLORS.gold}; margin-bottom: 15px;"></div>
+        <p style="font-size: 10px; color: ${COLORS.black}; line-height: 1.5; margin: 0; white-space: pre-wrap;">${notes}</p>
+      </div>`;
+    }
+
+    // Generate Signatures HTML with actual signature images
+    let signaturesHTML = '';
+    let skipperSigData = additionalData?.skipperSignature;
+    let employeeSigData = additionalData?.employeeSignature;
+
+    // Extract signature data if it's an object
+    if (skipperSigData && typeof skipperSigData === 'object') {
+      skipperSigData = skipperSigData.url || skipperSigData.data || skipperSigData;
+    }
+    if (employeeSigData && typeof employeeSigData === 'object') {
+      employeeSigData = employeeSigData.url || employeeSigData.data || employeeSigData;
+    }
+
+    // Check if signatures are valid base64 or data URLs
+    const hasSkipperSig = skipperSigData && typeof skipperSigData === 'string' && skipperSigData.length > 100;
+    const hasEmployeeSig = employeeSigData && typeof employeeSigData === 'string' && employeeSigData.length > 100;
+
+    if (hasSkipperSig || hasEmployeeSig) {
+      signaturesHTML = `
+      <!-- Signatures Section -->
+      <div style="margin-top: 25px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="width: 50%; vertical-align: top; padding-right: 10px;">
+              <p style="font-size: 9px; color: ${COLORS.grey}; margin: 0 0 5px 0;">Skipper's Signature</p>
+              ${hasSkipperSig
+                ? `<img src="${skipperSigData}" style="max-width: 200px; max-height: 80px; border: 1px solid ${COLORS.lightGrey};" alt="Skipper Signature" />`
+                : `<div style="border: 1px solid ${COLORS.lightGrey}; height: 60px; background-color: #fafafa;"></div>`
+              }
+            </td>
+            <td style="width: 50%; vertical-align: top; padding-left: 10px;">
+              <p style="font-size: 9px; color: ${COLORS.grey}; margin: 0 0 5px 0;">Employee's Signature</p>
+              ${hasEmployeeSig
+                ? `<img src="${employeeSigData}" style="max-width: 200px; max-height: 80px; border: 1px solid ${COLORS.lightGrey};" alt="Employee Signature" />`
+                : `<div style="border: 1px solid ${COLORS.lightGrey}; height: 60px; background-color: #fafafa;"></div>`
+              }
+            </td>
+          </tr>
+        </table>
+      </div>`;
+    }
 
     // Email subject
-    const subject = `🏁 CHECK-OUT COMPLETED - ${vesselName} - Booking ${bookingNumber}`;
+    const subject = hasDamages
+      ? `⚠️ CHECK-OUT WITH DAMAGES - ${vesselName || 'Vessel'} - ${charterParty || 'Charter'}`
+      : `🏁 CHECK-OUT COMPLETED - ${vesselName || 'Vessel'} - ${charterParty || 'Charter'}`;
 
-    // Generate HTML email content
+    // Generate HTML email content matching PDF exactly
     const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -287,84 +912,118 @@ export async function sendCheckOutEmail(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+<body style="margin: 0; padding: 20px; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
+  <div style="max-width: 700px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
 
     <!-- Header -->
-    <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); padding: 30px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 24px;">🏁 CHECK-OUT COMPLETED</h1>
-      <p style="color: #b0c4de; margin: 10px 0 0 0; font-size: 14px;">TAILWIND YACHTING</p>
+    <div style="text-align: center; margin-bottom: 10px;">
+      <h1 style="font-size: 28px; color: ${COLORS.navy}; margin: 0; font-weight: normal;">TAILWIND YACHTING</h1>
+      <p style="font-size: 14px; color: ${COLORS.grey}; margin: 8px 0 0 0;">Check-out Report - Page 5</p>
     </div>
 
-    <!-- Content -->
-    <div style="padding: 30px;">
+    <!-- Gold separator line -->
+    <div style="border-bottom: 2px solid ${COLORS.gold}; margin: 15px 0;"></div>
 
-      <!-- Booking Info Box -->
-      <div style="background-color: #f8f9fa; border-left: 4px solid #1e3a5f; padding: 20px; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
-        <h2 style="color: #1e3a5f; margin: 0 0 15px 0; font-size: 18px;">📋 Booking Details</h2>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 8px 0; color: #666; width: 140px;">Booking Number:</td>
-            <td style="padding: 8px 0; color: #333; font-weight: bold;">${bookingNumber}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #666;">Vessel:</td>
-            <td style="padding: 8px 0; color: #333; font-weight: bold;">${vesselName}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #666;">Skipper:</td>
-            <td style="padding: 8px 0; color: #333; font-weight: bold;">${skipperName}</td>
-          </tr>
-          ${skipperEmail ? `<tr>
-            <td style="padding: 8px 0; color: #666;">Email:</td>
-            <td style="padding: 8px 0; color: #333;">${skipperEmail}</td>
-          </tr>` : ''}
-          ${skipperPhone ? `<tr>
-            <td style="padding: 8px 0; color: #666;">Phone:</td>
-            <td style="padding: 8px 0; color: #333;">${skipperPhone}</td>
-          </tr>` : ''}
-        </table>
-      </div>
+    <!-- Info Row 1: Charter Party, Yacht, Skipper -->
+    <table style="width: 100%; margin-bottom: 15px;">
+      <tr>
+        <td style="width: 33%; vertical-align: top;">
+          ${charterParty ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">CHARTER PARTY</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${charterParty}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${vesselName ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">YACHT</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${vesselName}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${skipperName ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">SKIPPER</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${skipperName}</p>
+          ` : ''}
+        </td>
+      </tr>
+    </table>
 
-      <!-- Dates Box -->
-      <div style="display: flex; gap: 15px; margin-bottom: 25px;">
-        <div style="flex: 1; background-color: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
-          <p style="color: #1565c0; margin: 0 0 5px 0; font-size: 12px; text-transform: uppercase;">Check-In Date</p>
-          <p style="color: #0d47a1; margin: 0; font-size: 18px; font-weight: bold;">${checkInDate}</p>
-        </div>
-        <div style="flex: 1; background-color: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
-          <p style="color: #e65100; margin: 0 0 5px 0; font-size: 12px; text-transform: uppercase;">Check-Out Date</p>
-          <p style="color: #bf360c; margin: 0; font-size: 18px; font-weight: bold;">${checkOutDate}</p>
-          ${checkOutTime ? `<p style="color: #e65100; margin: 5px 0 0 0; font-size: 14px;">${checkOutTime}</p>` : ''}
-        </div>
-      </div>
+    <!-- Grey separator -->
+    <div style="border-bottom: 1px solid ${COLORS.lightGrey}; margin: 10px 0;"></div>
 
-      <!-- Status -->
-      <div style="background-color: #e3f2fd; border: 2px solid #1976d2; padding: 20px; border-radius: 8px; text-align: center;">
-        <p style="color: #1565c0; margin: 0; font-size: 16px; font-weight: bold;">
-          🏁 Check-out has been successfully completed
-        </p>
-        <p style="color: #666; margin: 10px 0 0 0; font-size: 12px;">
-          ${new Date().toLocaleString('el-GR', { dateStyle: 'full', timeStyle: 'short' })}
-        </p>
-      </div>
+    <!-- Info Row 2: Address, Email, Phone -->
+    <table style="width: 100%; margin-bottom: 15px;">
+      <tr>
+        <td style="width: 33%; vertical-align: top;">
+          ${skipperAddress ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">ADDRESS</p>
+          <p style="font-size: 10px; color: ${COLORS.black}; margin: 0;">${skipperAddress}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${skipperEmail ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">EMAIL</p>
+          <p style="font-size: 10px; color: ${COLORS.black}; margin: 0;">${skipperEmail}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${skipperPhone ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">PHONE</p>
+          <p style="font-size: 10px; color: ${COLORS.black}; margin: 0;">${skipperPhone}</p>
+          ` : ''}
+        </td>
+      </tr>
+    </table>
 
-      <!-- Thank You Message -->
-      <div style="margin-top: 25px; text-align: center;">
-        <p style="color: #1e3a5f; font-size: 16px; margin: 0;">
-          Thank you for sailing with us! 🌊⛵
-        </p>
-        <p style="color: #666; font-size: 14px; margin: 10px 0 0 0;">
-          We hope to see you again soon.
-        </p>
-      </div>
+    <!-- Grey separator -->
+    <div style="border-bottom: 1px solid ${COLORS.lightGrey}; margin: 10px 0;"></div>
 
-    </div>
+    <!-- Info Row 3: Check-in, Check-out, Mode -->
+    <table style="width: 100%; margin-bottom: 15px;">
+      <tr>
+        <td style="width: 33%; vertical-align: top;">
+          ${checkInDate ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">CHECK-IN</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${checkInDate}${checkInTime ? ' ' + checkInTime : ''}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          ${checkOutDate ? `
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">CHECK-OUT</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">${checkOutDate}${checkOutTime ? ' ' + checkOutTime : ''}</p>
+          ` : ''}
+        </td>
+        <td style="width: 33%; vertical-align: top;">
+          <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0 0 5px 0; font-weight: bold;">MODE</p>
+          <p style="font-size: 11px; color: ${COLORS.black}; margin: 0;">Check-out</p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Grey separator -->
+    <div style="border-bottom: 1px solid ${COLORS.lightGrey}; margin: 10px 0;"></div>
+
+    ${agreementsHTML}
+
+    ${importantNoticeHTML}
+
+    ${damageReportHTML}
+
+    ${inventoryHTML}
+
+    ${notesHTML}
+
+    ${paymentAuthHTML}
+
+    ${signaturesHTML}
 
     <!-- Footer -->
-    <div style="background-color: #1e3a5f; padding: 20px; text-align: center;">
-      <p style="color: #b0c4de; margin: 0; font-size: 12px;">TAILWIND YACHTING</p>
-      <p style="color: #7a9cbf; margin: 5px 0 0 0; font-size: 11px;">Leukosias 37, Alimos | +30 6978196009 | info@tailwindyachting.com</p>
+    <div style="margin-top: 40px; text-align: center; padding-top: 20px; border-top: 1px solid ${COLORS.lightGrey};">
+      <p style="font-size: 8px; color: ${COLORS.grey}; margin: 0;">Leukosias 37, Alimos</p>
+      <p style="font-size: 8px; color: ${COLORS.grey}; margin: 4px 0;">www.tailwindyachting.com</p>
+      <p style="font-size: 8px; color: ${COLORS.grey}; margin: 4px 0;">Tel: +30 6978196009</p>
+      <p style="font-size: 8px; color: ${COLORS.grey}; margin: 4px 0;">info@tailwindyachting.com | charter@tailwindyachting.com | accounting@tailwindyachting.com</p>
+      <p style="font-size: 7px; color: ${COLORS.grey}; margin: 10px 0 0 0;">Document generated on ${new Date(timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
     </div>
 
   </div>
@@ -372,40 +1031,57 @@ export async function sendCheckOutEmail(
 </html>`;
 
     // Plain text version
-    const textContent = `CHECK-OUT COMPLETED - TAILWIND YACHTING
+    const textContent = `TAILWIND YACHTING
+Check-out Report - Page 5
+=========================
 
-Booking Number: ${bookingNumber}
-Vessel: ${vesselName}
-Skipper: ${skipperName}
-${skipperEmail ? `Email: ${skipperEmail}` : ''}
-${skipperPhone ? `Phone: ${skipperPhone}` : ''}
+${charterParty ? `CHARTER PARTY: ${charterParty}` : ''}
+${vesselName ? `YACHT: ${vesselName}` : ''}
+${skipperName ? `SKIPPER: ${skipperName}` : ''}
 
-Check-In: ${checkInDate}
-Check-Out: ${checkOutDate} ${checkOutTime}
+${skipperAddress ? `ADDRESS: ${skipperAddress}` : ''}
+${skipperEmail ? `EMAIL: ${skipperEmail}` : ''}
+${skipperPhone ? `PHONE: ${skipperPhone}` : ''}
 
-Status: 🏁 Check-out has been successfully completed
-Time: ${new Date().toLocaleString('el-GR')}
+${checkInDate ? `CHECK-IN: ${checkInDate}${checkInTime ? ' ' + checkInTime : ''}` : ''}
+${checkOutDate ? `CHECK-OUT: ${checkOutDate}${checkOutTime ? ' ' + checkOutTime : ''}` : ''}
+MODE: Check-out
 
-Thank you for sailing with us!
-We hope to see you again soon.
+${hasDamages ? `DAMAGE REPORT
+-------------
+${damagedItems.map((item: any) => {
+  const qty = item.qty || 1;
+  const unitPrice = parseFloat(item.price) || 0;
+  const total = qty * unitPrice;
+  return `✘ ${item.name || ''} (Qty: ${qty}) - €${total.toFixed(2)}`;
+}).join('\n')}
+
+TOTAL WITH VAT: €${damagedItems.reduce((sum: number, item: any) => sum + ((item.qty || 1) * (parseFloat(item.price) || 0)), 0).toFixed(2)}
+` : 'NO DAMAGES REPORTED - Vessel returned in good condition.'}
+
+${notes ? `ADDITIONAL REMARKS
+------------------
+${notes}
+` : ''}
+
+${paymentAuthAccepted ? `PAYMENT AUTHORIZATION
+---------------------
+✓ Customer has authorized payment for any damages incurred.
+` : ''}
+
+IMPORTANT NOTICE
+----------------
+The customer is responsible for any damage that occurs after check-in.
+${warningAccepted ? '✓ Customer has read and accepted' : ''}
 
 ---
-TAILWIND YACHTING
 Leukosias 37, Alimos
-+30 6978196009
-info@tailwindyachting.com`;
+www.tailwindyachting.com
+Tel: +30 6978196009
+info@tailwindyachting.com | charter@tailwindyachting.com | accounting@tailwindyachting.com
+Document generated on ${new Date(timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
 
-    // Email payload (same format as sendOwnerCharterEmail)
-    const emailPayload = {
-      to: recipients,
-      subject: subject,
-      html: htmlContent,
-      text: textContent
-    };
-
-    console.log('📧 Sending check-out email to:', recipients);
-    console.log('📧 Subject:', subject);
-
+    // Send email
     const response = await fetch('https://yachtmanagementsuite.com/email/send-email', {
       method: 'POST',
       mode: 'cors',
@@ -413,10 +1089,18 @@ info@tailwindyachting.com`;
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify(emailPayload)
+      body: JSON.stringify({
+        to: recipients,
+        subject: subject,
+        html: htmlContent,
+        text: textContent,
+        attachments: [{
+          filename: 'check-out-report.pdf',
+          content: pdfBase64,
+          contentType: 'application/pdf'
+        }]
+      })
     });
-
-    console.log('📧 Response status:', response.status);
 
     if (!response.ok) {
       const responseText = await response.text();
@@ -425,7 +1109,6 @@ info@tailwindyachting.com`;
     }
 
     console.log('📧 ✅ Check-out email sent successfully!');
-    console.log('📧 ========== CHECK-OUT EMAIL END ==========');
     return { success: true, results: [{ success: true }] };
 
   } catch (error) {

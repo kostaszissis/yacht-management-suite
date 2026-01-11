@@ -421,16 +421,16 @@ function getAllPhotos() {
   return {};
 }
 
-async function sendEmailWithPDF(bookingData, pdfBlob, mode, lang) {
+async function sendEmailWithPDF(bookingData, pdfBlob, mode, lang, additionalData?: any) {
   const t = Page5_I18N[lang] || Page5_I18N.en;
   try {
     const customerEmail = bookingData.skipperEmail || '';
 
-    // Use the centralized email service
+    // Use the centralized email service with additional data (inventory, agreements, notes)
     if (mode === 'in') {
-      return await sendCheckInEmail(customerEmail, bookingData, pdfBlob);
+      return await sendCheckInEmail(customerEmail, bookingData, pdfBlob, additionalData);
     } else {
-      return await sendCheckOutEmail(customerEmail, bookingData, pdfBlob);
+      return await sendCheckOutEmail(customerEmail, bookingData, pdfBlob, additionalData);
     }
   } catch (error) {
     console.error('Email sending error:', error);
@@ -1258,12 +1258,18 @@ export default function Page5({ onNavigate }) {
         // 🔥 FIX: Merge booking info, prioritizing Page 1 data (source of truth for vessel/skipper/dates)
         const mergedData = {
           ...baseData,
+          // 🔥 CRITICAL: Explicitly set bookingNumber so PDF and email can use it
+          bookingNumber: currentBooking,
           vesselName: page1Data?.vesselName || baseData?.vesselName || baseData?.vessel,
           skipperFirstName: page1Data?.skipperFirstName || baseData?.skipperFirstName,
           skipperLastName: page1Data?.skipperLastName || baseData?.skipperLastName,
+          skipperEmail: page1Data?.skipperEmail || baseData?.skipperEmail,
+          skipperPhone: page1Data?.skipperPhone || baseData?.skipperPhone,
+          skipperAddress: page1Data?.skipperAddress || baseData?.skipperAddress,
           checkInDate: page1Data?.checkInDate || baseData?.checkInDate,
           checkOutDate: page1Data?.checkOutDate || baseData?.checkOutDate,
         };
+        console.log('📍 Final Page: mergedData.bookingNumber =', mergedData.bookingNumber);
         setBookingData(mergedData);
 
         // Set language from booking data
@@ -1566,14 +1572,40 @@ export default function Page5({ onNavigate }) {
     if (!validateForm()) return;
     
     try {
+      console.log('📝 handleSubmit - Starting signature capture...');
+      console.log('📝 handleSubmit - skipperSigned:', skipperSigned);
+      console.log('📝 handleSubmit - skipperCanvasRef.current:', !!skipperCanvasRef.current);
+      console.log('📝 handleSubmit - signatureImage length:', signatureImage?.length || 0);
+
       let skipperSignatureData = null;
+
+      // Try to get skipper signature from canvas first
       if (skipperSigned && skipperCanvasRef.current) {
         try {
           skipperSignatureData = await compressSignature(skipperCanvasRef.current.toDataURL('image/png'));
+          console.log('📝 handleSubmit - Skipper sig from canvas, length:', skipperSignatureData?.length || 0);
         } catch (e) {
           console.error("❌ Error compressing skipper signature:", e);
         }
       }
+
+      // Fallback to signatureImage state (like employee signature logic)
+      if (!skipperSignatureData && signatureImage && signatureImage.length > 100) {
+        skipperSignatureData = signatureImage;
+        console.log('📝 handleSubmit - Skipper sig from signatureImage state, length:', skipperSignatureData?.length || 0);
+      }
+
+      // Fallback to localStorage
+      if (!skipperSignatureData && currentBookingNumber) {
+        const signatureKey = `page5_skipper_signature_${currentBookingNumber}_${mode}`;
+        const saved = localStorage.getItem(signatureKey);
+        if (saved && saved.length > 100) {
+          skipperSignatureData = saved;
+          console.log('📝 handleSubmit - Skipper sig from localStorage, length:', skipperSignatureData?.length || 0);
+        }
+      }
+
+      console.log('📝 handleSubmit - Final skipperSignatureData:', skipperSignatureData ? `${skipperSignatureData.substring(0, 50)}... (${skipperSignatureData.length} chars)` : 'null');
       
       // 🔥 SAME LOGIC AS PDF GENERATION - FOR ALL MODES!
       let employeeSignatureData = null;
@@ -1613,8 +1645,12 @@ export default function Page5({ onNavigate }) {
         
         if (!employeeSignatureData && employeeSignatureImage && employeeSignatureImage.length > 100) {
           employeeSignatureData = employeeSignatureImage;
+          console.log('📝 handleSubmit - Employee sig from employeeSignatureImage state');
         }
-      
+
+      console.log('📝 handleSubmit - Final employeeSignatureData:', employeeSignatureData ? `${employeeSignatureData.substring(0, 50)}... (${employeeSignatureData.length} chars)` : 'null');
+      console.log('📝 handleSubmit - Sending to email: skipper=', !!skipperSignatureData, 'employee=', !!employeeSignatureData);
+
       const page5AdditionalData = {
         agreements: {
           terms: termsAccepted,
@@ -1673,7 +1709,7 @@ export default function Page5({ onNavigate }) {
       }
       
       const pdfBlob = pdfDoc.output('blob');
-      const emailResult = await sendEmailWithPDF(bookingData, pdfBlob, mode, lang);
+      const emailResult = await sendEmailWithPDF(bookingData, pdfBlob, mode, lang, page5AdditionalData);
       
       if (emailResult.success) {
         alert(t.emailSent + '\n' + t.checkInComplete);
