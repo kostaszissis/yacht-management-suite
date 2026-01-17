@@ -1932,13 +1932,13 @@ export default function Page1() {
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="font-bold text-lg text-blue-700">
-                            📋 {booking.bookingNumber}
+                            📋 {booking.bookingNumber || booking.code || booking.charterCode}
                           </div>
                           <div className="text-sm text-gray-600">
-                            🚤 {booking.vesselCategory} - {booking.vesselName}
+                            🚤 {booking.vesselCategory} - {booking.vesselName || booking.boatName || 'Vessel'}
                           </div>
                           <div className="text-xs text-gray-500 mt-1">
-                            📅 {formatDate(booking.checkInDate)} {booking.checkInTime} → {formatDate(booking.checkOutDate)} {booking.checkOutTime}
+                            📅 {formatDate(booking.checkInDate || booking.startDate)} {booking.checkInTime} → {formatDate(booking.checkOutDate || booking.endDate)} {booking.checkOutTime}
                           </div>
                           {booking.skipperFirstName && (
                             <div className="text-xs text-gray-600 mt-1">
