@@ -576,8 +576,7 @@ export async function sendCheckOutEmail(
     console.log('📧 ========== CHECK-OUT EMAIL START ==========');
 
     // Convert PDF to base64 for attachment
-    const pdfDataUrl = await blobToBase64(pdfBlob);
-    const pdfBase64 = pdfDataUrl.split(',')[1]; // Remove the "data:...;base64," prefix
+    const pdfBase64 = await blobToBase64(pdfBlob);
 
     // Build recipients list
     const recipients: string[] = [EMAIL_RECIPIENTS.company, EMAIL_RECIPIENTS.baseManager];
