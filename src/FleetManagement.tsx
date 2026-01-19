@@ -4535,31 +4535,47 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
     try {
       // PRIORITY 1: Load from API
       const vesselName = boat.name || boat.id;
-      const response = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(vesselName)}`);
+      console.log('🔄 Loading owner details from API for vessel:', vesselName);
+      const apiUrl = `https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(vesselName)}`;
+      console.log('🔗 API URL:', apiUrl);
+
+      const response = await fetch(apiUrl);
+      console.log('📡 API Response status:', response.status, response.ok);
 
       if (response.ok) {
         const data = await response.json();
-        if (data && data.vessel_name) {
+        console.log('📦 API Response data:', data);
+
+        // Check if we have valid data - the API might return the owner object directly or nested
+        const ownerData = data?.data || data;
+        const hasData = ownerData && (
+          ownerData.vessel_name ||
+          ownerData.owner_first_name ||
+          ownerData.owner_email ||
+          ownerData.company_name
+        );
+
+        if (hasData) {
           // Map API fields to UI fields
           const loadedDetails = {
-            'Όνομα': data.owner_first_name || '',
-            'Επώνυμο': data.owner_last_name || '',
-            'Email Ιδιοκτήτη': data.owner_email || '',
-            'Email Εταιρείας': data.company_email || '',
-            'Εταιρεία': data.company_name || '',
-            'ΑΦΜ': data.vat_number || '',
-            'Τηλέφωνο Ιδιοκτήτη': data.phone || '',
-            'Οδός': data.street || '',
-            'Αριθμός': data.street_number || '',
-            'Πόλη': data.city || '',
-            'Τ.Κ.': data.postal_code || ''
+            'Όνομα': ownerData.owner_first_name || '',
+            'Επώνυμο': ownerData.owner_last_name || '',
+            'Email Ιδιοκτήτη': ownerData.owner_email || '',
+            'Email Εταιρείας': ownerData.company_email || '',
+            'Εταιρεία': ownerData.company_name || '',
+            'ΑΦΜ': ownerData.vat_number || '',
+            'Τηλέφωνο Ιδιοκτήτη': ownerData.phone || '',
+            'Οδός': ownerData.street || '',
+            'Αριθμός': ownerData.street_number || '',
+            'Πόλη': ownerData.city || '',
+            'Τ.Κ.': ownerData.postal_code || ''
           };
           // Add custom fields if they exist
-          if (data.custom_fields) {
+          if (ownerData.custom_fields) {
             try {
-              const customFields = typeof data.custom_fields === 'string'
-                ? JSON.parse(data.custom_fields)
-                : data.custom_fields;
+              const customFields = typeof ownerData.custom_fields === 'string'
+                ? JSON.parse(ownerData.custom_fields)
+                : ownerData.custom_fields;
               Object.entries(customFields).forEach(([key, value]) => {
                 if (!FIXED_FIELDS.includes(key)) {
                   loadedDetails[key] = value;
@@ -4569,15 +4585,22 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
               console.error('Error parsing custom fields:', e);
             }
           }
+          console.log('✅ Mapped owner details:', loadedDetails);
           setOwnerDetails(loadedDetails);
           console.log('✅ Loaded owner details from API for vessel:', vesselName);
           setIsLoading(false);
           return;
+        } else {
+          console.log('⚠️ API returned no owner data for vessel:', vesselName);
         }
+      } else {
+        console.log('❌ API request failed with status:', response.status);
       }
 
       // PRIORITY 2: Fallback to authService (Admin Panel source)
+      console.log('🔍 Trying authService fallback for boat:', boat.id);
       const ownerFromAuth = getOwnerByBoatId(boat.id);
+      console.log('📋 Owner from authService:', ownerFromAuth);
       if (ownerFromAuth) {
         setOwnerCode(ownerFromAuth.code || '');
         setOwnerDetails({
@@ -4599,8 +4622,10 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
       }
 
       // PRIORITY 3: Fallback to localStorage (boat-specific storage)
+      console.log('🔍 Trying localStorage fallback for boat:', boat.id);
       const key = `fleet_${boat.id}_ownerDetails`;
       const stored = localStorage.getItem(key);
+      console.log('📋 localStorage data:', stored ? 'found' : 'not found');
       if (stored) {
         const parsed = JSON.parse(stored);
         // Handle backwards compatibility - migrate old fields to new format
@@ -4619,6 +4644,8 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
         }
         setOwnerDetails(parsed);
         console.log('✅ Loaded owner details from localStorage for boat:', boat.id);
+      } else {
+        console.log('⚠️ No owner data found in any source for boat:', boat.id);
       }
     } catch (e) {
       console.error('Error loading owner details from API:', e);
@@ -4795,13 +4822,22 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
           <div className="text-sm text-gray-400">{boat.type} {boat.model && `• ${boat.model}`}</div>
         </div>
 
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="mb-4 p-4 bg-blue-900/50 rounded-lg border border-blue-500 text-center">
+            <div className="text-blue-400 animate-pulse">🔄 Φόρτωση στοιχείων...</div>
+          </div>
+        )}
+
         {/* Save Button */}
         {canEdit && (
           <button
             onClick={saveOwnerDetails}
-            className="w-full mb-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg"
+            disabled={isSaving}
+            className={`w-full mb-4 ${isSaving ? 'bg-gray-600' : 'bg-green-600 hover:bg-green-700'} text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg`}
           >
-            <span>💾</span><span>Αποθήκευση Στοιχείων</span>
+            <span>{isSaving ? '⏳' : '💾'}</span>
+            <span>{isSaving ? 'Αποθήκευση...' : 'Αποθήκευση Στοιχείων'}</span>
           </button>
         )}
 
