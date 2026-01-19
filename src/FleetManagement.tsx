@@ -4062,6 +4062,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   const [documents, setDocuments] = useState([]);
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [newDocTitle, setNewDocTitle] = useState('');
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [isSavingDoc, setIsSavingDoc] = useState(false);
   const fileInputRef = useRef(null);
 
   const isOwnerUser = authService.isOwner();
@@ -4072,7 +4074,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   useEffect(() => {
     if (boat) {
       loadBoatDetails();
-      loadDocuments();
+      loadDocumentsFromAPI();
     }
   }, [boat?.id]);
 
@@ -4169,18 +4171,128 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     }
   };
 
-  const loadDocuments = () => {
+  // Load documents from API, with localStorage fallback
+  const loadDocumentsFromAPI = async () => {
+    setIsLoadingDocs(true);
     try {
+      const vesselName = boat.name || boat.id;
+      const response = await fetch(`https://yachtmanagementsuite.com/api/vessel-documents.php?vessel_name=${encodeURIComponent(vesselName)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && Array.isArray(data.documents)) {
+          setDocuments(data.documents);
+          console.log('✅ Loaded documents from API for vessel:', vesselName);
+          setIsLoadingDocs(false);
+          return;
+        }
+      }
+
+      // Fallback to localStorage
       const key = `fleet_${boat.id}_documents`;
       const stored = localStorage.getItem(key);
       if (stored) {
         setDocuments(JSON.parse(stored));
+        console.log('✅ Loaded documents from localStorage for boat:', boat.id);
       }
     } catch (e) {
-      console.error('Error loading documents:', e);
+      console.error('Error loading documents from API:', e);
+      // Fallback to localStorage on error
+      try {
+        const key = `fleet_${boat.id}_documents`;
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          setDocuments(JSON.parse(stored));
+          console.log('✅ Loaded documents from localStorage (API fallback) for boat:', boat.id);
+        }
+      } catch (localErr) {
+        console.error('Error loading from localStorage:', localErr);
+      }
+    }
+    setIsLoadingDocs(false);
+  };
+
+  // Save single document to API
+  const saveDocumentToAPI = async (doc) => {
+    setIsSavingDoc(true);
+    const vesselName = boat.name || boat.id;
+
+    try {
+      const response = await fetch('https://yachtmanagementsuite.com/api/vessel-documents.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vessel_name: vesselName,
+          document_id: doc.id,
+          title: doc.title,
+          file_name: doc.fileName,
+          file_type: doc.fileType,
+          file_data: doc.fileData,
+          uploaded_at: doc.uploadedAt,
+          uploaded_by: doc.uploadedBy
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ Saved document to API for vessel:', vesselName);
+        // Also save to localStorage as backup
+        const key = `fleet_${boat.id}_documents`;
+        const newDocs = [...documents, doc];
+        localStorage.setItem(key, JSON.stringify(newDocs));
+        setDocuments(newDocs);
+        setIsSavingDoc(false);
+        return true;
+      } else {
+        throw new Error('API save failed');
+      }
+    } catch (e) {
+      console.error('Error saving document to API:', e);
+      // Fallback: Save to localStorage
+      try {
+        const key = `fleet_${boat.id}_documents`;
+        const newDocs = [...documents, doc];
+        localStorage.setItem(key, JSON.stringify(newDocs));
+        setDocuments(newDocs);
+        console.log('✅ Saved document to localStorage (API fallback) for boat:', boat.id);
+        setIsSavingDoc(false);
+        return true;
+      } catch (localErr) {
+        console.error('Error saving to localStorage:', localErr);
+        setIsSavingDoc(false);
+        return false;
+      }
     }
   };
 
+  // Delete document from API
+  const deleteDocumentFromAPI = async (docId) => {
+    const vesselName = boat.name || boat.id;
+
+    try {
+      const response = await fetch('https://yachtmanagementsuite.com/api/vessel-documents.php', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vessel_name: vesselName,
+          document_id: docId
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ Deleted document from API for vessel:', vesselName);
+      }
+    } catch (e) {
+      console.error('Error deleting document from API:', e);
+    }
+
+    // Always update localStorage and state
+    const newDocs = documents.filter(d => d.id !== docId);
+    const key = `fleet_${boat.id}_documents`;
+    localStorage.setItem(key, JSON.stringify(newDocs));
+    setDocuments(newDocs);
+  };
+
+  // Legacy saveDocuments for compatibility (saves all docs to localStorage)
   const saveDocuments = (docs) => {
     try {
       const key = `fleet_${boat.id}_documents`;
@@ -4196,7 +4308,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
     }
-    
+
     const file = e.target.files[0];
     if (!file) return;
 
@@ -4206,7 +4318,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const doc = {
         id: uid(),
         title: newDocTitle.trim(),
@@ -4217,12 +4329,16 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
         uploadedBy: authService.getCurrentUser()?.name || 'Unknown'
       };
 
-      saveDocuments([...documents, doc]);
-      authService.logActivity('upload_document', `${boat.id}/${doc.fileName}`);
-      setNewDocTitle('');
-      setShowAddDoc(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      showMessage('✅ Έγγραφο προστέθηκε!', 'success');
+      const success = await saveDocumentToAPI(doc);
+      if (success) {
+        authService.logActivity('upload_document', `${boat.id}/${doc.fileName}`);
+        setNewDocTitle('');
+        setShowAddDoc(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        showMessage('✅ Έγγραφο προστέθηκε!', 'success');
+      } else {
+        showMessage('❌ Σφάλμα αποθήκευσης!', 'error');
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -4241,15 +4357,15 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     }
   };
 
-  const handleDeleteDocument = (docId) => {
+  const handleDeleteDocument = async (docId) => {
     if (!canEdit) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα διαγραφής', 'error');
       return;
     }
-    
+
     if (window.confirm('Διαγραφή εγγράφου;')) {
       const doc = documents.find(d => d.id === docId);
-      saveDocuments(documents.filter(d => d.id !== docId));
+      await deleteDocumentFromAPI(docId);
       authService.logActivity('delete_document', `${boat.id}/${doc?.fileName}`);
       showMessage('✅ Έγγραφο διαγράφηκε!', 'success');
     }
@@ -4391,6 +4507,8 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
   const [ownerCode, setOwnerCode] = useState(''); // 🔥 FIX 37B: Track owner code for sync
   const [showAddField, setShowAddField] = useState(false);
   const [newFieldName, setNewFieldName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Fixed fields that cannot be deleted
   const FIXED_FIELDS = ['Όνομα', 'Επώνυμο', 'Email Ιδιοκτήτη', 'Email Εταιρείας', 'Εταιρεία', 'ΑΦΜ', 'Τηλέφωνο Ιδιοκτήτη', 'Οδός', 'Αριθμός', 'Πόλη', 'Τ.Κ.'];
@@ -4399,7 +4517,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
 
   useEffect(() => {
     if (boat) {
-      loadOwnerDetails();
+      loadOwnerDetailsFromAPI();
     }
   }, [boat?.id]);
 
@@ -4411,10 +4529,54 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
     );
   }
 
-  // 🔥 FIX 37B: Load from authService FIRST (where Admin saves), then fallback to localStorage
-  const loadOwnerDetails = () => {
+  // Load owner details from API, with localStorage/authService fallback
+  const loadOwnerDetailsFromAPI = async () => {
+    setIsLoading(true);
     try {
-      // PRIORITY 1: Load from authService (Admin Panel source)
+      // PRIORITY 1: Load from API
+      const vesselName = boat.name || boat.id;
+      const response = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(vesselName)}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.vessel_name) {
+          // Map API fields to UI fields
+          const loadedDetails = {
+            'Όνομα': data.owner_first_name || '',
+            'Επώνυμο': data.owner_last_name || '',
+            'Email Ιδιοκτήτη': data.owner_email || '',
+            'Email Εταιρείας': data.company_email || '',
+            'Εταιρεία': data.company_name || '',
+            'ΑΦΜ': data.vat_number || '',
+            'Τηλέφωνο Ιδιοκτήτη': data.phone || '',
+            'Οδός': data.street || '',
+            'Αριθμός': data.street_number || '',
+            'Πόλη': data.city || '',
+            'Τ.Κ.': data.postal_code || ''
+          };
+          // Add custom fields if they exist
+          if (data.custom_fields) {
+            try {
+              const customFields = typeof data.custom_fields === 'string'
+                ? JSON.parse(data.custom_fields)
+                : data.custom_fields;
+              Object.entries(customFields).forEach(([key, value]) => {
+                if (!FIXED_FIELDS.includes(key)) {
+                  loadedDetails[key] = value;
+                }
+              });
+            } catch (e) {
+              console.error('Error parsing custom fields:', e);
+            }
+          }
+          setOwnerDetails(loadedDetails);
+          console.log('✅ Loaded owner details from API for vessel:', vesselName);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // PRIORITY 2: Fallback to authService (Admin Panel source)
       const ownerFromAuth = getOwnerByBoatId(boat.id);
       if (ownerFromAuth) {
         setOwnerCode(ownerFromAuth.code || '');
@@ -4432,17 +4594,17 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
           'Τ.Κ.': ownerFromAuth.ownerPostalCode || ''
         });
         console.log('✅ Loaded owner details from authService for boat:', boat.id);
+        setIsLoading(false);
         return;
       }
 
-      // PRIORITY 2: Fallback to localStorage (boat-specific storage)
+      // PRIORITY 3: Fallback to localStorage (boat-specific storage)
       const key = `fleet_${boat.id}_ownerDetails`;
       const stored = localStorage.getItem(key);
       if (stored) {
         const parsed = JSON.parse(stored);
         // Handle backwards compatibility - migrate old fields to new format
         if (parsed['Όνομα Ιδιοκτήτη'] && !parsed['Όνομα']) {
-          // Old format with single name field
           parsed['Όνομα'] = '';
           parsed['Επώνυμο'] = '';
         }
@@ -4450,7 +4612,6 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
           parsed['Email Εταιρείας'] = '';
         }
         if (parsed['Διεύθυνση Ιδιοκτήτη'] && !parsed['Οδός']) {
-          // Old format - keep as-is but add empty new fields
           parsed['Οδός'] = '';
           parsed['Αριθμός'] = '';
           parsed['Πόλη'] = '';
@@ -4460,46 +4621,127 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
         console.log('✅ Loaded owner details from localStorage for boat:', boat.id);
       }
     } catch (e) {
-      console.error('Error loading owner details:', e);
+      console.error('Error loading owner details from API:', e);
+      // Fallback to localStorage on error
+      try {
+        const key = `fleet_${boat.id}_ownerDetails`;
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          setOwnerDetails(JSON.parse(stored));
+          console.log('✅ Loaded owner details from localStorage (API fallback) for boat:', boat.id);
+        }
+      } catch (localErr) {
+        console.error('Error loading from localStorage:', localErr);
+      }
     }
+    setIsLoading(false);
   };
 
-  // 🔥 FIX 37B: Save to BOTH authService (for Admin sync) and localStorage
-  const saveOwnerDetails = () => {
+  // Save owner details to API, with localStorage as fallback
+  const saveOwnerDetails = async () => {
     if (!canEdit) {
       showMessage('❌ Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
     }
 
-    try {
-      // Save to localStorage (boat-specific)
-      const key = `fleet_${boat.id}_ownerDetails`;
-      localStorage.setItem(key, JSON.stringify(ownerDetails));
+    setIsSaving(true);
+    const vesselName = boat.name || boat.id;
 
-      // 🔥 FIX 37B: Also sync to authService if owner code exists
-      if (ownerCode) {
-        authService.updateOwnerCode(ownerCode, {
-          ownerFirstName: ownerDetails['Όνομα'],
-          ownerLastName: ownerDetails['Επώνυμο'],
-          ownerEmail: ownerDetails['Email Ιδιοκτήτη'],
-          ownerCompanyEmail: ownerDetails['Email Εταιρείας'],
-          ownerCompany: ownerDetails['Εταιρεία'],
-          ownerTaxId: ownerDetails['ΑΦΜ'],
-          ownerPhone: ownerDetails['Τηλέφωνο Ιδιοκτήτη'],
-          ownerStreet: ownerDetails['Οδός'],
-          ownerNumber: ownerDetails['Αριθμός'],
-          ownerCity: ownerDetails['Πόλη'],
-          ownerPostalCode: ownerDetails['Τ.Κ.']
-        });
-        console.log('✅ Synced owner details to authService for owner:', ownerCode);
+    // Collect custom fields (non-fixed fields)
+    const customFields = {};
+    Object.entries(ownerDetails).forEach(([key, value]) => {
+      if (!FIXED_FIELDS.includes(key)) {
+        customFields[key] = value;
       }
+    });
 
-      authService.logActivity('update_owner_details', boat.id);
-      showMessage('✅ Τα στοιχεία ιδιοκτήτη αποθηκεύτηκαν!', 'success');
+    // Prepare API payload
+    const apiPayload = {
+      vessel_name: vesselName,
+      owner_first_name: ownerDetails['Όνομα'] || '',
+      owner_last_name: ownerDetails['Επώνυμο'] || '',
+      owner_email: ownerDetails['Email Ιδιοκτήτη'] || '',
+      company_email: ownerDetails['Email Εταιρείας'] || '',
+      company_name: ownerDetails['Εταιρεία'] || '',
+      vat_number: ownerDetails['ΑΦΜ'] || '',
+      phone: ownerDetails['Τηλέφωνο Ιδιοκτήτη'] || '',
+      street: ownerDetails['Οδός'] || '',
+      street_number: ownerDetails['Αριθμός'] || '',
+      city: ownerDetails['Πόλη'] || '',
+      postal_code: ownerDetails['Τ.Κ.'] || '',
+      custom_fields: Object.keys(customFields).length > 0 ? JSON.stringify(customFields) : null
+    };
+
+    try {
+      // PRIORITY 1: Save to API
+      const response = await fetch('https://yachtmanagementsuite.com/api/vessel-owners.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiPayload)
+      });
+
+      if (response.ok) {
+        console.log('✅ Saved owner details to API for vessel:', vesselName);
+
+        // Also save to localStorage as backup
+        const key = `fleet_${boat.id}_ownerDetails`;
+        localStorage.setItem(key, JSON.stringify(ownerDetails));
+
+        // Sync to authService if owner code exists
+        if (ownerCode) {
+          authService.updateOwnerCode(ownerCode, {
+            ownerFirstName: ownerDetails['Όνομα'],
+            ownerLastName: ownerDetails['Επώνυμο'],
+            ownerEmail: ownerDetails['Email Ιδιοκτήτη'],
+            ownerCompanyEmail: ownerDetails['Email Εταιρείας'],
+            ownerCompany: ownerDetails['Εταιρεία'],
+            ownerTaxId: ownerDetails['ΑΦΜ'],
+            ownerPhone: ownerDetails['Τηλέφωνο Ιδιοκτήτη'],
+            ownerStreet: ownerDetails['Οδός'],
+            ownerNumber: ownerDetails['Αριθμός'],
+            ownerCity: ownerDetails['Πόλη'],
+            ownerPostalCode: ownerDetails['Τ.Κ.']
+          });
+        }
+
+        authService.logActivity('update_owner_details', boat.id);
+        showMessage('✅ Τα στοιχεία ιδιοκτήτη αποθηκεύτηκαν!', 'success');
+      } else {
+        throw new Error('API save failed');
+      }
     } catch (e) {
-      console.error('Error saving owner details:', e);
-      showMessage('❌ Σφάλμα αποθήκευσης!', 'error');
+      console.error('Error saving owner details to API:', e);
+
+      // Fallback: Save to localStorage
+      try {
+        const key = `fleet_${boat.id}_ownerDetails`;
+        localStorage.setItem(key, JSON.stringify(ownerDetails));
+
+        if (ownerCode) {
+          authService.updateOwnerCode(ownerCode, {
+            ownerFirstName: ownerDetails['Όνομα'],
+            ownerLastName: ownerDetails['Επώνυμο'],
+            ownerEmail: ownerDetails['Email Ιδιοκτήτη'],
+            ownerCompanyEmail: ownerDetails['Email Εταιρείας'],
+            ownerCompany: ownerDetails['Εταιρεία'],
+            ownerTaxId: ownerDetails['ΑΦΜ'],
+            ownerPhone: ownerDetails['Τηλέφωνο Ιδιοκτήτη'],
+            ownerStreet: ownerDetails['Οδός'],
+            ownerNumber: ownerDetails['Αριθμός'],
+            ownerCity: ownerDetails['Πόλη'],
+            ownerPostalCode: ownerDetails['Τ.Κ.']
+          });
+        }
+
+        authService.logActivity('update_owner_details', boat.id);
+        showMessage('✅ Αποθηκεύτηκε τοπικά (API μη διαθέσιμο)', 'success');
+        console.log('✅ Saved owner details to localStorage (API fallback) for boat:', boat.id);
+      } catch (localErr) {
+        console.error('Error saving to localStorage:', localErr);
+        showMessage('❌ Σφάλμα αποθήκευσης!', 'error');
+      }
     }
+    setIsSaving(false);
   };
 
   const handleChange = (field, value) => {
