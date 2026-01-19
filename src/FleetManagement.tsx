@@ -4176,27 +4176,59 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     setIsLoadingDocs(true);
     try {
       const vesselName = boat.name || boat.id;
-      const response = await fetch(`https://yachtmanagementsuite.com/api/vessel-documents.php?vessel_name=${encodeURIComponent(vesselName)}`);
+      console.log('🔄 Loading documents from API for vessel:', vesselName);
+      const apiUrl = `https://yachtmanagementsuite.com/api/vessel-documents.php?vessel_name=${encodeURIComponent(vesselName)}`;
+      console.log('🔗 Documents API URL:', apiUrl);
+
+      const response = await fetch(apiUrl);
+      console.log('📡 Documents API Response status:', response.status);
 
       if (response.ok) {
         const data = await response.json();
-        if (data && Array.isArray(data.documents)) {
-          setDocuments(data.documents);
-          console.log('✅ Loaded documents from API for vessel:', vesselName);
+        console.log('📦 Documents API Response data:', data);
+
+        // Handle different response formats - array directly or nested in documents/data
+        const docsArray = Array.isArray(data) ? data :
+                         Array.isArray(data.documents) ? data.documents :
+                         Array.isArray(data.data) ? data.data : null;
+
+        if (docsArray && docsArray.length > 0) {
+          // Map API fields to UI fields
+          const mappedDocs = docsArray.map(doc => ({
+            id: doc.id || doc.document_id || uid(),
+            title: doc.title || doc.document_type || doc.document_name || '',
+            fileName: doc.fileName || doc.file_name || doc.document_name || '',
+            fileType: doc.fileType || doc.file_type || 'application/pdf',
+            fileData: doc.fileData || doc.file_data || '',
+            uploadedAt: doc.uploadedAt || doc.uploaded_at || doc.created_at || new Date().toISOString(),
+            uploadedBy: doc.uploadedBy || doc.uploaded_by || '',
+            expiryDate: doc.expiryDate || doc.expiry_date || null
+          }));
+          console.log('✅ Mapped documents:', mappedDocs);
+          setDocuments(mappedDocs);
+          console.log('✅ Loaded', mappedDocs.length, 'documents from API for vessel:', vesselName);
           setIsLoadingDocs(false);
           return;
+        } else {
+          console.log('⚠️ API returned no documents for vessel:', vesselName);
         }
+      } else {
+        console.log('❌ Documents API request failed with status:', response.status);
       }
 
       // Fallback to localStorage
+      console.log('🔍 Trying localStorage fallback for documents');
       const key = `fleet_${boat.id}_documents`;
       const stored = localStorage.getItem(key);
       if (stored) {
-        setDocuments(JSON.parse(stored));
-        console.log('✅ Loaded documents from localStorage for boat:', boat.id);
+        const parsed = JSON.parse(stored);
+        setDocuments(parsed);
+        console.log('✅ Loaded', parsed.length, 'documents from localStorage for boat:', boat.id);
+      } else {
+        console.log('⚠️ No documents found in localStorage for boat:', boat.id);
       }
     } catch (e) {
-      console.error('Error loading documents from API:', e);
+      console.error('❌ Error loading documents from API:', e);
       // Fallback to localStorage on error
       try {
         const key = `fleet_${boat.id}_documents`;
@@ -4217,21 +4249,39 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     setIsSavingDoc(true);
     const vesselName = boat.name || boat.id;
 
+    // Prepare the payload with correct field mapping
+    const payload = {
+      vessel_name: vesselName,
+      document_id: doc.id,
+      document_type: doc.title,  // UI 'title' maps to API 'document_type'
+      document_name: doc.fileName,  // The actual filename
+      file_name: doc.fileName,
+      file_type: doc.fileType,
+      file_data: doc.fileData,
+      uploaded_at: doc.uploadedAt,
+      uploaded_by: doc.uploadedBy,
+      expiry_date: doc.expiryDate || null
+    };
+
+    console.log('📤 Saving document to API:', {
+      vessel_name: vesselName,
+      document_id: doc.id,
+      document_type: doc.title,
+      document_name: doc.fileName,
+      file_type: doc.fileType,
+      has_file_data: !!doc.fileData,
+      file_data_length: doc.fileData ? doc.fileData.length : 0
+    });
+
     try {
       const response = await fetch('https://yachtmanagementsuite.com/api/vessel-documents.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vessel_name: vesselName,
-          document_id: doc.id,
-          title: doc.title,
-          file_name: doc.fileName,
-          file_type: doc.fileType,
-          file_data: doc.fileData,
-          uploaded_at: doc.uploadedAt,
-          uploaded_by: doc.uploadedBy
-        })
+        body: JSON.stringify(payload)
       });
+
+      const responseText = await response.text();
+      console.log('📥 API response:', response.status, responseText);
 
       if (response.ok) {
         console.log('✅ Saved document to API for vessel:', vesselName);
@@ -4243,10 +4293,10 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
         setIsSavingDoc(false);
         return true;
       } else {
-        throw new Error('API save failed');
+        throw new Error(`API save failed: ${response.status} - ${responseText}`);
       }
     } catch (e) {
-      console.error('Error saving document to API:', e);
+      console.error('❌ Error saving document to API:', e);
       // Fallback: Save to localStorage
       try {
         const key = `fleet_${boat.id}_documents`;
@@ -4257,7 +4307,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
         setIsSavingDoc(false);
         return true;
       } catch (localErr) {
-        console.error('Error saving to localStorage:', localErr);
+        console.error('❌ Error saving to localStorage:', localErr);
         setIsSavingDoc(false);
         return false;
       }
@@ -4267,6 +4317,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   // Delete document from API
   const deleteDocumentFromAPI = async (docId) => {
     const vesselName = boat.name || boat.id;
+
+    console.log('🗑️ Deleting document from API:', { vessel_name: vesselName, document_id: docId });
 
     try {
       const response = await fetch('https://yachtmanagementsuite.com/api/vessel-documents.php', {
@@ -4278,11 +4330,16 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
         })
       });
 
+      const responseText = await response.text();
+      console.log('📥 Delete API response:', response.status, responseText);
+
       if (response.ok) {
         console.log('✅ Deleted document from API for vessel:', vesselName);
+      } else {
+        console.log('⚠️ Delete API request returned status:', response.status);
       }
     } catch (e) {
-      console.error('Error deleting document from API:', e);
+      console.error('❌ Error deleting document from API:', e);
     }
 
     // Always update localStorage and state
@@ -4290,6 +4347,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     const key = `fleet_${boat.id}_documents`;
     localStorage.setItem(key, JSON.stringify(newDocs));
     setDocuments(newDocs);
+    console.log('✅ Removed document from local state and localStorage');
   };
 
   // Legacy saveDocuments for compatibility (saves all docs to localStorage)
