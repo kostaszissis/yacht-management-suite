@@ -53,6 +53,14 @@ const EMPLOYEE_CODES_KEY = 'auth_employee_codes';
 const OWNER_CODES_KEY = 'auth_owner_codes';
 const ACTIVITY_LOGS_KEY = 'auth_activity_logs';
 const CURRENT_USER_KEY = 'auth_current_user';
+const VAT_SETTINGS_KEY = 'vat_settings';
+
+// VAT Settings Structure
+export interface VATSettings {
+  rate: number; // VAT rate as percentage (e.g., 24 for 24%)
+  lastUpdatedBy: string;
+  lastUpdatedAt: string;
+}
 
 // Default Employee Codes
 const DEFAULT_EMPLOYEE_CODES: EmployeeCode[] = [
@@ -120,7 +128,7 @@ const DEFAULT_EMPLOYEE_CODES: EmployeeCode[] = [
     code: 'CHECKIN2025',
     name: 'Check-in Check-out',
     role: 'TECHNICAL',
-    canEdit: false,
+    canEdit: true,  // 🔥 FIX: Allow editing prices during check-out
     canDelete: false,
     canManageFleet: false,
     canClearData: false,
@@ -189,15 +197,27 @@ export const initializeAuth = () => {
     localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(DEFAULT_EMPLOYEE_CODES));
     console.log('✅ Employee codes initialized');
   } else {
-    // 🔧 FIX: Check if CHECKIN2025 exists, if not force update with defaults
+    // 🔧 FIX: Check and update employee codes to ensure correct permissions
     try {
       const parsed = JSON.parse(existingCodes);
-      const hasCheckin2025 = parsed.find((emp: EmployeeCode) => emp.code === 'CHECKIN2025');
+      let needsUpdate = false;
 
-      if (!hasCheckin2025) {
-        console.log('⚠️ CHECKIN2025 missing! Force updating employee codes...');
+      // Check if CHECKIN2025 exists and has correct canEdit permission
+      const checkin2025 = parsed.find((emp: EmployeeCode) => emp.code === 'CHECKIN2025');
+      if (!checkin2025) {
+        console.log('⚠️ CHECKIN2025 missing! Adding...');
+        needsUpdate = true;
+      } else if (checkin2025.canEdit !== true) {
+        // 🔥 FIX: Update CHECKIN2025 to have canEdit: true
+        console.log('⚠️ CHECKIN2025 has wrong canEdit permission! Updating...');
+        checkin2025.canEdit = true;
+        localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(parsed));
+        console.log('✅ CHECKIN2025 canEdit updated to true');
+      }
+
+      if (needsUpdate) {
         localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(DEFAULT_EMPLOYEE_CODES));
-        console.log('✅ Employee codes updated with CHECKIN2025');
+        console.log('✅ Employee codes updated with defaults');
       }
     } catch (error) {
       console.error('Error checking employee codes, reinitializing...', error);
@@ -220,7 +240,20 @@ export const initializeAuth = () => {
 export const getAllEmployeeCodes = (): EmployeeCode[] => {
   try {
     const stored = localStorage.getItem(EMPLOYEE_CODES_KEY);
-    return stored ? JSON.parse(stored) : DEFAULT_EMPLOYEE_CODES;
+    if (!stored) return DEFAULT_EMPLOYEE_CODES;
+
+    const codes = JSON.parse(stored);
+
+    // 🔥 REAL-TIME FIX: Ensure CHECKIN2025 has canEdit: true
+    const checkin2025 = codes.find((emp: EmployeeCode) => emp.code === 'CHECKIN2025');
+    if (checkin2025 && checkin2025.canEdit !== true) {
+      console.log('🔧 Fixing CHECKIN2025 canEdit permission in real-time...');
+      checkin2025.canEdit = true;
+      localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(codes));
+      console.log('✅ CHECKIN2025 canEdit fixed to true');
+    }
+
+    return codes;
   } catch (error) {
     console.error('Error loading employee codes:', error);
     return DEFAULT_EMPLOYEE_CODES;
@@ -396,6 +429,16 @@ export const login = (code: string): CurrentUser | null => {
   try {
     // Check if it's an employee code
     const employee = getEmployeeByCode(code);
+
+    // 🔥 DEBUG: Log what we found
+    console.log('🔍 LOGIN DEBUG:', {
+      inputCode: code,
+      employeeFound: !!employee,
+      employeeName: employee?.name,
+      employeeCanEdit: employee?.canEdit,
+      employeePermissions: employee
+    });
+
     if (employee) {
       const user: CurrentUser = {
         code: employee.code,
@@ -407,7 +450,7 @@ export const login = (code: string): CurrentUser | null => {
 
       // 🔥 FIX: Use sessionStorage - auto-clears when browser closes
       sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-      console.log('✅ Employee logged in:', employee.name);
+      console.log('✅ Employee logged in:', employee.name, '| canEdit:', employee.canEdit);
       return user;
     }
 
@@ -610,6 +653,74 @@ export const clearActivityLogs = (): boolean => {
 };
 
 // =================================================================
+// VAT SETTINGS MANAGEMENT
+// =================================================================
+
+const DEFAULT_VAT_RATE = 24; // Default VAT rate in Greece
+
+export const getVATSettings = (): VATSettings => {
+  try {
+    const stored = localStorage.getItem(VAT_SETTINGS_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    // Return default settings
+    return {
+      rate: DEFAULT_VAT_RATE,
+      lastUpdatedBy: 'System',
+      lastUpdatedAt: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Error loading VAT settings:', error);
+    return {
+      rate: DEFAULT_VAT_RATE,
+      lastUpdatedBy: 'System',
+      lastUpdatedAt: new Date().toISOString()
+    };
+  }
+};
+
+export const getVATRate = (): number => {
+  return getVATSettings().rate;
+};
+
+export const setVATRate = (rate: number): boolean => {
+  try {
+    const user = getCurrentUser();
+
+    // Only employees with canEditFinancials or ADMIN can change VAT rate
+    if (!user || (!user.permissions?.canEditFinancials && user.role !== 'ADMIN')) {
+      console.error('❌ Unauthorized to change VAT rate');
+      return false;
+    }
+
+    // Validate rate (0-100%)
+    if (rate < 0 || rate > 100) {
+      console.error('❌ Invalid VAT rate:', rate);
+      return false;
+    }
+
+    const settings: VATSettings = {
+      rate: rate,
+      lastUpdatedBy: user.name,
+      lastUpdatedAt: new Date().toISOString()
+    };
+
+    localStorage.setItem(VAT_SETTINGS_KEY, JSON.stringify(settings));
+    console.log('✅ VAT rate updated to:', rate, '% by', user.name);
+    return true;
+  } catch (error) {
+    console.error('Error setting VAT rate:', error);
+    return false;
+  }
+};
+
+export const canEditVATRate = (): boolean => {
+  const user = getCurrentUser();
+  return user?.permissions?.canEditFinancials || user?.role === 'ADMIN' || false;
+};
+
+// =================================================================
 // EXPORT ALL
 // =================================================================
 
@@ -661,5 +772,11 @@ export default {
   getAllActivityLogs,
   getActivityLogsByEmployee,
   getActivityLogsByBooking,
-  clearActivityLogs
+  clearActivityLogs,
+
+  // VAT Settings
+  getVATSettings,
+  getVATRate,
+  setVATRate,
+  canEditVATRate
 };

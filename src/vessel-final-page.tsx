@@ -13,9 +13,10 @@
 import React, { useState, useRef, useEffect, useContext } from "react";
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import { sendCheckInEmail, sendCheckOutEmail } from './services/emailService';
-import authService from './authService';
+import authService, { getVATRate } from './authService';
 import FloatingChatWidget from './FloatingChatWidget';
 import { saveBooking, getBooking, savePage5DataHybrid, getPage5DataHybrid, getAllBookings, getPage1DataHybrid, getPage2DataHybrid, getPage3DataHybrid, getPage4DataHybrid } from './services/apiService';
+import { getPageMedia, mergeMediaIntoItems } from './utils/mediaStorage';
 import { DataContext } from './App';
 
 import {
@@ -165,6 +166,8 @@ const Page5_I18N = {
     damageRate: "Rate (if damaged)",
     unitPrice: "Unit Price",
     totalPrice: "Total",
+    netTotal: "NET TOTAL",
+    vatPercent: "VAT",
     totalWithVAT: "TOTAL WITH VAT",
     notesTitle: "Additional Remarks",
     notesPlaceholder: "Write any remarks below and inform our base staff...",
@@ -219,6 +222,8 @@ const Page5_I18N = {
     damageRate: "Τιμή (αν καταστραφεί)",
     unitPrice: "Τιμή Μονάδας",
     totalPrice: "Σύνολο",
+    netTotal: "ΚΑΘΑΡΟ ΣΥΝΟΛΟ",
+    vatPercent: "ΦΠΑ",
     totalWithVAT: "ΣΥΝΟΛΟ ΜΕ ΦΠΑ",
     notesTitle: "Επιπλέον Παρατηρήσεις",
     notesPlaceholder: "Γράψτε παρατηρήσεις και ενημερώστε το προσωπικό της βάσης...",
@@ -257,15 +262,22 @@ function getItemLabel(key, lang = 'en') {
 function transformItemsToInventory(items: any[], page: string, section: string, lang: string = 'en'): any[] {
   if (!items || !Array.isArray(items)) return [];
 
-  return items.map(item => ({
-    page,
-    section,
-    name: getItemLabel(item.key, lang) || item.key,
-    qty: item.qty || 1,
-    inOk: item.inOk || false,
-    out: item.out || null,
-    price: item.price || '0'
-  }));
+  return items.map(item => {
+    // Debug: Log items with media
+    if (item.media && item.media.length > 0) {
+      console.log(`📷 [${page}/${section}] Item "${item.key}" has ${item.media.length} photos`);
+    }
+    return {
+      page,
+      section,
+      name: getItemLabel(item.key, lang) || item.key,
+      qty: item.qty || 1,
+      inOk: item.inOk || false,
+      out: item.out || null,
+      price: item.price || '0',
+      media: item.media || [] // Include photos/media
+    };
+  });
 }
 
 // Transform Page 2 data to inventory items
@@ -371,11 +383,68 @@ function transformPage4Data(data: any, lang: string = 'en'): any[] {
 async function loadAllInventoryItems(bookingNumber: string, mode: 'in' | 'out', lang: string = 'en'): Promise<any[]> {
   const allItems: any[] = [];
 
+  // 🔥 Load media from localStorage (photos stored separately from API)
+  // For check-out mode, load media from BOTH check-in AND check-out (photos taken during check-in should still appear)
+  const page2MediaCurrent = getPageMedia(bookingNumber, mode, 'page2');
+  const page3MediaCurrent = getPageMedia(bookingNumber, mode, 'page3');
+  const page4MediaCurrent = getPageMedia(bookingNumber, mode, 'page4');
+
+  // Start with current mode's media
+  let page2Media: Record<string, any[]> = { ...page2MediaCurrent };
+  let page3Media: Record<string, any[]> = { ...page3MediaCurrent };
+  let page4Media: Record<string, any[]> = { ...page4MediaCurrent };
+
+  // If in check-out mode, also load check-in photos
+  if (mode === 'out') {
+    const page2MediaIn = getPageMedia(bookingNumber, 'in', 'page2');
+    const page3MediaIn = getPageMedia(bookingNumber, 'in', 'page3');
+    const page4MediaIn = getPageMedia(bookingNumber, 'in', 'page4');
+
+    // Merge check-in photos with check-out photos (combine both)
+    Object.keys(page2MediaIn).forEach(key => {
+      if (!page2Media[key]) page2Media[key] = page2MediaIn[key];
+      else page2Media[key] = [...page2MediaIn[key], ...page2Media[key]];
+    });
+    Object.keys(page3MediaIn).forEach(key => {
+      if (!page3Media[key]) page3Media[key] = page3MediaIn[key];
+      else page3Media[key] = [...page3MediaIn[key], ...page3Media[key]];
+    });
+    Object.keys(page4MediaIn).forEach(key => {
+      if (!page4Media[key]) page4Media[key] = page4MediaIn[key];
+      else page4Media[key] = [...page4MediaIn[key], ...page4Media[key]];
+    });
+
+    console.log('📷 Check-in media also loaded for check-out mode');
+  }
+
+  console.log('📷 Media loaded from localStorage:', {
+    page2: Object.keys(page2Media).length + ' items',
+    page3: Object.keys(page3Media).length + ' items',
+    page4: Object.keys(page4Media).length + ' items'
+  });
+
   try {
     // Load Page 2 data
     const page2Data = await getPage2DataHybrid(bookingNumber, mode);
     if (page2Data) {
       console.log('📦 Page 2 data loaded:', page2Data);
+      // 🔥 Merge media from localStorage into items
+      if (page2Data.items) page2Data.items = mergeMediaIntoItems(page2Data.items, page2Media);
+      if (page2Data.hullItems) page2Data.hullItems = mergeMediaIntoItems(page2Data.hullItems, page2Media);
+      if (page2Data.dinghyItems) page2Data.dinghyItems = mergeMediaIntoItems(page2Data.dinghyItems, page2Media);
+      // Debug: Check if media exists after merge
+      if (page2Data.items) {
+        const itemsWithMedia = page2Data.items.filter((i: any) => i.media && i.media.length > 0);
+        console.log(`📷 Page 2 items with media after merge: ${itemsWithMedia.length}`);
+        itemsWithMedia.forEach((i: any) => {
+          console.log(`  - Item "${i.key}": ${i.media.length} photos, first photo structure:`, {
+            type: typeof i.media[0],
+            hasUrl: !!i.media[0]?.url,
+            hasData: !!i.media[0]?.data,
+            urlPreview: i.media[0]?.url?.substring(0, 80) || 'N/A'
+          });
+        });
+      }
       allItems.push(...transformPage2Data(page2Data, lang));
     }
   } catch (error) {
@@ -387,6 +456,10 @@ async function loadAllInventoryItems(bookingNumber: string, mode: 'in' | 'out', 
     const page3Data = await getPage3DataHybrid(bookingNumber, mode);
     if (page3Data) {
       console.log('📦 Page 3 data loaded:', page3Data);
+      // 🔥 Merge media from localStorage into items
+      if (page3Data.safetyItems) page3Data.safetyItems = mergeMediaIntoItems(page3Data.safetyItems, page3Media);
+      if (page3Data.cabinItems) page3Data.cabinItems = mergeMediaIntoItems(page3Data.cabinItems, page3Media);
+      if (page3Data.optionalItems) page3Data.optionalItems = mergeMediaIntoItems(page3Data.optionalItems, page3Media);
       allItems.push(...transformPage3Data(page3Data, lang));
     }
   } catch (error) {
@@ -398,6 +471,16 @@ async function loadAllInventoryItems(bookingNumber: string, mode: 'in' | 'out', 
     const page4Data = await getPage4DataHybrid(bookingNumber, mode);
     if (page4Data) {
       console.log('📦 Page 4 data loaded:', page4Data);
+      // 🔥 Merge media from localStorage into items
+      if (page4Data.items) page4Data.items = mergeMediaIntoItems(page4Data.items, page4Media);
+      if (page4Data.navItems) page4Data.navItems = mergeMediaIntoItems(page4Data.navItems, page4Media);
+      if (page4Data.safetyItems) page4Data.safetyItems = mergeMediaIntoItems(page4Data.safetyItems, page4Media);
+      if (page4Data.genItems) page4Data.genItems = mergeMediaIntoItems(page4Data.genItems, page4Media);
+      if (page4Data.deckItems) page4Data.deckItems = mergeMediaIntoItems(page4Data.deckItems, page4Media);
+      if (page4Data.fdeckItems) page4Data.fdeckItems = mergeMediaIntoItems(page4Data.fdeckItems, page4Media);
+      if (page4Data.dinghyItems) page4Data.dinghyItems = mergeMediaIntoItems(page4Data.dinghyItems, page4Media);
+      if (page4Data.fendersItems) page4Data.fendersItems = mergeMediaIntoItems(page4Data.fendersItems, page4Media);
+      if (page4Data.boathookItems) page4Data.boathookItems = mergeMediaIntoItems(page4Data.boathookItems, page4Media);
       allItems.push(...transformPage4Data(page4Data, lang));
     }
   } catch (error) {
@@ -405,6 +488,8 @@ async function loadAllInventoryItems(bookingNumber: string, mode: 'in' | 'out', 
   }
 
   console.log(`📋 Total inventory items loaded: ${allItems.length}`);
+  const itemsWithPhotos = allItems.filter(i => i.media && i.media.length > 0);
+  console.log(`📷 Items with photos: ${itemsWithPhotos.length}`, itemsWithPhotos.map(i => ({ name: i.name, photos: i.media.length })));
   return allItems;
 }
 
@@ -756,15 +841,56 @@ function AgreementBox({ title, text, link, text2, accepted, setAccepted, t, requ
 // DAMAGE INVENTORY (CHECK-OUT) - WITH PAGE COLUMN
 // =================================================================
 function DamageInventory({ items, t, lang }) {
+  const [zoomedPhoto, setZoomedPhoto] = React.useState(null);
+
   if (items.length === 0) return null;
-  
+
+  // Get VAT rate from settings
+  let vatRate = 24;
+  try {
+    vatRate = getVATRate() || 24;
+  } catch (e) {
+    vatRate = 24; // Default to 24%
+  }
+
   let totalAmount = 0;
   items.forEach(item => {
     const qty = item.qty || 1;
     const unitPrice = parseFloat(item.price) || 0;
     totalAmount += qty * unitPrice;
   });
-  
+
+  // Calculate VAT
+  const netTotal = totalAmount;
+  const vatAmount = netTotal * (vatRate / 100);
+  const totalWithVat = netTotal + vatAmount;
+
+  // Collect all photos with item info
+  const allDamagePhotos = [];
+  items.forEach((item, idx) => {
+    const photos = item.media || [];
+    // 🔥 Debug: Log photo structure
+    if (photos.length > 0) {
+      console.log(`📷 DamageInventory: Item "${item.name}" has ${photos.length} photos:`,
+        photos.map((p, i) => ({
+          index: i,
+          type: typeof p,
+          hasUrl: !!p?.url,
+          hasData: !!p?.data,
+          urlPreview: p?.url?.substring(0, 50) || p?.data?.substring(0, 50) || 'N/A'
+        }))
+      );
+    }
+    photos.forEach((photo, photoIdx) => {
+      allDamagePhotos.push({
+        itemName: item.name,
+        itemPage: item.page,
+        photo,
+        idx: `${idx}-${photoIdx}`
+      });
+    });
+  });
+
   return (
     <div className="mb-6">
       <div className="rounded-xl border-2 p-4" style={{ borderColor: brand.blue, background: "#fff5f5" }}>
@@ -778,6 +904,7 @@ function DamageInventory({ items, t, lang }) {
                 <th className="text-left p-2 font-bold">Page</th>
                 <th className="text-left p-2 font-bold">Item</th>
                 <th className="text-center p-2 font-bold">Qty</th>
+                <th className="text-center p-2 font-bold">📷</th>
                 <th className="text-right p-2 font-bold">{t.unitPrice}</th>
                 <th className="text-right p-2 font-bold">{t.totalPrice}</th>
               </tr>
@@ -787,12 +914,22 @@ function DamageInventory({ items, t, lang }) {
                 const qty = item.qty || 1;
                 const unitPrice = parseFloat(item.price) || 0;
                 const total = qty * unitPrice;
-                
+                const photoCount = (item.media || []).length;
+
                 return (
                   <tr key={idx} className="border-t" style={{ borderColor: '#fee2e2' }}>
                     <td className="p-2 text-xs text-gray-600">{item.page}</td>
                     <td className="p-2 font-semibold" style={{ color: brand.black }}>{item.name}</td>
                     <td className="p-2 text-center font-bold">{qty}</td>
+                    <td className="p-2 text-center">
+                      {photoCount > 0 ? (
+                        <span className="inline-flex items-center justify-center bg-red-100 text-red-600 text-xs font-bold rounded-full w-6 h-6">
+                          {photoCount}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300">-</span>
+                      )}
+                    </td>
                     <td className="p-2 text-right" style={{ color: brand.grey }}>€{unitPrice.toFixed(2)}</td>
                     <td className="p-2 text-right font-bold" style={{ color: '#dc2626' }}>€{total.toFixed(2)}</td>
                   </tr>
@@ -801,14 +938,78 @@ function DamageInventory({ items, t, lang }) {
             </tbody>
           </table>
         </div>
-        
+
+        {/* Damage Photos Gallery */}
+        {allDamagePhotos.length > 0 && (
+          <div className="mt-6 pt-4 border-t-2" style={{ borderColor: '#dc2626' }}>
+            <h4 className="font-bold text-base mb-3" style={{ color: '#dc2626' }}>
+              📷 {lang === 'el' ? 'Φωτογραφίες Ζημιών' : 'Damage Photos'} ({allDamagePhotos.length})
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {allDamagePhotos.map(({ itemName, itemPage, photo, idx }) => {
+                const photoUrl = photo?.url || photo?.data || (typeof photo === 'string' ? photo : null);
+                if (!photoUrl) return null;
+
+                return (
+                  <div
+                    key={idx}
+                    className="relative rounded-lg overflow-hidden border-2 border-red-200 cursor-pointer hover:border-red-400 transition-colors"
+                    onClick={() => setZoomedPhoto(photoUrl)}
+                  >
+                    <img
+                      src={photoUrl}
+                      alt={`${itemName} damage`}
+                      className="w-full h-24 object-cover"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-2 py-1">
+                      <p className="text-white text-xs truncate font-semibold">{itemName}</p>
+                      <p className="text-gray-300 text-xs">{itemPage}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="mt-6 pt-4 border-t-2" style={{ borderColor: '#dc2626' }}>
-          <div className="flex justify-between items-center">
-            <span className="text-xl font-bold" style={{ color: brand.black }}>{t.totalWithVAT}:</span>
-            <span className="text-2xl font-bold" style={{ color: '#dc2626' }}>€{totalAmount.toFixed(2)}</span>
+          {/* NET TOTAL */}
+          <div className="flex justify-between items-center py-2 px-3 mb-1" style={{ backgroundColor: '#f3f4f6' }}>
+            <span className="text-base font-bold" style={{ color: brand.black }}>{t.netTotal}:</span>
+            <span className="text-lg font-bold" style={{ color: brand.black }}>€{netTotal.toFixed(2)}</span>
+          </div>
+          {/* VAT */}
+          <div className="flex justify-between items-center py-2 px-3 mb-1" style={{ backgroundColor: '#f3f4f6' }}>
+            <span className="text-base font-bold" style={{ color: brand.black }}>{t.vatPercent} {vatRate}%:</span>
+            <span className="text-lg font-bold" style={{ color: brand.black }}>€{vatAmount.toFixed(2)}</span>
+          </div>
+          {/* TOTAL WITH VAT */}
+          <div className="flex justify-between items-center py-3 px-3 rounded-lg border-2" style={{ backgroundColor: '#fee2e2', borderColor: '#dc2626' }}>
+            <span className="text-xl font-bold" style={{ color: '#dc2626' }}>{t.totalWithVAT}:</span>
+            <span className="text-2xl font-bold" style={{ color: '#dc2626' }}>€{totalWithVat.toFixed(2)}</span>
           </div>
         </div>
       </div>
+
+      {/* Photo Zoom Modal */}
+      {zoomedPhoto && (
+        <div
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+          onClick={() => setZoomedPhoto(null)}
+        >
+          <img
+            src={zoomedPhoto}
+            alt="Zoomed damage photo"
+            className="max-w-[90%] max-h-[90%] rounded-lg shadow-2xl"
+          />
+          <button
+            className="absolute top-4 right-4 text-white text-3xl font-bold hover:text-gray-300"
+            onClick={() => setZoomedPhoto(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1235,14 +1436,30 @@ export default function Page5({ onNavigate }) {
         setAllItems(inventoryItems);
 
         if (mode === 'out') {
-          const damaged = inventoryItems.filter(item => item.out === 'not');
+          // 🔥 FIX: Filter damaged items (out === 'not' OR inOk === false for check-out)
+          const damaged = inventoryItems.filter(item => item.out === 'not' || item.inOk === false);
           setDamageItems(damaged);
-          const damagePhotos = getDamagePhotos(mode);
-          setAllPhotos(damagePhotos);
-        } else {
-          const photos = getAllPhotos();
-          setAllPhotos(photos);
         }
+
+        // 🔥 FIX: Extract photos from inventoryItems (which already has merged media from localStorage)
+        // This replaces the deprecated getDamagePhotos/getAllPhotos functions
+        // PDF and Email expect an array of URL strings, not media objects
+        const extractedPhotos: Record<string, string[]> = {};
+        inventoryItems.forEach(item => {
+          if (item.media && item.media.length > 0) {
+            const itemKey = item.name || item.key || 'unknown';
+            // Extract URL strings from media objects (media objects have { mid, type, url } structure)
+            const photoUrls = item.media
+              .map((m: any) => m?.url || m?.data || (typeof m === 'string' ? m : null))
+              .filter(Boolean);
+            if (photoUrls.length > 0) {
+              extractedPhotos[itemKey] = photoUrls;
+              console.log(`📷 Item "${itemKey}" has ${photoUrls.length} photos, first URL starts with: ${photoUrls[0]?.substring(0, 50)}...`);
+            }
+          }
+        });
+        console.log(`📷 Extracted photos from ${Object.keys(extractedPhotos).length} items for email/PDF`);
+        setAllPhotos(extractedPhotos);
 
         // 🔥 FIX: First get vessel/skipper data from Page 1 API (source of truth)
         const page1Data = await getPage1DataHybrid(currentBooking);

@@ -1143,22 +1143,59 @@ export function generateLuxuryPDF(bookingData, mode, additionalData = {}, lang =
             y += 7;
           });
           
-          // TOTAL WITH VAT
+          // VAT CALCULATION
+          // Import VAT rate from authService (default 24%)
+          let vatRate = 24;
+          try {
+            const authService = require('../authService');
+            vatRate = authService.getVATRate ? authService.getVATRate() : 24;
+          } catch (e) {
+            console.warn('Could not load VAT rate, using default 24%');
+          }
+
+          const netTotal = totalAmount;
+          const vatAmount = netTotal * (vatRate / 100);
+          const totalWithVat = netTotal + vatAmount;
+
           y += 5;
+
+          // NET TOTAL row
+          doc.setFillColor(245, 245, 245);
+          doc.rect(margin, y - 4, pageWidth - 2 * margin, 10, 'F');
+          doc.setFontSize(10);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(...COLORS.black);
+          doc.text(lang === 'el' ? 'ΚΑΘΑΡΟ ΣΥΝΟΛΟ:' : 'NET TOTAL:', margin + 5, y + 2);
+          doc.setFont(undefined, 'bold');
+          doc.text(`€${netTotal.toFixed(2)}`, pageWidth - margin - 5, y + 2, { align: 'right' });
+          y += 10;
+
+          // VAT row
+          doc.setFillColor(245, 245, 245);
+          doc.rect(margin, y - 4, pageWidth - 2 * margin, 10, 'F');
+          doc.setFontSize(10);
+          doc.setFont(undefined, 'normal');
+          doc.setTextColor(...COLORS.black);
+          doc.text(lang === 'el' ? `ΦΠΑ ${vatRate}%:` : `VAT ${vatRate}%:`, margin + 5, y + 2);
+          doc.setFont(undefined, 'bold');
+          doc.text(`€${vatAmount.toFixed(2)}`, pageWidth - margin - 5, y + 2, { align: 'right' });
+          y += 10;
+
+          // TOTAL WITH VAT row (highlighted)
           doc.setFillColor(254, 226, 226);
           doc.rect(margin, y - 4, pageWidth - 2 * margin, 12, 'F');
-          
+
           doc.setDrawColor(...COLORS.red);
           doc.setLineWidth(1);
           doc.rect(margin, y - 4, pageWidth - 2 * margin, 12);
-          
+
           doc.setFontSize(12);
           doc.setFont(undefined, 'bold');
           doc.setTextColor(...COLORS.red);
-          doc.text(lang === 'el' ? 'SYNOLO ME FPA:' : 'TOTAL WITH VAT:', margin + 5, y + 3);
+          doc.text(lang === 'el' ? 'ΣΥΝΟΛΟ ΜΕ ΦΠΑ:' : 'TOTAL WITH VAT:', margin + 5, y + 3);
           doc.setFontSize(14);
-          doc.text(`€${totalAmount.toFixed(2)}`, pageWidth - margin - 5, y + 3, { align: 'right' });
-          
+          doc.text(`€${totalWithVat.toFixed(2)}`, pageWidth - margin - 5, y + 3, { align: 'right' });
+
           y += 17;
         }
       } else {

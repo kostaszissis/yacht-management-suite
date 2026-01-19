@@ -676,32 +676,32 @@ export function TableSection({ data, t, setPrice, incQty, decQty, toggleInOk, se
               </td>
               <td className="border px-2 py-2" style={{ borderColor: brand.black }}>
                 <div className="flex items-center justify-center gap-1">
-                  <button 
+                  <button
                     onClick={() => {
                       const currentPrice = parseFloat(item.price) || 0;
                       setPrice(item.id, Math.max(0, currentPrice - 5).toString());
                     }}
                     disabled={!canEditPrices}
-                    className="w-5 h-5 border rounded flex items-center justify-center text-xs font-bold" 
+                    className="w-5 h-5 border rounded flex items-center justify-center text-xs font-bold"
                     style={{ borderColor: brand.black, color: brand.black, backgroundColor: !canEditPrices ? '#f5f5f5' : 'white' }}>
                     −5
                   </button>
-                  <input 
-                    type="text" 
-                    value={item.price || ""} 
+                  <input
+                    type="text"
+                    value={item.price || ""}
                     onChange={(e) => setPrice(item.id, e.target.value)}
                     disabled={!canEditPrices}
-                    className="w-16 px-1 py-0.5 border rounded text-center text-sm" 
-                    style={{ borderColor: brand.black, backgroundColor: !canEditPrices ? '#f5f5f5' : 'white', color: brand.black }} 
+                    className="w-16 px-1 py-0.5 border rounded text-center text-sm"
+                    style={{ borderColor: brand.black, backgroundColor: !canEditPrices ? '#f5f5f5' : 'white', color: brand.black }}
                   />
                   <span className="text-sm font-semibold" style={{ color: brand.black }}>€</span>
-                  <button 
+                  <button
                     onClick={() => {
                       const currentPrice = parseFloat(item.price) || 0;
                       setPrice(item.id, (currentPrice + 5).toString());
                     }}
                     disabled={!canEditPrices}
-                    className="w-5 h-5 border rounded flex items-center justify-center text-xs font-bold" 
+                    className="w-5 h-5 border rounded flex items-center justify-center text-xs font-bold"
                     style={{ borderColor: brand.black, color: brand.black, backgroundColor: !canEditPrices ? '#f5f5f5' : 'white' }}>
                     +5
                   </button>

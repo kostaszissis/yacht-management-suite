@@ -5,6 +5,7 @@ import { DataContext } from './App';
 import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
 import { savePage2DataHybrid, getPage2DataHybrid, getPage1DataHybrid } from './services/apiService';
+import { savePageMedia, getPageMedia, mergeMediaIntoItems } from './utils/mediaStorage';
 
 // 🔥 IMPORT ΑΠΟ SharedComponents (ΤΑ ΚΟΙΝΑ)
 import {
@@ -363,12 +364,61 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
       // 🔥 Load from API first, then localStorage fallback
       const loadData = async () => {
         try {
+          // 🔥 FIX: When in check-out mode, first load check-in data to get inOk values
+          let checkInItems = null;
+          let checkInHullItems = null;
+          let checkInDinghyItems = null;
+
+          if (mode === 'out') {
+            // Load check-in data first to get inOk status
+            const checkInData = await getPage2DataHybrid(currentBookingNumber, 'in');
+            if (checkInData) {
+              checkInItems = checkInData.items;
+              checkInHullItems = checkInData.hullItems;
+              checkInDinghyItems = checkInData.dinghyItems;
+              console.log('✅ Check-in data loaded for inOk values');
+            } else {
+              // Fallback to localStorage
+              const savedCheckIn = loadBookingData(currentBookingNumber, 'in');
+              if (savedCheckIn) {
+                checkInItems = savedCheckIn.items;
+                checkInHullItems = savedCheckIn.hullItems;
+                checkInDinghyItems = savedCheckIn.dinghyItems;
+              }
+            }
+          }
+
           const apiData = await getPage2DataHybrid(currentBookingNumber, mode);
+
+          // Helper function to merge inOk from check-in data with current mode data
+          const mergeInOkData = (currentItems, checkInItemsData, defaultKeys) => {
+            if (!currentItems && !checkInItemsData) return null;
+
+            // If we have current mode items, merge inOk from check-in
+            if (currentItems && checkInItemsData) {
+              return currentItems.map(item => {
+                const checkInItem = checkInItemsData.find(ci => ci.key === item.key);
+                return { ...item, inOk: checkInItem?.inOk || item.inOk || false };
+              });
+            }
+
+            // If only check-in items exist (starting checkout), use them as base
+            if (checkInItemsData) {
+              return checkInItemsData.map(item => ({ ...item, out: null }));
+            }
+
+            return currentItems;
+          };
+
           if (apiData) {
             console.log('✅ Page 2 data loaded from API');
-            if (apiData.items) setItems(apiData.items);
-            if (apiData.hullItems) setHullItems(apiData.hullItems);
-            if (apiData.dinghyItems) setDinghyItems(apiData.dinghyItems);
+            const mergedItems = mode === 'out' ? mergeInOkData(apiData.items, checkInItems, INITIAL_KEYS) : apiData.items;
+            const mergedHullItems = mode === 'out' ? mergeInOkData(apiData.hullItems, checkInHullItems, HULL_KEYS) : apiData.hullItems;
+            const mergedDinghyItems = mode === 'out' ? mergeInOkData(apiData.dinghyItems, checkInDinghyItems, DINGHY_KEYS) : apiData.dinghyItems;
+
+            if (mergedItems) setItems(mergedItems);
+            if (mergedHullItems) setHullItems(mergedHullItems);
+            if (mergedDinghyItems) setDinghyItems(mergedDinghyItems);
             if (apiData.mainsailAgreed !== undefined) setMainsailAgreed(apiData.mainsailAgreed);
             if (apiData.diversAgreed !== undefined) setDiversAgreed(apiData.diversAgreed);
             if (apiData.remarks !== undefined) setRemarks(apiData.remarks);
@@ -376,12 +426,22 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
             // Fallback to localStorage via shared function
             const savedData = loadBookingData(currentBookingNumber, mode);
             if (savedData) {
-              if (savedData.items) setItems(savedData.items);
-              if (savedData.hullItems) setHullItems(savedData.hullItems);
-              if (savedData.dinghyItems) setDinghyItems(savedData.dinghyItems);
+              const mergedItems = mode === 'out' ? mergeInOkData(savedData.items, checkInItems, INITIAL_KEYS) : savedData.items;
+              const mergedHullItems = mode === 'out' ? mergeInOkData(savedData.hullItems, checkInHullItems, HULL_KEYS) : savedData.hullItems;
+              const mergedDinghyItems = mode === 'out' ? mergeInOkData(savedData.dinghyItems, checkInDinghyItems, DINGHY_KEYS) : savedData.dinghyItems;
+
+              if (mergedItems) setItems(mergedItems);
+              if (mergedHullItems) setHullItems(mergedHullItems);
+              if (mergedDinghyItems) setDinghyItems(mergedDinghyItems);
               if (savedData.mainsailAgreed !== undefined) setMainsailAgreed(savedData.mainsailAgreed);
               if (savedData.diversAgreed !== undefined) setDiversAgreed(savedData.diversAgreed);
               if (savedData.remarks !== undefined) setRemarks(savedData.remarks);
+            } else if (mode === 'out' && (checkInItems || checkInHullItems || checkInDinghyItems)) {
+              // No check-out data yet, but we have check-in data - use it as starting point
+              console.log('🔄 Using check-in data as base for check-out');
+              if (checkInItems) setItems(checkInItems.map(item => ({ ...item, out: null })));
+              if (checkInHullItems) setHullItems(checkInHullItems.map(item => ({ ...item, out: null })));
+              if (checkInDinghyItems) setDinghyItems(checkInDinghyItems.map(item => ({ ...item, out: null })));
             }
           }
         } catch (error) {
@@ -697,6 +757,9 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
 
       // Also save via shared function for backward compatibility
       saveBookingData(currentBookingNumber, dataToSave, mode);
+
+      // 🔥 Save media to localStorage separately (API may not store large base64 images)
+      savePageMedia(currentBookingNumber, mode, 'page2', [...items, ...hullItems, ...dinghyItems]);
 
       if (result.synced) {
         alert(lang === 'el' ? '✅ Το προσχέδιο αποθηκεύτηκε και συγχρονίστηκε!' : '✅ Draft saved and synced!');

@@ -89,8 +89,8 @@ const I18N = {
     synced: "Synced",
     offline: "Offline",
     syncing: "Syncing...",
-    todayCheckouts: "Today's Check-outs",
-    vesselsCheckingOut: "vessels checking out today",
+    todayBookings: "Today's Bookings",
+    vesselsToday: "vessels today",
     showAllBookings: "Show All Bookings",
     totalBookings: "total",
   },
@@ -138,8 +138,8 @@ const I18N = {
     synced: "Συγχρονισμένο",
     offline: "Εκτός σύνδεσης",
     syncing: "Συγχρονίζεται...",
-    todayCheckouts: "Σημερινές Αποβιβάσεις",
-    vesselsCheckingOut: "σκάφη αποβιβάζονται σήμερα",
+    todayBookings: "Σημερινές Κρατήσεις",
+    vesselsToday: "σκάφη σήμερα",
     showAllBookings: "Όλες οι Κρατήσεις",
     totalBookings: "σύνολο",
   },
@@ -669,15 +669,15 @@ export default function Page1() {
 
   const handleToggleMode = () => {
     const newMode = mode === 'in' ? 'out' : 'in';
-    
+
     // 🔥 CHECK: Don't allow Check-out if checkout date is in the future
     if (newMode === 'out' && form.checkOutDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       const checkoutDate = new Date(form.checkOutDate);
       checkoutDate.setHours(0, 0, 0, 0);
-      
+
       if (checkoutDate > today) {
         const message = lang === 'el'
           ? `❌ Δεν μπορείτε να κάνετε Check-out ακόμα!\n\nΗμερομηνία Check-out: ${formatDate(form.checkOutDate)}\nΣημερινή ημερομηνία: ${formatDate(today.toISOString().split('T')[0])}\n\nΠαρακαλώ περιμένετε μέχρι την ημερομηνία Check-out.`
@@ -687,48 +687,60 @@ export default function Page1() {
         return; // Don't change mode
       }
     }
-    
+
+    // 🔥 FIX: Use functional update to get latest form state (avoids stale closure)
+    setForm(prevForm => {
+      const updatedForm = { ...prevForm, mode: newMode };
+
+      // Save with the updated form data
+      if (currentBookingNumber) {
+        saveBookingData(currentBookingNumber, updatedForm);
+      }
+
+      return updatedForm;
+    });
+
     setMode(newMode);
-    
-    const updatedForm = { ...form, mode: newMode };
-    setForm(updatedForm);
-    
-    if (currentBookingNumber) {
-      saveBookingData(currentBookingNumber, updatedForm);
-    }
-    
+
     if (updateData) {
       updateData({ mode: newMode });
     }
-    
-    window.dispatchEvent(new CustomEvent('modeChanged', { 
-      detail: { mode: newMode } 
+
+    window.dispatchEvent(new CustomEvent('modeChanged', {
+      detail: { mode: newMode }
     }));
-    
+
     console.log('🔄 Mode changed to:', newMode);
   };
 
   const handleSelectBooking = (bookingCode: string) => {
     setCurrentBookingNumber(bookingCode);
 
-    const booking = (globalBookings || []).find(b => b.bookingCode === bookingCode);
+    // 🔥 FIX: Search by multiple possible code fields
+    const booking = (globalBookings || []).find(b =>
+      b.bookingCode === bookingCode ||
+      b.code === bookingCode ||
+      b.bookingNumber === bookingCode ||
+      b.charterCode === bookingCode
+    );
 
     if (booking) {
+      // 🔥 FIX: Use fallbacks for all fields to handle both FleetManagement and Page1 formats
       setForm({
-        bookingNumber: booking.bookingCode || '',
-        vesselCategory: booking.vesselCategory || '',
-        vesselName: booking.vesselName || '',
-        checkInDate: booking.startDate || '',
-        checkInTime: booking.startTime || '',
-        checkOutDate: booking.endDate || '',
-        checkOutTime: booking.endTime || '',
+        bookingNumber: booking.bookingCode || booking.code || booking.bookingNumber || '',
+        vesselCategory: booking.vesselCategory || booking.boatType || booking.vesselType || '',
+        vesselName: booking.vesselName || booking.boatName || booking.vessel || '',
+        checkInDate: booking.checkInDate || booking.startDate || '',
+        checkInTime: booking.checkInTime || booking.startTime || '',
+        checkOutDate: booking.checkOutDate || booking.endDate || '',
+        checkOutTime: booking.checkOutTime || booking.endTime || '',
         skipperFirstName: booking.skipperFirstName || '',
         skipperLastName: booking.skipperLastName || '',
         skipperAddress: booking.skipperAddress || '',
         skipperEmail: booking.skipperEmail || '',
         skipperPhone: booking.skipperPhone || '',
         phoneCountryCode: booking.phoneCountryCode || '+30',
-        vesselId: booking.vesselId || booking.vesselName || '',
+        vesselId: booking.vesselId || booking.vesselName || booking.boatName || '',
       });
       setMode(booking.mode || 'in');
     }
@@ -1296,15 +1308,19 @@ export default function Page1() {
     }
   }, [refreshCounter, refreshBookings]);
 
-  // 🔥 Compute today's checkouts from API-loaded bookings
-  const todayCheckouts = useMemo(() => {
+  // 🔥 Compute today's bookings (both check-ins and check-outs) from API-loaded bookings
+  const todayBookings = useMemo(() => {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    return allBookings.filter(booking => booking?.checkOutDate === today);
+    return allBookings.filter(booking => {
+      const checkInDate = booking?.checkInDate || booking?.startDate;
+      const checkOutDate = booking?.checkOutDate || booking?.endDate;
+      return checkInDate === today || checkOutDate === today;
+    });
   }, [allBookings]);
 
   // 🔥 NEW: Determine which bookings to show (ensure it's always an array)
-  const displayedBookings = Array.isArray(showAllBookings ? allBookings : todayCheckouts)
-    ? (showAllBookings ? allBookings : todayCheckouts)
+  const displayedBookings = Array.isArray(showAllBookings ? allBookings : todayBookings)
+    ? (showAllBookings ? allBookings : todayBookings)
     : [];
   return (
     <>
@@ -1892,16 +1908,16 @@ export default function Page1() {
                 <button className="text-2xl hover:text-red-500" onClick={()=>{setShowBookingSelector(false); setShowAllBookings(false);}}>×</button>
               </div>
 
-              {/* 🔥 TODAY'S CHECK-OUTS HEADER */}
-              {!showAllBookings && todayCheckouts.length > 0 && (
+              {/* 🔥 TODAY'S BOOKINGS HEADER */}
+              {!showAllBookings && todayBookings.length > 0 && (
                 <div className="mb-4 p-4 bg-blue-50 border-2 border-blue-400 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-bold text-blue-700 text-lg">
-                        📅 {t.todayCheckouts}
+                        📅 {t.todayBookings}
                       </div>
                       <div className="text-sm text-blue-600">
-                        🚤 {todayCheckouts.length} {t.vesselsCheckingOut}
+                        🚤 {todayBookings.length} {t.vesselsToday}
                       </div>
                     </div>
                     <div className="text-3xl">
@@ -1914,44 +1930,65 @@ export default function Page1() {
               {displayedBookings.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <p className="text-lg mb-4">
-                    {showAllBookings ? t.noBookings : (lang === 'el' ? 'Δεν υπάρχουν check-outs σήμερα' : 'No check-outs today')}
+                    {showAllBookings ? t.noBookings : (lang === 'el' ? 'Δεν υπάρχουν κρατήσεις σήμερα' : 'No bookings today')}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {displayedBookings.map((booking) => (
-                    <div
-                      key={booking.bookingNumber}
-                      onClick={() => handleSelectBooking(booking.bookingCode)}
-                      className={`p-4 border-2 rounded-lg cursor-pointer hover:bg-blue-50 transition-all ${
-                        booking.bookingNumber === currentBookingNumber
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-bold text-lg text-blue-700">
-                            📋 {booking.bookingNumber || booking.code || booking.charterCode}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            🚤 {booking.vesselCategory} - {booking.vesselName || booking.boatName || 'Vessel'}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            📅 {formatDate(booking.checkInDate || booking.startDate)} {booking.checkInTime} → {formatDate(booking.checkOutDate || booking.endDate)} {booking.checkOutTime}
-                          </div>
-                          {booking.skipperFirstName && (
-                            <div className="text-xs text-gray-600 mt-1">
-                              👤 {booking.skipperFirstName} {booking.skipperLastName}
+                  {displayedBookings.map((booking) => {
+                    const today = new Date().toISOString().split('T')[0];
+                    const checkInDate = booking.checkInDate || booking.startDate;
+                    const checkOutDate = booking.checkOutDate || booking.endDate;
+                    const isCheckInToday = checkInDate === today;
+                    const isCheckOutToday = checkOutDate === today;
+
+                    // 🔥 FIX: Use consistent booking code with fallbacks
+                    const bookingCodeValue = booking.bookingCode || booking.code || booking.bookingNumber || booking.charterCode;
+
+                    return (
+                      <div
+                        key={bookingCodeValue}
+                        onClick={() => handleSelectBooking(bookingCodeValue)}
+                        className={`p-4 border-2 rounded-lg cursor-pointer hover:bg-blue-50 transition-all ${
+                          bookingCodeValue === currentBookingNumber
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-bold text-lg text-blue-700 flex items-center gap-2">
+                              📋 {booking.bookingNumber || booking.code || booking.charterCode}
+                              {isCheckInToday && (
+                                <span className="text-xs px-2 py-1 bg-green-500 text-white rounded-full font-medium">
+                                  {lang === 'el' ? 'ΕΠΙΒΙΒΑΣΗ' : 'CHECK-IN'}
+                                </span>
+                              )}
+                              {isCheckOutToday && (
+                                <span className="text-xs px-2 py-1 bg-orange-500 text-white rounded-full font-medium">
+                                  {lang === 'el' ? 'ΑΠΟΒΙΒΑΣΗ' : 'CHECK-OUT'}
+                                </span>
+                              )}
                             </div>
+                            <div className="text-sm text-gray-600">
+                              🚤 {booking.vesselCategory} - {booking.vesselName || booking.boatName || 'Vessel'}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              📅 {formatDate(booking.checkInDate || booking.startDate)} {booking.checkInTime} → {formatDate(booking.checkOutDate || booking.endDate)} {booking.checkOutTime}
+                            </div>
+                            {booking.skipperFirstName && (
+                              <div className="text-xs text-gray-600 mt-1">
+                                👤 {booking.skipperFirstName} {booking.skipperLastName}
+                              </div>
+                            )}
+                          </div>
+                          {bookingCodeValue === currentBookingNumber && (
+                            <div className="text-green-600 font-bold text-2xl">✓</div>
                           )}
                         </div>
-                        {booking.bookingNumber === currentBookingNumber && (
-                          <div className="text-green-600 font-bold text-2xl">✓</div>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -1961,8 +1998,8 @@ export default function Page1() {
                   onClick={() => setShowAllBookings(!showAllBookings)}
                   className="w-full px-4 py-3 rounded-lg bg-gray-600 text-white hover:bg-gray-700 font-medium transition-all"
                 >
-                  {showAllBookings 
-                    ? `📅 ${t.todayCheckouts}` 
+                  {showAllBookings
+                    ? `📅 ${t.todayBookings}`
                     : `📋 ${t.showAllBookings} (${allBookings.length} ${t.totalBookings})`
                   }
                 </button>

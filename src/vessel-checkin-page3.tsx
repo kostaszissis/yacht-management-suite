@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useContext } from "react";
 import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
 import { savePage3DataHybrid, getPage3DataHybrid, getAllBookings, getPage1DataHybrid } from './services/apiService';
+import { savePageMedia } from './utils/mediaStorage';
 import { DataContext } from './App';
 import {
   compressImage,
@@ -210,6 +211,46 @@ export default function Page3({ onNavigate }) {
   const loadDataForMode = async (bookingNumber, selectedMode) => {
     // 🔥 Try API first, then localStorage fallback
     let loaded = null;
+
+    // 🔥 FIX: When in check-out mode, first load check-in data to get inOk values
+    let checkInSafetyItems = null;
+    let checkInCabinItems = null;
+    let checkInOptionalItems = null;
+
+    if (selectedMode === 'out') {
+      try {
+        const checkInData = await getPage3DataHybrid(bookingNumber, 'in');
+        if (checkInData) {
+          checkInSafetyItems = checkInData.safetyItems;
+          checkInCabinItems = checkInData.cabinItems;
+          checkInOptionalItems = checkInData.optionalItems;
+          console.log('✅ Page 3 check-in data loaded for inOk values');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to load check-in data for inOk merge:', error);
+      }
+    }
+
+    // Helper function to merge inOk from check-in data with current mode data
+    const mergeInOkData = (currentItems, checkInItemsData, defaultKeys) => {
+      if (!currentItems && !checkInItemsData) return null;
+
+      // If we have current mode items, merge inOk from check-in
+      if (currentItems && checkInItemsData) {
+        return currentItems.map(item => {
+          const checkInItem = checkInItemsData.find(ci => ci.key === item.key);
+          return { ...item, inOk: checkInItem?.inOk || item.inOk || false };
+        });
+      }
+
+      // If only check-in items exist (starting checkout), use them as base
+      if (checkInItemsData) {
+        return checkInItemsData.map(item => ({ ...item, out: null }));
+      }
+
+      return currentItems;
+    };
+
     try {
       const apiData = await getPage3DataHybrid(bookingNumber, selectedMode);
       if (apiData) {
@@ -246,12 +287,34 @@ export default function Page3({ onNavigate }) {
         migratedCabinItems = [...migratedCabinItems, ...newItems];
       }
 
-      setSafetyItems(loaded.safetyItems || initItems(SAFETY_KEYS));
-      setCabinItems(migratedCabinItems);
-      setOptionalItems(loaded.optionalItems || initItems(OPTIONAL_KEYS));
+      // 🔥 FIX: Merge inOk values from check-in when in check-out mode
+      const finalSafetyItems = selectedMode === 'out'
+        ? mergeInOkData(loaded.safetyItems, checkInSafetyItems, SAFETY_KEYS) || initItems(SAFETY_KEYS)
+        : loaded.safetyItems || initItems(SAFETY_KEYS);
+
+      const finalCabinItems = selectedMode === 'out'
+        ? mergeInOkData(migratedCabinItems, checkInCabinItems, CABIN_KEYS) || initItems(CABIN_KEYS)
+        : migratedCabinItems;
+
+      const finalOptionalItems = selectedMode === 'out'
+        ? mergeInOkData(loaded.optionalItems, checkInOptionalItems, OPTIONAL_KEYS) || initItems(OPTIONAL_KEYS)
+        : loaded.optionalItems || initItems(OPTIONAL_KEYS);
+
+      setSafetyItems(finalSafetyItems);
+      setCabinItems(finalCabinItems);
+      setOptionalItems(finalOptionalItems);
       setNotes(loaded.notes || "");
       setSignatureImage(loaded.signature || "");
       setToiletWarningAccepted(loaded.toiletWarningAccepted || false);
+    } else if (selectedMode === 'out' && (checkInSafetyItems || checkInCabinItems || checkInOptionalItems)) {
+      // 🔥 FIX: No check-out data yet, but we have check-in data - use it as starting point
+      console.log('🔄 Using check-in data as base for check-out');
+      setSafetyItems(checkInSafetyItems ? checkInSafetyItems.map(item => ({ ...item, out: null })) : initItems(SAFETY_KEYS));
+      setCabinItems(checkInCabinItems ? checkInCabinItems.map(item => ({ ...item, out: null })) : initItems(CABIN_KEYS));
+      setOptionalItems(checkInOptionalItems ? checkInOptionalItems.map(item => ({ ...item, out: null })) : initItems(OPTIONAL_KEYS));
+      setNotes("");
+      setSignatureImage("");
+      setToiletWarningAccepted(false);
     } else {
       setSafetyItems(initItems(SAFETY_KEYS));
       setCabinItems(initItems(CABIN_KEYS));
@@ -470,6 +533,9 @@ export default function Page3({ onNavigate }) {
 
       // Also save via shared function for backward compatibility
       savePage3Data(currentBookingNumber, dataToSave, mode);
+
+      // 🔥 Save media to localStorage separately (API may not store large base64 images)
+      savePageMedia(currentBookingNumber, mode, 'page3', [...safetyItems, ...cabinItems, ...optionalItems]);
 
       if (result.synced) {
         alert(lang === 'el' ? '✅ Αποθηκεύτηκε και συγχρονίστηκε!' : '✅ Saved and synced!');

@@ -4,6 +4,8 @@
 // Sends emails via local Node.js server (localhost:3001)
 // Sends to: Customer, Company, Base Manager, Owners
 
+import { getVATRate } from '../authService';
+
 // Email Server URL (change this when you go to production)
 const EMAIL_SERVER_URL = 'https://yachtmanagementsuite.com/email';
 
@@ -605,10 +607,19 @@ export async function sendCheckOutEmail(
     const warningAccepted = additionalData?.warningAccepted || false;
     const paymentAuthAccepted = additionalData?.paymentAuthAccepted || false;
     const timestamp = additionalData?.timestamp || new Date().toISOString();
+    const photos = additionalData?.photos || {};
+
+    // 🔥 Debug: Log photos info
+    console.log('📧 EMAIL DEBUG - Photos received:', {
+      hasPhotos: Object.keys(photos).length > 0,
+      photoKeys: Object.keys(photos),
+      sampleUrl: Object.values(photos)[0]?.[0]?.substring(0, 80) || 'N/A'
+    });
 
     // Filter damaged items (out === 'not')
     const damagedItems = allItems.filter((item: any) => item.out === 'not');
     const hasDamages = damagedItems.length > 0;
+    const hasPhotos = Object.keys(photos).length > 0;
 
     // Colors matching PDF
     const COLORS = {
@@ -706,6 +717,15 @@ export async function sendCheckOutEmail(
     let damageReportHTML = '';
     if (hasDamages) {
       let totalAmount = 0;
+
+      // Get VAT rate from settings
+      let vatRate = 24;
+      try {
+        vatRate = getVATRate() || 24;
+      } catch (e) {
+        vatRate = 24; // Default to 24% if unable to get setting
+      }
+
       const damageRows = damagedItems.map((item: any) => {
         const qty = item.qty || 1;
         const unitPrice = parseFloat(item.price) || 0;
@@ -721,6 +741,10 @@ export async function sendCheckOutEmail(
             <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.red}; font-weight: bold; text-align: right;">€${total.toFixed(2)}</td>
           </tr>`;
       }).join('');
+
+      // Calculate VAT amounts
+      const vatAmount = totalAmount * (vatRate / 100);
+      const totalWithVat = totalAmount + vatAmount;
 
       damageReportHTML = `
       <!-- Damage Report Section -->
@@ -745,12 +769,58 @@ export async function sendCheckOutEmail(
           </tbody>
         </table>
 
-        <!-- Total with VAT -->
-        <div style="margin-top: 15px; background-color: #FEE2E2; border: 2px solid ${COLORS.red}; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 12px; font-weight: bold; color: ${COLORS.red};">TOTAL WITH VAT:</span>
-          <span style="font-size: 14px; font-weight: bold; color: ${COLORS.red};">€${totalAmount.toFixed(2)}</span>
+        <!-- VAT Calculation Section -->
+        <div style="margin-top: 15px;">
+          <!-- NET TOTAL -->
+          <div style="background-color: #F3F4F6; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid ${COLORS.lightGrey};">
+            <span style="font-size: 11px; font-weight: bold; color: ${COLORS.black};">NET TOTAL:</span>
+            <span style="font-size: 12px; font-weight: bold; color: ${COLORS.black};">€${totalAmount.toFixed(2)}</span>
+          </div>
+          <!-- VAT -->
+          <div style="background-color: #F3F4F6; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid ${COLORS.lightGrey};">
+            <span style="font-size: 11px; font-weight: bold; color: ${COLORS.black};">VAT ${vatRate}%:</span>
+            <span style="font-size: 12px; font-weight: bold; color: ${COLORS.black};">€${vatAmount.toFixed(2)}</span>
+          </div>
+          <!-- TOTAL WITH VAT -->
+          <div style="background-color: #FEE2E2; border: 2px solid ${COLORS.red}; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; font-weight: bold; color: ${COLORS.red};">TOTAL WITH VAT:</span>
+            <span style="font-size: 14px; font-weight: bold; color: ${COLORS.red};">€${totalWithVat.toFixed(2)}</span>
+          </div>
         </div>
       </div>`;
+    }
+
+    // Generate Damage Photos HTML (for check-out)
+    let damagePhotosHTML = '';
+    if (hasPhotos) {
+      const photoEntries = Object.entries(photos);
+      let photoImagesHTML = '';
+
+      photoEntries.forEach(([itemName, photoUrls]: [string, any]) => {
+        const urlArray = Array.isArray(photoUrls) ? photoUrls : [photoUrls];
+        urlArray.forEach((photoUrl: string, idx: number) => {
+          if (photoUrl && typeof photoUrl === 'string' && photoUrl.startsWith('data:image')) {
+            photoImagesHTML += `
+              <div style="display: inline-block; margin: 5px; text-align: center; vertical-align: top;">
+                <img src="${photoUrl}" style="width: 120px; height: 90px; object-fit: cover; border: 1px solid ${COLORS.lightGrey}; border-radius: 4px;" alt="${itemName} ${idx + 1}" />
+                <div style="font-size: 8px; color: ${COLORS.grey}; margin-top: 2px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${itemName}</div>
+              </div>`;
+          }
+        });
+      });
+
+      if (photoImagesHTML) {
+        damagePhotosHTML = `
+        <!-- Damage Photos Section -->
+        <div style="margin-top: 20px;">
+          <div style="display: flex; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 12px; color: ${COLORS.red}; font-weight: bold;">📷 DAMAGE PHOTOS</span>
+          </div>
+          <div style="border: 1px solid ${COLORS.lightGrey}; border-radius: 4px; padding: 10px; background-color: #FAFAFA;">
+            ${photoImagesHTML}
+          </div>
+        </div>`;
+      }
     }
 
     // Generate Payment Authorization HTML (for check-out)
@@ -777,68 +847,6 @@ export async function sendCheckOutEmail(
         <p style="font-size: 9px; color: ${COLORS.grey}; font-style: italic; text-align: center; margin-top: 10px;">
           * The skipper signature below covers this authorization
         </p>
-      </div>`;
-    }
-
-    // Generate Complete Inventory HTML - Show ALL items with status
-    let inventoryHTML = '';
-    if (allItems.length > 0) {
-      // Group by section
-      let currentSection = '';
-      let tableRows = '';
-
-      allItems.forEach((item: any) => {
-        const sectionKey = `${item.page || ''} - ${item.section || ''}`;
-        if (sectionKey !== currentSection && item.page && item.section) {
-          currentSection = sectionKey;
-          tableRows += `
-            <tr>
-              <td colspan="5" style="background-color: ${COLORS.lightGrey}; padding: 6px 8px; font-size: 9px; font-weight: bold; color: ${COLORS.navy};">
-                ${item.page} - ${item.section}
-              </td>
-            </tr>`;
-        }
-
-        // Determine if item is OK or not OK on check-out
-        const isOK = item.out === 'ok' || item.outOk;
-        const statusHTML = isOK
-          ? `<span style="color: ${COLORS.green}; font-size: 14px; font-weight: bold;">✓</span>`
-          : `<span style="color: ${COLORS.red}; font-size: 14px; font-weight: bold;">✗</span>`;
-
-        tableRows += `
-          <tr>
-            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 9px; color: ${COLORS.grey};">${item.page || ''}</td>
-            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.black};">${item.name || ''}</td>
-            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.black}; text-align: center;">${item.qty || 1}</td>
-            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; text-align: center;">
-              ${statusHTML}
-            </td>
-            <td style="padding: 6px 8px; border-bottom: 1px solid ${COLORS.lightGrey}; font-size: 10px; color: ${COLORS.grey}; text-align: right;">€${(parseFloat(item.price) || 0).toFixed(2)}</td>
-          </tr>`;
-      });
-
-      inventoryHTML = `
-      <!-- Complete Inventory Section -->
-      <div style="margin-top: 25px;">
-        <div style="display: flex; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 14px; color: ${COLORS.navy}; font-weight: normal;">Complete Inventory</span>
-        </div>
-        <div style="border-bottom: 2px solid ${COLORS.gold}; margin-bottom: 15px;"></div>
-
-        <table style="width: 100%; border-collapse: collapse;">
-          <thead>
-            <tr>
-              <th style="padding: 6px 8px; text-align: left; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">PAGE</th>
-              <th style="padding: 6px 8px; text-align: left; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">ITEM</th>
-              <th style="padding: 6px 8px; text-align: center; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">QTY</th>
-              <th style="padding: 6px 8px; text-align: center; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">CHECK-OUT</th>
-              <th style="padding: 6px 8px; text-align: right; font-size: 8px; color: ${COLORS.grey}; font-weight: bold; border-bottom: 1px solid ${COLORS.lightGrey};">RATE</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableRows}
-          </tbody>
-        </table>
       </div>`;
     }
 
@@ -1008,7 +1016,7 @@ export async function sendCheckOutEmail(
 
     ${damageReportHTML}
 
-    ${inventoryHTML}
+    ${damagePhotosHTML}
 
     ${notesHTML}
 

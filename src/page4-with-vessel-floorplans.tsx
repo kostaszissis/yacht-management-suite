@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useContext } from "react";
 import { useLocation } from 'react-router-dom';
 import authService from './authService';
 import { savePage4DataHybrid, getPage4DataHybrid, getAllBookings, getFloorplan, getPage1DataHybrid } from './services/apiService';
+import { savePageMedia } from './utils/mediaStorage';
 import { DataContext } from './App';
 import {
   compressImage,
@@ -495,6 +496,40 @@ export default function Page4({ onNavigate }) {
   const loadDataForMode = async (bookingNumber, selectedMode) => {
     // API only - no localStorage fallback
     let data = null;
+
+    // 🔥 FIX: When in check-out mode, first load check-in data to get inOk values
+    let checkInData = null;
+    if (selectedMode === 'out') {
+      try {
+        checkInData = await getPage4DataHybrid(bookingNumber, 'in');
+        if (checkInData) {
+          console.log('✅ Page 4 check-in data loaded for inOk values');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to load check-in data for inOk merge:', error);
+      }
+    }
+
+    // Helper function to merge inOk from check-in data with current mode data
+    const mergeInOkData = (currentItems, checkInItemsData, defaultKeys) => {
+      if (!currentItems && !checkInItemsData) return null;
+
+      // If we have current mode items, merge inOk from check-in
+      if (currentItems && checkInItemsData) {
+        return currentItems.map(item => {
+          const checkInItem = checkInItemsData.find(ci => ci.key === item.key);
+          return { ...item, inOk: checkInItem?.inOk || item.inOk || false };
+        });
+      }
+
+      // If only check-in items exist (starting checkout), use them as base
+      if (checkInItemsData) {
+        return checkInItemsData.map(item => ({ ...item, out: null }));
+      }
+
+      return currentItems;
+    };
+
     try {
       const apiData = await getPage4DataHybrid(bookingNumber, selectedMode);
       if (apiData) {
@@ -506,17 +541,68 @@ export default function Page4({ onNavigate }) {
     }
 
     if (data) {
-      setItems(data.items?.length ? data.items : initItems(KITCHEN_KEYS));
-      setNavItems(data.navItems?.length ? data.navItems : initItems(NAV_KEYS));
-      setSafetyItems(data.safetyItems?.length ? data.safetyItems : initItems(SAFETY_KEYS));
-      setGenItems(data.genItems?.length ? data.genItems : initItems(GEN_KEYS));
-      setDeckItems(data.deckItems?.length ? data.deckItems : initItems(DECK_KEYS));
-      setFdeckItems(data.fdeckItems?.length ? data.fdeckItems : initItems(FDECK_KEYS));
-      setDinghyItems(data.dinghyItems?.length ? data.dinghyItems : initItems(DINGHY_KEYS));
-      setFendersItems(data.fendersItems?.length ? data.fendersItems : initItems(FENDERS_KEYS));
-      setBoathookItems(data.boathookItems?.length ? data.boathookItems : initItems(BOATHOOK_KEYS));
+      // 🔥 FIX: Merge inOk values from check-in when in check-out mode
+      const finalItems = selectedMode === 'out'
+        ? mergeInOkData(data.items, checkInData?.items, KITCHEN_KEYS) || initItems(KITCHEN_KEYS)
+        : data.items?.length ? data.items : initItems(KITCHEN_KEYS);
+
+      const finalNavItems = selectedMode === 'out'
+        ? mergeInOkData(data.navItems, checkInData?.navItems, NAV_KEYS) || initItems(NAV_KEYS)
+        : data.navItems?.length ? data.navItems : initItems(NAV_KEYS);
+
+      const finalSafetyItems = selectedMode === 'out'
+        ? mergeInOkData(data.safetyItems, checkInData?.safetyItems, SAFETY_KEYS) || initItems(SAFETY_KEYS)
+        : data.safetyItems?.length ? data.safetyItems : initItems(SAFETY_KEYS);
+
+      const finalGenItems = selectedMode === 'out'
+        ? mergeInOkData(data.genItems, checkInData?.genItems, GEN_KEYS) || initItems(GEN_KEYS)
+        : data.genItems?.length ? data.genItems : initItems(GEN_KEYS);
+
+      const finalDeckItems = selectedMode === 'out'
+        ? mergeInOkData(data.deckItems, checkInData?.deckItems, DECK_KEYS) || initItems(DECK_KEYS)
+        : data.deckItems?.length ? data.deckItems : initItems(DECK_KEYS);
+
+      const finalFdeckItems = selectedMode === 'out'
+        ? mergeInOkData(data.fdeckItems, checkInData?.fdeckItems, FDECK_KEYS) || initItems(FDECK_KEYS)
+        : data.fdeckItems?.length ? data.fdeckItems : initItems(FDECK_KEYS);
+
+      const finalDinghyItems = selectedMode === 'out'
+        ? mergeInOkData(data.dinghyItems, checkInData?.dinghyItems, DINGHY_KEYS) || initItems(DINGHY_KEYS)
+        : data.dinghyItems?.length ? data.dinghyItems : initItems(DINGHY_KEYS);
+
+      const finalFendersItems = selectedMode === 'out'
+        ? mergeInOkData(data.fendersItems, checkInData?.fendersItems, FENDERS_KEYS) || initItems(FENDERS_KEYS)
+        : data.fendersItems?.length ? data.fendersItems : initItems(FENDERS_KEYS);
+
+      const finalBoathookItems = selectedMode === 'out'
+        ? mergeInOkData(data.boathookItems, checkInData?.boathookItems, BOATHOOK_KEYS) || initItems(BOATHOOK_KEYS)
+        : data.boathookItems?.length ? data.boathookItems : initItems(BOATHOOK_KEYS);
+
+      setItems(finalItems);
+      setNavItems(finalNavItems);
+      setSafetyItems(finalSafetyItems);
+      setGenItems(finalGenItems);
+      setDeckItems(finalDeckItems);
+      setFdeckItems(finalFdeckItems);
+      setDinghyItems(finalDinghyItems);
+      setFendersItems(finalFendersItems);
+      setBoathookItems(finalBoathookItems);
       setNotes(data.notes || "");
       setSignatureImage(data.signatureImage || "");
+    } else if (selectedMode === 'out' && checkInData) {
+      // 🔥 FIX: No check-out data yet, but we have check-in data - use it as starting point
+      console.log('🔄 Using check-in data as base for check-out');
+      setItems(checkInData.items ? checkInData.items.map(item => ({ ...item, out: null })) : initItems(KITCHEN_KEYS));
+      setNavItems(checkInData.navItems ? checkInData.navItems.map(item => ({ ...item, out: null })) : initItems(NAV_KEYS));
+      setSafetyItems(checkInData.safetyItems ? checkInData.safetyItems.map(item => ({ ...item, out: null })) : initItems(SAFETY_KEYS));
+      setGenItems(checkInData.genItems ? checkInData.genItems.map(item => ({ ...item, out: null })) : initItems(GEN_KEYS));
+      setDeckItems(checkInData.deckItems ? checkInData.deckItems.map(item => ({ ...item, out: null })) : initItems(DECK_KEYS));
+      setFdeckItems(checkInData.fdeckItems ? checkInData.fdeckItems.map(item => ({ ...item, out: null })) : initItems(FDECK_KEYS));
+      setDinghyItems(checkInData.dinghyItems ? checkInData.dinghyItems.map(item => ({ ...item, out: null })) : initItems(DINGHY_KEYS));
+      setFendersItems(checkInData.fendersItems ? checkInData.fendersItems.map(item => ({ ...item, out: null })) : initItems(FENDERS_KEYS));
+      setBoathookItems(checkInData.boathookItems ? checkInData.boathookItems.map(item => ({ ...item, out: null })) : initItems(BOATHOOK_KEYS));
+      setNotes("");
+      setSignatureImage("");
     } else {
       setItems(initItems(KITCHEN_KEYS));
       setNavItems(initItems(NAV_KEYS));
@@ -858,6 +944,10 @@ export default function Page4({ onNavigate }) {
       notes,
       signatureImage
     };
+
+    // 🔥 Save media to localStorage separately (API may not store large base64 images)
+    const allPage4Items = [...items, ...navItems, ...safetyItems, ...genItems, ...deckItems, ...fdeckItems, ...dinghyItems, ...fendersItems, ...boathookItems];
+    savePageMedia(currentBookingNumber, mode, 'page4', allPage4Items);
 
     // ✅ Save to Page 4 API using hybrid function
     try {
