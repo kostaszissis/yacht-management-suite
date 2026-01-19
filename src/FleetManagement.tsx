@@ -4291,92 +4291,10 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
               </div>
             )}
 
-            {/* 🔥 FIX 37: Dedicated Owner Details Section */}
-            <div className="mb-6 p-4 bg-gradient-to-r from-cyan-900/50 to-blue-900/50 rounded-lg border-2 border-cyan-500">
-              <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
-                👤 Στοιχεία Ιδιοκτήτη
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Owner Name */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-1">Όνομα Ιδιοκτήτη</label>
-                  <input
-                    type="text"
-                    value={boatDetails['Όνομα Ιδιοκτήτη'] || ''}
-                    onChange={(e) => handleDetailChange('Όνομα Ιδιοκτήτη', e.target.value)}
-                    disabled={!canEdit}
-                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
-                    placeholder="Ονοματεπώνυμο"
-                  />
-                </div>
-                {/* Owner Email */}
-                <div>
-                  <label className="block text-sm font-semibold text-cyan-300 mb-1">Email Ιδιοκτήτη ⭐</label>
-                  <input
-                    type="email"
-                    value={boatDetails['Email Ιδιοκτήτη'] || ''}
-                    onChange={(e) => handleDetailChange('Email Ιδιοκτήτη', e.target.value)}
-                    disabled={!canEdit}
-                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border-2 border-cyan-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-400 focus:outline-none'}`}
-                    placeholder="owner@email.com"
-                  />
-                </div>
-                {/* Company */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-1">Εταιρεία</label>
-                  <input
-                    type="text"
-                    value={boatDetails['Εταιρεία'] || ''}
-                    onChange={(e) => handleDetailChange('Εταιρεία', e.target.value)}
-                    disabled={!canEdit}
-                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
-                    placeholder="Εταιρεία ΕΠΕ"
-                  />
-                </div>
-                {/* Tax ID */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-1">ΑΦΜ</label>
-                  <input
-                    type="text"
-                    value={boatDetails['ΑΦΜ'] || ''}
-                    onChange={(e) => handleDetailChange('ΑΦΜ', e.target.value)}
-                    disabled={!canEdit}
-                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
-                    placeholder="123456789"
-                  />
-                </div>
-                {/* Phone */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-1">Τηλέφωνο</label>
-                  <input
-                    type="tel"
-                    value={boatDetails['Τηλέφωνο Ιδιοκτήτη'] || ''}
-                    onChange={(e) => handleDetailChange('Τηλέφωνο Ιδιοκτήτη', e.target.value)}
-                    disabled={!canEdit}
-                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
-                    placeholder="+30 697 1234567"
-                  />
-                </div>
-                {/* Address */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-300 mb-1">Διεύθυνση</label>
-                  <input
-                    type="text"
-                    value={boatDetails['Διεύθυνση Ιδιοκτήτη'] || ''}
-                    onChange={(e) => handleDetailChange('Διεύθυνση Ιδιοκτήτη', e.target.value)}
-                    disabled={!canEdit}
-                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
-                    placeholder="Οδός, Πόλη, ΤΚ"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Other Technical Details */}
-            <h4 className="text-md font-bold text-gray-400 mb-3 mt-4">📋 Τεχνικά Στοιχεία</h4>
+            {/* Technical Details - Owner details moved to ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ section */}
+            <h4 className="text-md font-bold text-gray-400 mb-3">📋 Τεχνικά Στοιχεία</h4>
             <div className="space-y-4">
               {Object.entries(boatDetails)
-                .filter(([field]) => !['Όνομα Ιδιοκτήτη', 'Email Ιδιοκτήτη', 'Εταιρεία', 'ΑΦΜ', 'Τηλέφωνο Ιδιοκτήτη', 'Διεύθυνση Ιδιοκτήτη'].includes(field))
                 .map(([field, value]) => (
                 <div key={field} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
                   <div className="flex justify-between items-start mb-2">
@@ -4458,14 +4376,24 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
 // =====================================================
 function OwnerDetailsPage({ boat, navigate, showMessage }) {
   const [ownerDetails, setOwnerDetails] = useState({
-    'Όνομα Ιδιοκτήτη': '',
+    'Όνομα': '',
+    'Επώνυμο': '',
     'Email Ιδιοκτήτη': '',
+    'Email Εταιρείας': '',
     'Εταιρεία': '',
     'ΑΦΜ': '',
     'Τηλέφωνο Ιδιοκτήτη': '',
-    'Διεύθυνση Ιδιοκτήτη': ''
+    'Οδός': '',
+    'Αριθμός': '',
+    'Πόλη': '',
+    'Τ.Κ.': ''
   });
   const [ownerCode, setOwnerCode] = useState(''); // 🔥 FIX 37B: Track owner code for sync
+  const [showAddField, setShowAddField] = useState(false);
+  const [newFieldName, setNewFieldName] = useState('');
+
+  // Fixed fields that cannot be deleted
+  const FIXED_FIELDS = ['Όνομα', 'Επώνυμο', 'Email Ιδιοκτήτη', 'Email Εταιρείας', 'Εταιρεία', 'ΑΦΜ', 'Τηλέφωνο Ιδιοκτήτη', 'Οδός', 'Αριθμός', 'Πόλη', 'Τ.Κ.'];
 
   const canEdit = authService.canManageFleet();
 
@@ -4491,12 +4419,17 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
       if (ownerFromAuth) {
         setOwnerCode(ownerFromAuth.code || '');
         setOwnerDetails({
-          'Όνομα Ιδιοκτήτη': ownerFromAuth.ownerName || '',
+          'Όνομα': ownerFromAuth.ownerFirstName || '',
+          'Επώνυμο': ownerFromAuth.ownerLastName || '',
           'Email Ιδιοκτήτη': ownerFromAuth.ownerEmail || '',
+          'Email Εταιρείας': ownerFromAuth.ownerCompanyEmail || '',
           'Εταιρεία': ownerFromAuth.ownerCompany || '',
           'ΑΦΜ': ownerFromAuth.ownerTaxId || '',
           'Τηλέφωνο Ιδιοκτήτη': ownerFromAuth.ownerPhone || '',
-          'Διεύθυνση Ιδιοκτήτη': ownerFromAuth.ownerAddress || ''
+          'Οδός': ownerFromAuth.ownerStreet || '',
+          'Αριθμός': ownerFromAuth.ownerNumber || '',
+          'Πόλη': ownerFromAuth.ownerCity || '',
+          'Τ.Κ.': ownerFromAuth.ownerPostalCode || ''
         });
         console.log('✅ Loaded owner details from authService for boat:', boat.id);
         return;
@@ -4506,7 +4439,24 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
       const key = `fleet_${boat.id}_ownerDetails`;
       const stored = localStorage.getItem(key);
       if (stored) {
-        setOwnerDetails(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        // Handle backwards compatibility - migrate old fields to new format
+        if (parsed['Όνομα Ιδιοκτήτη'] && !parsed['Όνομα']) {
+          // Old format with single name field
+          parsed['Όνομα'] = '';
+          parsed['Επώνυμο'] = '';
+        }
+        if (!parsed['Email Εταιρείας']) {
+          parsed['Email Εταιρείας'] = '';
+        }
+        if (parsed['Διεύθυνση Ιδιοκτήτη'] && !parsed['Οδός']) {
+          // Old format - keep as-is but add empty new fields
+          parsed['Οδός'] = '';
+          parsed['Αριθμός'] = '';
+          parsed['Πόλη'] = '';
+          parsed['Τ.Κ.'] = '';
+        }
+        setOwnerDetails(parsed);
         console.log('✅ Loaded owner details from localStorage for boat:', boat.id);
       }
     } catch (e) {
@@ -4529,12 +4479,17 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
       // 🔥 FIX 37B: Also sync to authService if owner code exists
       if (ownerCode) {
         authService.updateOwnerCode(ownerCode, {
-          ownerName: ownerDetails['Όνομα Ιδιοκτήτη'],
+          ownerFirstName: ownerDetails['Όνομα'],
+          ownerLastName: ownerDetails['Επώνυμο'],
           ownerEmail: ownerDetails['Email Ιδιοκτήτη'],
+          ownerCompanyEmail: ownerDetails['Email Εταιρείας'],
           ownerCompany: ownerDetails['Εταιρεία'],
           ownerTaxId: ownerDetails['ΑΦΜ'],
           ownerPhone: ownerDetails['Τηλέφωνο Ιδιοκτήτη'],
-          ownerAddress: ownerDetails['Διεύθυνση Ιδιοκτήτη']
+          ownerStreet: ownerDetails['Οδός'],
+          ownerNumber: ownerDetails['Αριθμός'],
+          ownerCity: ownerDetails['Πόλη'],
+          ownerPostalCode: ownerDetails['Τ.Κ.']
         });
         console.log('✅ Synced owner details to authService for owner:', ownerCode);
       }
@@ -4551,6 +4506,41 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
     if (!canEdit) return;
     setOwnerDetails(prev => ({ ...prev, [field]: value }));
   };
+
+  const handleAddField = () => {
+    if (!canEdit) return;
+    if (!newFieldName.trim()) {
+      showMessage('❌ Εισάγετε όνομα πεδίου!', 'error');
+      return;
+    }
+    if (ownerDetails.hasOwnProperty(newFieldName.trim())) {
+      showMessage('❌ Το πεδίο υπάρχει ήδη!', 'error');
+      return;
+    }
+    setOwnerDetails(prev => ({ ...prev, [newFieldName.trim()]: '' }));
+    setNewFieldName('');
+    setShowAddField(false);
+    showMessage('✅ Το πεδίο προστέθηκε!', 'success');
+  };
+
+  const handleRemoveField = (field) => {
+    if (!canEdit) return;
+    if (FIXED_FIELDS.includes(field)) {
+      showMessage('❌ Δεν μπορείτε να διαγράψετε αυτό το πεδίο!', 'error');
+      return;
+    }
+    if (window.confirm(`Διαγραφή του πεδίου "${field}";`)) {
+      setOwnerDetails(prev => {
+        const updated = { ...prev };
+        delete updated[field];
+        return updated;
+      });
+      showMessage('✅ Το πεδίο διαγράφηκε!', 'success');
+    }
+  };
+
+  // Get custom fields (non-fixed fields)
+  const customFields = Object.entries(ownerDetails).filter(([field]) => !FIXED_FIELDS.includes(field));
 
   return (
     <div className="flex flex-col h-full bg-gray-900">
@@ -4580,17 +4570,32 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
           </h3>
 
           <div className="space-y-4">
-            {/* Owner Name */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Όνομα Ιδιοκτήτη</label>
-              <input
-                type="text"
-                value={ownerDetails['Όνομα Ιδιοκτήτη'] || ''}
-                onChange={(e) => handleChange('Όνομα Ιδιοκτήτη', e.target.value)}
-                disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
-                placeholder="Ονοματεπώνυμο ιδιοκτήτη"
-              />
+            {/* Owner Name - Split into First and Last Name */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* First Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-2">Όνομα</label>
+                <input
+                  type="text"
+                  value={ownerDetails['Όνομα'] || ''}
+                  onChange={(e) => handleChange('Όνομα', e.target.value)}
+                  disabled={!canEdit}
+                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                  placeholder="Όνομα"
+                />
+              </div>
+              {/* Last Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-2">Επώνυμο</label>
+                <input
+                  type="text"
+                  value={ownerDetails['Επώνυμο'] || ''}
+                  onChange={(e) => handleChange('Επώνυμο', e.target.value)}
+                  disabled={!canEdit}
+                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                  placeholder="Επώνυμο"
+                />
+              </div>
             </div>
 
             {/* Owner Email */}
@@ -4605,6 +4610,19 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                 placeholder="owner@email.com"
               />
               <p className="text-xs text-cyan-400 mt-1">Για αποστολή ειδοποιήσεων ναύλων</p>
+            </div>
+
+            {/* Company Email */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-300 mb-2">Email Εταιρείας</label>
+              <input
+                type="email"
+                value={ownerDetails['Email Εταιρείας'] || ''}
+                onChange={(e) => handleChange('Email Εταιρείας', e.target.value)}
+                disabled={!canEdit}
+                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                placeholder="company@email.com"
+              />
             </div>
 
             {/* Company */}
@@ -4646,18 +4664,136 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
               />
             </div>
 
-            {/* Address */}
-            <div>
+            {/* Address - Split into 4 fields */}
+            <div className="space-y-3">
               <label className="block text-sm font-semibold text-gray-300 mb-2">Διεύθυνση</label>
-              <textarea
-                value={ownerDetails['Διεύθυνση Ιδιοκτήτη'] || ''}
-                onChange={(e) => handleChange('Διεύθυνση Ιδιοκτήτη', e.target.value)}
-                disabled={!canEdit}
-                rows={3}
-                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
-                placeholder="Οδός, Αριθμός, Πόλη, ΤΚ"
-              />
+
+              {/* Street */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Οδός</label>
+                <input
+                  type="text"
+                  value={ownerDetails['Οδός'] || ''}
+                  onChange={(e) => handleChange('Οδός', e.target.value)}
+                  disabled={!canEdit}
+                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                  placeholder="π.χ. Λεωφόρος Αλεξάνδρας"
+                />
+              </div>
+
+              {/* Number and City in same row */}
+              <div className="grid grid-cols-2 gap-3">
+                {/* Number */}
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Αριθμός</label>
+                  <input
+                    type="text"
+                    value={ownerDetails['Αριθμός'] || ''}
+                    onChange={(e) => handleChange('Αριθμός', e.target.value)}
+                    disabled={!canEdit}
+                    className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                    placeholder="π.χ. 123"
+                  />
+                </div>
+
+                {/* Postal Code */}
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Τ.Κ.</label>
+                  <input
+                    type="text"
+                    value={ownerDetails['Τ.Κ.'] || ''}
+                    onChange={(e) => handleChange('Τ.Κ.', e.target.value)}
+                    disabled={!canEdit}
+                    className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                    placeholder="π.χ. 11523"
+                  />
+                </div>
+              </div>
+
+              {/* City */}
+              <div>
+                <label className="block text-xs text-gray-400 mb-1">Πόλη</label>
+                <input
+                  type="text"
+                  value={ownerDetails['Πόλη'] || ''}
+                  onChange={(e) => handleChange('Πόλη', e.target.value)}
+                  disabled={!canEdit}
+                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                  placeholder="π.χ. Αθήνα"
+                />
+              </div>
             </div>
+
+            {/* Custom Fields */}
+            {customFields.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-cyan-700">
+                <h4 className="text-sm font-bold text-cyan-300 mb-3">📝 Επιπλέον Πεδία</h4>
+                <div className="space-y-3">
+                  {customFields.map(([field, value]) => (
+                    <div key={field} className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-sm font-semibold text-gray-300">{field}</label>
+                        {canEdit && (
+                          <button
+                            onClick={() => handleRemoveField(field)}
+                            className="text-red-400 hover:text-red-300 text-sm px-2 py-1"
+                          >
+                            🗑️ Διαγραφή
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={value || ''}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        disabled={!canEdit}
+                        className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                        placeholder="Εισάγετε τιμή..."
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Add New Field Button */}
+            {canEdit && !showAddField && (
+              <button
+                onClick={() => setShowAddField(true)}
+                className="w-full mt-4 bg-gray-700 hover:bg-gray-600 text-cyan-400 font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-gray-600"
+              >
+                <span>➕</span><span>Προσθήκη Νέου Πεδίου</span>
+              </button>
+            )}
+
+            {/* Add New Field Form */}
+            {canEdit && showAddField && (
+              <div className="mt-4 p-4 bg-gray-800 rounded-lg border-2 border-cyan-600">
+                <h4 className="text-sm font-bold text-cyan-300 mb-3">➕ Νέο Πεδίο</h4>
+                <input
+                  type="text"
+                  value={newFieldName}
+                  onChange={(e) => setNewFieldName(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-cyan-500 focus:outline-none mb-3"
+                  placeholder="Όνομα πεδίου (π.χ. ΙΒΑΝ, Σημειώσεις)"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddField}
+                    className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg"
+                  >
+                    ✅ Προσθήκη
+                  </button>
+                  <button
+                    onClick={() => { setShowAddField(false); setNewFieldName(''); }}
+                    className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg"
+                  >
+                    ❌ Ακύρωση
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

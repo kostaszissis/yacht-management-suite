@@ -28,12 +28,20 @@ export interface OwnerCode {
   boatIds: string[];
   enabled: boolean;
   // 🔥 FIX 38: Owner details for charter emails
-  ownerName?: string;
+  ownerFirstName?: string;
+  ownerLastName?: string;
+  ownerName?: string; // Legacy field for backwards compatibility
   ownerEmail?: string;
+  ownerCompanyEmail?: string;
   ownerCompany?: string;
   ownerTaxId?: string;
   ownerPhone?: string;
-  ownerAddress?: string;
+  // Address fields (split into separate fields)
+  ownerStreet?: string;
+  ownerNumber?: string;
+  ownerCity?: string;
+  ownerPostalCode?: string;
+  ownerAddress?: string; // Legacy field for backwards compatibility
 }
 
 // Activity Log Structure

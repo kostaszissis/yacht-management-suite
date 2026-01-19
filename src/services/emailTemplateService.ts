@@ -126,6 +126,8 @@ interface OwnerData {
   name?: string;
   ownerCompany?: string;
   email?: string;
+  companyEmail?: string;
+  ownerCompanyEmail?: string;
 }
 
 /**
@@ -547,6 +549,13 @@ export const sendOwnerCharterEmail = async (
     if (ownerEmail && !recipients.includes(ownerEmail)) {
       recipients.push(ownerEmail);
       console.log('📧 Added owner email to recipients:', ownerEmail);
+    }
+
+    // Add company email if it exists (avoid duplicates)
+    const companyEmail = owner?.companyEmail || owner?.ownerCompanyEmail;
+    if (companyEmail && !recipients.includes(companyEmail)) {
+      recipients.push(companyEmail);
+      console.log('📧 Added company email to recipients:', companyEmail);
     }
 
     // Email subject based on status
