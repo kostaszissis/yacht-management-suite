@@ -275,7 +275,7 @@ export async function loadCharterCrew(bookingNumber: string) {
  * Update charter payments
  * @param bookingNumber - The booking number/code
  * @param payments - Array of payment objects {date, amount}
- * @param paymentStatus - Payment status (Pending, Partial, Paid)
+ * @param paymentStatus - Payment status in Greek (ΑΝΕΞΟΦΛΗΤΟ, ΜΕΡΙΚΗ ΠΛΗΡΩΜΗ, ΕΞΟΦΛΗΜΕΝΟ)
  */
 export async function updateCharterPayments(
   bookingNumber: string,
@@ -300,20 +300,31 @@ export async function updateCharterPayments(
   };
   console.log('💰 Updated bookingData:', updatedBookingData);
 
-  // 🔥 FIX 21: Encode booking number for URL (handles spaces in "CHARTER PARTY NO 2")
+  // 🔥 FIX: Send both bookingData (with payments inside) AND payment_status as top-level field
   const encodedBookingNumber = encodeURIComponent(bookingNumber);
   const response = await fetch(`${API_URL}/bookings.php?booking_number=${encodedBookingNumber}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bookingData: updatedBookingData })
+    body: JSON.stringify({
+      bookingData: updatedBookingData,
+      payment_status: paymentStatus  // Top-level field for database
+    })
   });
 
   console.log('💰 API response status:', response.status);
+  const responseText = await response.text();
+  console.log('💰 API response body:', responseText);
+
   if (!response.ok) {
     if (response.status === 404) throw new Error('Booking not found');
-    throw new Error('Failed to update payments');
+    throw new Error(`Failed to update payments: ${responseText}`);
   }
-  return response.json();
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    return { success: true };
+  }
 }
 
 /**

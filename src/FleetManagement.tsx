@@ -6800,9 +6800,12 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     console.log('💰 Found charter:', charter);
 
     const totalAmount = charter?.amount || 0;
-    let newPaymentStatus = "Pending";
-    if (totalPaid >= totalAmount) newPaymentStatus = "Paid";
-    else if (totalPaid > 0) newPaymentStatus = "Partial";
+    // 🔥 FIX: Use Greek payment status values
+    let newPaymentStatus = "ΑΝΕΞΟΦΛΗΤΟ";  // unpaid - default
+    if (totalPaid >= totalAmount && totalAmount > 0) newPaymentStatus = "ΕΞΟΦΛΗΜΕΝΟ";  // paid
+    else if (totalPaid > 0) newPaymentStatus = "ΜΕΡΙΚΗ ΠΛΗΡΩΜΗ";  // partial
+
+    console.log('💰 Payment calculation:', { totalPaid, totalAmount, newPaymentStatus });
 
     // Update local state first
     const updated = items.map((item) => item.id === charterId ? { ...item, payments: newPayments, paymentStatus: newPaymentStatus, updatedBy: authService.getCurrentUser()?.name, updatedAt: new Date().toISOString() } : item);
@@ -6810,7 +6813,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     setSelectedCharter((prev) => ({ ...prev, payments: newPayments, paymentStatus: newPaymentStatus }));
     console.log('💰 Local state updated');
 
-    // 🔥 FIX 21: Save to API for multi-device sync
+    // 🔥 FIX: Save to API for multi-device sync
     const bookingCode = charter?.code || charterId;
     console.log('💰 Saving to API with bookingCode:', bookingCode);
     try {
@@ -7497,11 +7500,27 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
   };
   
   const savePayments = async () => {
+    console.log('💰 savePayments called:', {
+      charterId: charter.id,
+      charterCode: charter.code,
+      payments,
+      charterAmount: charter.amount
+    });
+
+    if (!canEditCharters) {
+      showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
+      return;
+    }
+
+    setIsProcessing(true);
     try {
       await onUpdatePayments(charter.id, payments);
+      console.log('✅ savePayments completed successfully');
     } catch (error) {
       console.error('❌ Error saving payments:', error);
       showMessage('❌ Σφάλμα αποθήκευσης πληρωμών', 'error');
+    } finally {
+      setIsProcessing(false);
     }
   };
   
@@ -7919,8 +7938,10 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
               <input type="date" value={newPayDate} onChange={(e) => setNewPayDate(e.target.value)} className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
               <input type="number" step="0.01" value={newPayAmount} onChange={(e) => setNewPayAmount(e.target.value)} placeholder="Ποσό" className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
             </div>
-            <button type="button" onClick={addPayment} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-sm mb-3">Προσθήκη Πληρωμής</button>
-            <button type="button" onClick={savePayments} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg">Αποθήκευση Πληρωμών</button>
+            <button type="button" onClick={addPayment} disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-2 px-3 rounded-lg text-sm mb-3">Προσθήκη Πληρωμής</button>
+            <button type="button" onClick={savePayments} disabled={isProcessing} className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-bold py-3 px-4 rounded-lg">
+              {isProcessing ? '⏳ Αποθήκευση...' : 'Αποθήκευση Πληρωμών'}
+            </button>
           </div>
         )}
 
