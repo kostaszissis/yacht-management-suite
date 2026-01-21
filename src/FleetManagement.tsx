@@ -7471,26 +7471,47 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
   // 🔥 FIX 28: Inline status messages inside modal
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'loading' | 'success' | 'error' } | null>(null);
 
+  // 🔥 DEBUG: Log when payments state changes
+  useEffect(() => {
+    console.log('💳 [useEffect] payments state changed:', payments);
+  }, [payments]);
+
   const addPayment = () => {
-    console.log('💳 addPayment clicked:', { newPayDate, newPayAmount, canEditCharters });
-    if (!canEditCharters) { showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error'); return; }
+    console.log('💳 ========== ADD PAYMENT CLICKED ==========');
+    console.log('💳 Input values:', { newPayDate, newPayAmount });
+    console.log('💳 Permissions:', { canEditCharters });
+    console.log('💳 Current payments before add:', payments);
+
+    if (!canEditCharters) {
+      console.log('💳 ❌ BLOCKED: canEditCharters is false');
+      showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
+      return;
+    }
+
     const amount = parseFloat(newPayAmount) || 0;
     console.log('💳 Parsed amount:', amount);
+
     if (!newPayDate) {
-      console.log('💳 No date selected');
+      console.log('💳 ❌ BLOCKED: No date selected');
       showMessage('❌ Επιλέξτε ημερομηνία πληρωμής', 'error');
       return;
     }
     if (amount <= 0) {
-      console.log('💳 Invalid amount');
+      console.log('💳 ❌ BLOCKED: Invalid amount (<=0)');
       showMessage('❌ Εισάγετε έγκυρο ποσό πληρωμής', 'error');
       return;
     }
-    const newPayments = [...payments, { date: newPayDate, amount: amount }];
-    console.log('💳 New payments list:', newPayments);
+
+    const newPayment = { date: newPayDate, amount: amount };
+    const newPayments = [...payments, newPayment];
+    console.log('💳 ✅ Adding new payment:', newPayment);
+    console.log('💳 ✅ New payments array:', newPayments);
+
     setPayments(newPayments);
     setNewPayDate('');
     setNewPayAmount('');
+
+    console.log('💳 ✅ State updated, payments should now show:', newPayments.length, 'items');
     showMessage('✅ Πληρωμή προστέθηκε - Πατήστε "Αποθήκευση" για να σωθεί', 'success');
   };
   
@@ -7920,11 +7941,14 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
         {canEditCharters && canViewFinancials && (
           <div className="bg-gray-900 p-4 rounded-lg mb-4 border border-gray-700">
-            <h3 className="text-xl font-bold text-yellow-400 mb-3">Διαχείριση Πληρωμών</h3>
+            <h3 className="text-xl font-bold text-yellow-400 mb-3">Διαχείριση Πληρωμών ({payments.length} καταχωρήσεις)</h3>
             <div className="space-y-2 text-base mb-4">
               <div className="flex justify-between"><span className="text-gray-300">Σύνολο Πληρωμένο:</span><span className="font-bold text-green-400">{totalPaid.toFixed(2)}€</span></div>
               <div className="flex justify-between"><span className="text-gray-300">Υπόλοιπο:</span><span className="font-bold text-red-400">{balance.toFixed(2)}€</span></div>
             </div>
+            {payments.length === 0 && (
+              <div className="text-gray-500 text-sm mb-3 text-center italic">Δεν υπάρχουν καταχωρημένες πληρωμές</div>
+            )}
             <div className="space-y-2 mb-3">
               {payments.map((p, index) => (
                 <div key={index} className="flex justify-between items-center bg-gray-700 p-2 rounded border border-gray-600">
@@ -7935,8 +7959,8 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
               ))}
             </div>
             <div className="flex space-x-2 mb-3">
-              <input type="date" value={newPayDate} onChange={(e) => setNewPayDate(e.target.value)} className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
-              <input type="number" step="0.01" value={newPayAmount} onChange={(e) => setNewPayAmount(e.target.value)} placeholder="Ποσό" className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
+              <input type="date" value={newPayDate} onChange={(e) => { console.log('📅 Date changed:', e.target.value); setNewPayDate(e.target.value); }} className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
+              <input type="number" step="0.01" value={newPayAmount} onChange={(e) => { console.log('💵 Amount changed:', e.target.value); setNewPayAmount(e.target.value); }} placeholder="Ποσό" className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
             </div>
             <button type="button" onClick={addPayment} disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-2 px-3 rounded-lg text-sm mb-3">Προσθήκη Πληρωμής</button>
             <button type="button" onClick={savePayments} disabled={isProcessing} className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-bold py-3 px-4 rounded-lg">
