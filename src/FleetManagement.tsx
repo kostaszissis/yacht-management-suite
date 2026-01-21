@@ -167,32 +167,61 @@ const icons = {
 let globalShowMessage = (text, type) => console.log(text, type);
 
 // =====================================================
-// PAYMENT STATUS HELPER - Κείμενο αντί για emojis
+// PAYMENT STATUS HELPER - Supports both English and Greek values
 // =====================================================
-const getPaymentStatusInfo = (paymentStatus) => {
+const getPaymentStatusInfo = (paymentStatus: string | undefined) => {
+  // Handle both English and Greek payment status values
   switch (paymentStatus) {
     case 'Paid':
-      return { 
-        text: 'ΕΞΟΦΛΗΘΗΚΕ', 
+    case 'ΕΞΟΦΛΗΜΕΝΟ':
+      return {
+        text: 'ΕΞΟΦΛΗΜΕΝΟ',
         color: 'text-green-400',
-        showLight: false 
+        showLight: false,
+        lightBlink: false,
+        needsPayment: false
       };
     case 'Partial':
-      return { 
-        text: 'ΜΕΡΙΚΩΣ', 
+    case 'ΜΕΡΙΚΗ ΠΛΗΡΩΜΗ':
+      return {
+        text: 'ΜΕΡΙΚΗ ΠΛΗΡΩΜΗ',
         color: 'text-orange-400',
         showLight: true,
-        lightBlink: false 
+        lightBlink: false,
+        needsPayment: true
       };
     case 'Pending':
+    case 'ΑΝΕΞΟΦΛΗΤΟ':
     default:
-      return { 
-        text: 'ΑΝΕΞΟΦΛΗΤΟ', 
+      return {
+        text: 'ΑΝΕΞΟΦΛΗΤΟ',
         color: 'text-red-400',
         showLight: true,
-        lightBlink: true 
+        lightBlink: true,
+        needsPayment: true
       };
   }
+};
+
+// =====================================================
+// HELPER: Check if charter needs urgent payment attention
+// Returns true if charter is unpaid/partial AND within 30 days of start
+// =====================================================
+const needsUrgentPaymentAttention = (charter: any) => {
+  if (!charter?.startDate) return false;
+
+  const paymentInfo = getPaymentStatusInfo(charter.paymentStatus);
+  if (!paymentInfo.needsPayment) return false; // Already paid
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startDate = new Date(charter.startDate);
+  startDate.setHours(0, 0, 0, 0);
+
+  const daysUntilStart = Math.ceil((startDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Needs attention if within 30 days (including past dates that haven't been paid)
+  return daysUntilStart <= 30;
 };
 
 // =====================================================
@@ -7382,16 +7411,38 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
         </button>
       </div>
 
+      {/* 🔥 CSS Animation for urgent payment attention */}
+      <style>{`
+        @keyframes blink-urgent {
+          0%, 50% { background-color: rgba(239, 68, 68, 0.3); border-color: rgba(239, 68, 68, 0.8); }
+          51%, 100% { background-color: rgba(31, 41, 55, 1); border-color: rgba(55, 65, 81, 1); }
+        }
+        .animate-blink-urgent {
+          animation: blink-urgent 1.5s ease-in-out infinite;
+        }
+      `}</style>
+
       <div className="space-y-3">
         {filteredItems.map(charter => {
           const totalPaid = (charter.payments || []).reduce((sum, p) => sum + p.amount, 0);
           const paymentInfo = getPaymentStatusInfo(charter.paymentStatus);
-          
+          const urgentPayment = needsUrgentPaymentAttention(charter);
+
           return (
-            <button key={charter.id} onClick={() => handleSelectCharter(charter)} className={`w-full text-left bg-gray-800 p-4 rounded-lg hover:bg-gray-700 transition duration-200 border border-gray-700 hover:border-teal-500 relative`}>
-              {/* 🔥 Red light - μόνο για ΑΝΕΞΟΦΛΗΤΟ */}
+            <button
+              key={charter.id}
+              onClick={() => handleSelectCharter(charter)}
+              className={`w-full text-left bg-gray-800 p-4 rounded-lg hover:bg-gray-700 transition duration-200 border border-gray-700 hover:border-teal-500 relative ${urgentPayment ? 'animate-blink-urgent' : ''}`}
+            >
+              {/* 🔥 Red light - μόνο για ΑΝΕΞΟΦΛΗΤΟ/ΜΕΡΙΚΗ ΠΛΗΡΩΜΗ */}
               {paymentInfo.showLight && (
                 <div className={`absolute top-2 right-2 w-4 h-4 bg-red-500 rounded-full shadow-lg shadow-red-500/50 ${paymentInfo.lightBlink ? 'animate-pulse' : ''}`}></div>
+              )}
+              {/* 🔥 Urgent payment badge */}
+              {urgentPayment && (
+                <div className="absolute top-2 left-2 px-2 py-0.5 bg-red-600 text-white text-xs font-bold rounded animate-pulse">
+                  ⚠️ ΠΛΗΡΩΜΗ
+                </div>
               )}
               
               <div className="flex justify-between items-center">
@@ -7441,6 +7492,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
       {selectedCharter && (
         <CharterDetailModal
+          key={selectedCharter.id || selectedCharter.code}
           charter={selectedCharter} boat={boat} canViewFinancials={canViewFinancials} canEditCharters={canEditCharters}
           canAcceptCharter={canAcceptCharter} isOwnerUser={isOwnerUser} onClose={() => setSelectedCharter(null)}
           onDelete={handleDeleteCharter} onUpdateStatus={handleUpdateStatus} onUpdatePayments={handleUpdatePayments} showMessage={showMessage}
@@ -7464,19 +7516,43 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
   const totalExpense = (charter.commission || 0) + (charter.vat_on_commission || 0);
   const netIncome = (charter.amount || 0) - totalExpense;
-  const [payments, setPayments] = useState(charter.payments || []);
+
+  // 🔥 FIX: Use useRef to capture initial payments value ONCE - prevents reset on re-render
+  const initialPaymentsRef = useRef<{charterId: string | number, payments: Array<{date: string, amount: number}>}>({
+    charterId: charter.id,
+    payments: charter.payments || []
+  });
+  const [payments, setPayments] = useState<Array<{date: string, amount: number}>>(initialPaymentsRef.current.payments);
   const [newPayDate, setNewPayDate] = useState('');
   const [newPayAmount, setNewPayAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   // 🔥 FIX 28: Inline status messages inside modal
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'loading' | 'success' | 'error' } | null>(null);
 
+  // 🔥 FIX: Only sync payments when viewing a DIFFERENT charter
+  useEffect(() => {
+    if (charter.id !== initialPaymentsRef.current.charterId) {
+      console.log('💳 Charter ID changed from:', initialPaymentsRef.current.charterId, 'to:', charter.id);
+      console.log('💳 Loading payments for new charter:', charter.payments);
+      initialPaymentsRef.current = {
+        charterId: charter.id,
+        payments: charter.payments || []
+      };
+      setPayments(charter.payments || []);
+    }
+  }, [charter.id, charter.payments]);
+
   // 🔥 DEBUG: Log when payments state changes
   useEffect(() => {
-    console.log('💳 [useEffect] payments state changed:', payments);
+    console.log('💳 [useEffect] payments state changed:', payments, 'length:', payments.length);
   }, [payments]);
 
-  const addPayment = () => {
+  // 🔥 FIX: Dedicated handler for adding payment
+  const handleAddPaymentClick = (e: React.MouseEvent) => {
+    console.log('🔴🔴🔴 handleAddPaymentClick FIRED! 🔴🔴🔴');
+    e.preventDefault();
+    e.stopPropagation();
+
     console.log('💳 ========== ADD PAYMENT CLICKED ==========');
     console.log('💳 Input values:', { newPayDate, newPayAmount });
     console.log('💳 Permissions:', { canEditCharters });
@@ -7513,6 +7589,12 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
     console.log('💳 ✅ State updated, payments should now show:', newPayments.length, 'items');
     showMessage('✅ Πληρωμή προστέθηκε - Πατήστε "Αποθήκευση" για να σωθεί', 'success');
+  };
+
+  // Keep the old function for backwards compatibility
+  const addPayment = () => {
+    console.log('💳 addPayment() called directly');
+    handleAddPaymentClick({ preventDefault: () => {}, stopPropagation: () => {} } as any);
   };
   
   const removePayment = (index) => {
@@ -7962,7 +8044,38 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
               <input type="date" value={newPayDate} onChange={(e) => { console.log('📅 Date changed:', e.target.value); setNewPayDate(e.target.value); }} className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
               <input type="number" step="0.01" value={newPayAmount} onChange={(e) => { console.log('💵 Amount changed:', e.target.value); setNewPayAmount(e.target.value); }} placeholder="Ποσό" className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
             </div>
-            <button type="button" onClick={addPayment} disabled={isProcessing} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-2 px-3 rounded-lg text-sm mb-3">Προσθήκη Πληρωμής</button>
+            <button
+              type="button"
+              onClick={() => {
+                console.log('🔴 CLICK WORKS!');
+                console.log('🔴 newPayDate:', newPayDate, 'newPayAmount:', newPayAmount);
+                if (!newPayDate || !newPayAmount) {
+                  console.log('🔴 Missing date or amount - NOT adding payment');
+                  return;
+                }
+                const amt = parseFloat(newPayAmount);
+                if (isNaN(amt) || amt <= 0) {
+                  console.log('🔴 Invalid amount - NOT adding payment');
+                  return;
+                }
+                const newPayment = { date: newPayDate, amount: amt };
+                console.log('🔴 Creating new payment:', newPayment);
+                // Use functional update to ensure we don't lose data
+                setPayments(prevPayments => {
+                  console.log('🔴 prevPayments:', prevPayments);
+                  const updatedPayments = [...prevPayments, newPayment];
+                  console.log('🔴 updatedPayments:', updatedPayments);
+                  return updatedPayments;
+                });
+                // Clear inputs after adding
+                setNewPayDate('');
+                setNewPayAmount('');
+                console.log('🔴 Payment added successfully!');
+              }}
+              style={{ backgroundColor: '#2563eb', color: 'white', padding: '12px 20px', cursor: 'pointer', width: '100%', borderRadius: '8px', fontWeight: 'bold', marginBottom: '12px', border: 'none' }}
+            >
+              Προσθήκη Πληρωμής (TEST)
+            </button>
             <button type="button" onClick={savePayments} disabled={isProcessing} className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-bold py-3 px-4 rounded-lg">
               {isProcessing ? '⏳ Αποθήκευση...' : 'Αποθήκευση Πληρωμών'}
             </button>
