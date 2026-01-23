@@ -438,11 +438,8 @@ const WinterSafetyEquipment: React.FC = () => {
       [sectionId]: { expanded: true, items: [] }
     }));
 
-    const vesselKey = getVesselKey(selectedVessel);
-    const existingCustom = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`);
-    const customData = existingCustom ? JSON.parse(existingCustom) : {};
-    customData[sectionId] = newSection;
-    localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`, JSON.stringify(customData));
+    // Note: Data will be saved to API when user clicks "Save"
+    // localStorage is updated as cache after successful API save
 
     setNewSectionName('');
     setNewSectionIcon('📋');
@@ -466,15 +463,8 @@ const WinterSafetyEquipment: React.FC = () => {
         return updated;
       });
 
-      if (selectedVessel) {
-        const vesselKey = getVesselKey(selectedVessel);
-        const existingCustom = localStorage.getItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`);
-        if (existingCustom) {
-          const customData = JSON.parse(existingCustom);
-          delete customData[sectionId];
-          localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`, JSON.stringify(customData));
-        }
-      }
+      // Note: Deletion will be saved to API when user clicks "Save"
+      // localStorage is updated as cache after successful API save
     }
   };
 
@@ -498,21 +488,27 @@ const WinterSafetyEquipment: React.FC = () => {
 
     setIsSaving(true);
     const vesselKey = getVesselKey(selectedVessel);
-    const data = { sections, generalNotes, lastSaved: new Date().toISOString() };
+    const data = { sections, customSections, generalNotes, lastSaved: new Date().toISOString() };
 
-    // Save to localStorage immediately (for offline support)
-    localStorage.setItem(`${STORAGE_KEY}_${vesselKey}`, JSON.stringify(data));
-
-    // Try to save to API
+    // Try to save to API first
     try {
       const result = await saveWinterSafety(selectedVessel, sections, customSections, generalNotes);
       if (result.synced) {
         console.log('✅ Safety Equipment saved to API');
+        // Also update localStorage as cache
+        localStorage.setItem(`${STORAGE_KEY}_${vesselKey}`, JSON.stringify(data));
+        localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`, JSON.stringify(customSections));
       } else {
-        console.log('💾 Saved to localStorage, API sync pending');
+        // API call returned but didn't sync - save to localStorage as fallback
+        console.warn('⚠️ API sync failed, saving to localStorage as fallback');
+        localStorage.setItem(`${STORAGE_KEY}_${vesselKey}`, JSON.stringify(data));
+        localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`, JSON.stringify(customSections));
       }
     } catch (error) {
-      console.warn('⚠️ API save failed, data saved to localStorage:', error);
+      // API failed completely - save to localStorage as fallback
+      console.warn('⚠️ API save failed, saving to localStorage as fallback:', error);
+      localStorage.setItem(`${STORAGE_KEY}_${vesselKey}`, JSON.stringify(data));
+      localStorage.setItem(`${CUSTOM_SECTIONS_KEY}_${vesselKey}`, JSON.stringify(customSections));
     }
 
     setIsSaving(false);
