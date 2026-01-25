@@ -1860,7 +1860,7 @@ export default function AdminDashboard({
                       📊 ΣΤΑΤΙΣΤΙΚΑ
                     </button>
                     <button
-                      onClick={() => alert('ΣΥΓΚΕΝΤΡΩΤΙΚΑ - Coming soon!')}
+                      onClick={() => reactNavigate('/reports')}
                       className="w-full h-10 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-bold transition-colors"
                     >
                       📋 ΣΥΓΚΕΝΤΡΩΤΙΚΑ

@@ -38,6 +38,21 @@ const COMPANY_INFO = {
   }
 };
 
+// --- Brokers / Agencies List ---
+const BROKERS = [
+  'Sunsail Greece',
+  'Moorings Charter',
+  'Dream Yacht',
+  'Navigare Yachting',
+  'Click&Boat',
+  'Yacht Charter Fleet',
+  'Zizoo',
+  'Sailo',
+  'GetMyBoat',
+  'Boatbound',
+  'Direct (Απευθείας)'
+];
+
 // --- Shared Fleet Service ---
 const FLEET_STORAGE_KEY = 'app_fleet_vessels';
 
@@ -6010,12 +6025,13 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   // 🔥 NEW: Filter for Page 1 bookings
   const [charterFilter, setCharterFilter] = useState<'all' | 'page1' | 'confirmed'>('all');
 
-  // 🔥 FIX 9: Added 5 skipper fields
+  // 🔥 FIX 9: Added 5 skipper fields + broker field
   const [newCharter, setNewCharter] = useState({
     code: '', startDate: '', endDate: '', startTime: '17:00', endTime: '09:00', amount: '',
     commissionPercent: '20',
     hasForeignBroker: false,
     foreignBrokerPercent: '20',
+    broker: '', // Broker / Agency name
     departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
     skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
   });
@@ -6621,6 +6637,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       commissionPercent: parseFloat(newCharter.commissionPercent) || 0,
       hasForeignBroker: newCharter.hasForeignBroker,
       foreignBrokerPercent: parseFloat(newCharter.foreignBrokerPercent) || 20,
+      broker: newCharter.broker || '', // Broker / Agency name
       foreignCommission: financials.foreignCommission || 0,
       commission: financials.greekCommission,
       vat_on_commission: financials.vatOnGreekCommission,
@@ -6717,7 +6734,8 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
     // 🔥 Reset form and state
     setNewCharter({
-      code: '', startDate: '', endDate: '', startTime: '17:00', endTime: '09:00', amount: '', commissionPercent: '',
+      code: '', startDate: '', endDate: '', startTime: '17:00', endTime: '09:00', amount: '', commissionPercent: '20',
+      hasForeignBroker: false, foreignBrokerPercent: '20', broker: '',
       departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
       skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
     });
@@ -6870,6 +6888,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       endTime: charter.endTime || '',
       amount: charter.amount?.toString() || '',
       commissionPercent: charter.commissionPercent?.toString() || '',
+      hasForeignBroker: charter.hasForeignBroker || false,
+      foreignBrokerPercent: charter.foreignBrokerPercent?.toString() || '20',
+      broker: charter.broker || '', // Broker / Agency
       departure: charter.departure || 'ALIMOS MARINA',
       arrival: charter.arrival || 'ALIMOS MARINA',
       status: charter.status || 'Option',
@@ -7012,7 +7033,8 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
               setShowAddForm(false);
               setEditingCharter(null);
               setNewCharter({
-                code: '', startDate: '', endDate: '', startTime: '17:00', endTime: '09:00', amount: '', commissionPercent: '',
+                code: '', startDate: '', endDate: '', startTime: '17:00', endTime: '09:00', amount: '', commissionPercent: '20',
+                hasForeignBroker: false, foreignBrokerPercent: '20', broker: '',
                 departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
                 skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
               });
@@ -7167,6 +7189,31 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
                       <input type="tel" name="skipperPhone" value={newCharter.skipperPhone} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="+30 69..." className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                     </div>
+                  </div>
+
+                  {/* Broker / Agency Field */}
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-blue-400 mb-2">
+                      Πράκτορας / Γραφείο (Broker / Agency)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="broker"
+                        list="broker-list"
+                        value={newCharter.broker}
+                        onChange={handleFormChange}
+                        onKeyDown={handleFormKeyDown}
+                        placeholder="Επιλέξτε ή πληκτρολογήστε..."
+                        className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border-2 border-blue-500 focus:border-blue-400 focus:outline-none"
+                      />
+                      <datalist id="broker-list-skipper">
+                        {BROKERS.map((broker, idx) => (
+                          <option key={idx} value={broker} />
+                        ))}
+                      </datalist>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Προαιρετικό - Optional</p>
                   </div>
                 </div>
               </div>

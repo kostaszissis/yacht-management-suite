@@ -22,6 +22,7 @@ import WinterSafetyEquipment from './WinterSafetyEquipment';
 import TaskCategoryCheckin from './TaskCategoryCheckin';
 import SyncIndicator from './SyncIndicator';
 import AddBoat from './AddBoat';
+import ConsolidatedReports from './ConsolidatedReports';
 import EditFloorPlan from './EditFloorPlan';
 import { initializeAuth } from './authService';
 import authService from './authService';
@@ -444,6 +445,9 @@ function App() {
 
             {/* 🆕 NEW: Edit Floor Plan - Edit existing vessel floor plans */}
             <Route path="/edit-floorplan" element={<EditFloorPlan />} />
+
+            {/* 🆕 NEW: Consolidated Reports - Financial summaries */}
+            <Route path="/reports" element={<ConsolidatedReports />} />
 
             {/* Charter Agreement & Documents Page */}
             <Route path="/charter-agreement" element={<CharterAgreementPage />} />
