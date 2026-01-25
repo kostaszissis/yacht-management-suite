@@ -23,8 +23,34 @@ const OWNERS = [
   { id: 4, name: 'Owner D', vessels: [7, 8] }
 ];
 
-// API placeholder functions
-const API_BASE = 'https://yachtmanagementsuite.com/api';
+// API endpoint for reports
+const API_REPORTS = '/api/reports.php';
+
+// Raw API booking data interface
+interface RawBookingData {
+  bookingNumber: string;
+  vesselName: string;
+  vesselId: number;
+  ownerCode: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  startDate: string;
+  endDate: string;
+  amount: number;
+  commissionPercent: number;
+  commission: number;
+  vatOnCommission: number;
+  foreignBrokerPercent: number;
+  foreignCommission: number;
+  netIncome: number;
+  payments: any[];
+  totalPaid: number;
+  balance: number;
+  paymentStatus: 'paid' | 'partial' | 'unpaid';
+  broker: string;
+  status: string;
+}
 
 // Helper function to get vessel ID from name
 function getVesselIdByName(name: string): number | null {
@@ -38,10 +64,29 @@ function getVesselNameById(id: number): string | null {
   return vessel ? vessel.name : null;
 }
 
-// Helper function to check if owner owns a vessel
-function ownerOwnsVessel(ownerId: number, vesselId: number): boolean {
+// Helper to get vessels owned by an owner
+function getOwnerVessels(ownerId: number): number[] {
   const owner = OWNERS.find(o => o.id === ownerId);
-  return owner ? owner.vessels.includes(vesselId) : false;
+  return owner ? owner.vessels : [];
+}
+
+// Helper to get owner by vessel ID
+function getOwnerByVesselId(vesselId: number): { id: number; name: string } | null {
+  const owner = OWNERS.find(o => o.vessels.includes(vesselId));
+  return owner ? { id: owner.id, name: owner.name } : null;
+}
+
+// Calculate days between two dates
+function getDaysBetween(startDate: string, endDate: string): number {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+// Get month string from date (YYYY-MM format)
+function getMonthFromDate(date: string): string {
+  return date.substring(0, 7);
 }
 
 // Helper function to check if a date is within range
@@ -51,12 +96,6 @@ function isDateInRange(date: string, dateFrom: string | null, dateTo: string | n
   if (dateFrom && d < new Date(dateFrom)) return false;
   if (dateTo && d > new Date(dateTo)) return false;
   return true;
-}
-
-// Helper to get vessels owned by an owner
-function getOwnerVessels(ownerId: number): number[] {
-  const owner = OWNERS.find(o => o.id === ownerId);
-  return owner ? owner.vessels : [];
 }
 
 interface Filters {
@@ -155,413 +194,359 @@ interface DirectCustomer {
   source: string;
 }
 
-// Placeholder API functions
+// ============================================
+// REAL API FUNCTIONS - Fetch from /api/reports.php
+// ============================================
+
+// Fetch raw booking data from the API
+async function fetchReportsData(filters: Filters): Promise<RawBookingData[]> {
+  try {
+    // Build query string with filters
+    const params = new URLSearchParams();
+    if (filters.vesselId) {
+      const vesselName = getVesselNameById(filters.vesselId);
+      if (vesselName) params.append('vessel', vesselName);
+    }
+    if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params.append('dateTo', filters.dateTo);
+    if (filters.ownerId) params.append('owner', String(filters.ownerId));
+
+    const url = `${API_REPORTS}${params.toString() ? '?' + params.toString() : ''}`;
+    console.log('Fetching reports from:', url);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('API Response:', result);
+
+    if (result.success && Array.isArray(result.data)) {
+      return result.data;
+    }
+
+    console.warn('API returned unexpected format, returning empty array');
+    return [];
+  } catch (error) {
+    console.error('Error fetching reports data:', error);
+    return [];
+  }
+}
+
+// Transform raw API data into PaymentSummary format
 async function getPaymentSummary(filters: Filters): Promise<PaymentSummary[]> {
   console.log('=== getPaymentSummary called ===');
   console.log('Filters received:', JSON.stringify(filters, null, 2));
-  // TODO: Replace with actual API call
 
-  // Get current year for placeholder data
-  const currentYear = new Date().getFullYear();
+  const rawData = await fetchReportsData(filters);
+  console.log('Raw data received:', rawData.length, 'records');
 
-  // Placeholder data - using current year for dates
-  let data: PaymentSummary[] = [
-    { bookingCode: 'BK-2024-001', vesselName: 'Maria 1', startDate: `${currentYear}-06-15`, endDate: `${currentYear}-06-22`, totalAmount: 5000, paidAmount: 5000, unpaidAmount: 0, status: 'paid' },
-    { bookingCode: 'BK-2024-002', vesselName: 'Valesia', startDate: `${currentYear}-07-01`, endDate: `${currentYear}-07-08`, totalAmount: 7500, paidAmount: 3000, unpaidAmount: 4500, status: 'partial' },
-    { bookingCode: 'BK-2024-003', vesselName: 'Bar Bar', startDate: `${currentYear}-07-10`, endDate: `${currentYear}-07-17`, totalAmount: 6000, paidAmount: 0, unpaidAmount: 6000, status: 'unpaid' },
-    { bookingCode: 'BK-2024-004', vesselName: 'Maria 2', startDate: `${currentYear}-07-20`, endDate: `${currentYear}-07-27`, totalAmount: 5500, paidAmount: 5500, unpaidAmount: 0, status: 'paid' },
-    { bookingCode: 'BK-2024-005', vesselName: 'Infinity', startDate: `${currentYear}-08-01`, endDate: `${currentYear}-08-08`, totalAmount: 8000, paidAmount: 4000, unpaidAmount: 4000, status: 'partial' },
-    { bookingCode: 'BK-2024-006', vesselName: 'Kalispera', startDate: `${currentYear}-06-20`, endDate: `${currentYear}-06-27`, totalAmount: 7000, paidAmount: 7000, unpaidAmount: 0, status: 'paid' },
-    { bookingCode: 'BK-2024-007', vesselName: 'Perla', startDate: `${currentYear}-07-25`, endDate: `${currentYear}-08-01`, totalAmount: 8500, paidAmount: 4250, unpaidAmount: 4250, status: 'partial' },
-    { bookingCode: 'BK-2024-008', vesselName: 'Bob', startDate: `${currentYear}-08-10`, endDate: `${currentYear}-08-17`, totalAmount: 6500, paidAmount: 0, unpaidAmount: 6500, status: 'unpaid' },
-  ];
+  // Transform to PaymentSummary format
+  const data: PaymentSummary[] = rawData.map(booking => ({
+    bookingCode: booking.bookingNumber || 'N/A',
+    vesselName: booking.vesselName || 'Unknown',
+    startDate: booking.startDate || '',
+    endDate: booking.endDate || '',
+    totalAmount: Number(booking.amount) || 0,
+    paidAmount: Number(booking.totalPaid) || 0,
+    unpaidAmount: Number(booking.balance) || 0,
+    status: (booking.paymentStatus as 'paid' | 'partial' | 'unpaid') || 'unpaid'
+  }));
 
-  console.log('Initial data count:', data.length);
-
-  // Apply vessel filter
-  if (filters.vesselId) {
-    const vesselName = getVesselNameById(filters.vesselId);
-    console.log('Vessel filter active - vesselId:', filters.vesselId, '-> vesselName:', vesselName);
-    if (vesselName) {
-      const beforeCount = data.length;
-      data = data.filter(p => p.vesselName === vesselName);
-      console.log('After vessel filter:', beforeCount, '->', data.length, 'records');
-    }
-  } else {
-    console.log('No vessel filter applied (vesselId is null/undefined)');
-  }
-
-  // Apply owner filter (filter by vessels owned)
-  if (filters.ownerId) {
-    const ownerVessels = getOwnerVessels(filters.ownerId);
-    data = data.filter(p => {
-      const vesselId = getVesselIdByName(p.vesselName);
-      return vesselId && ownerVessels.includes(vesselId);
-    });
-  }
-
-  // Apply date range filter
-  if (filters.dateFrom || filters.dateTo) {
-    data = data.filter(p => isDateInRange(p.startDate, filters.dateFrom || null, filters.dateTo || null));
-  }
-
+  console.log('Transformed payment data:', data.length, 'records');
   return data;
 }
 
+// Transform raw API data into CharterSummary format (grouped by vessel and month)
 async function getCharterSummary(filters: Filters): Promise<CharterSummary[]> {
   console.log('=== getCharterSummary called ===');
   console.log('Filters received:', JSON.stringify(filters, null, 2));
-  // TODO: Replace with actual API call
-  const currentYear = new Date().getFullYear();
 
-  let data: CharterSummary[] = [
-    { vesselId: 1, vesselName: 'Maria 1', month: `${currentYear}-06`, totalCharters: 3, totalDays: 21, totalRevenue: 15000 },
-    { vesselId: 1, vesselName: 'Maria 1', month: `${currentYear}-07`, totalCharters: 4, totalDays: 28, totalRevenue: 20000 },
-    { vesselId: 2, vesselName: 'Maria 2', month: `${currentYear}-06`, totalCharters: 2, totalDays: 14, totalRevenue: 11000 },
-    { vesselId: 2, vesselName: 'Maria 2', month: `${currentYear}-07`, totalCharters: 3, totalDays: 21, totalRevenue: 16500 },
-    { vesselId: 3, vesselName: 'Valesia', month: `${currentYear}-06`, totalCharters: 2, totalDays: 14, totalRevenue: 18000 },
-    { vesselId: 3, vesselName: 'Valesia', month: `${currentYear}-07`, totalCharters: 3, totalDays: 21, totalRevenue: 22500 },
-    { vesselId: 4, vesselName: 'Bar Bar', month: `${currentYear}-06`, totalCharters: 2, totalDays: 14, totalRevenue: 12000 },
-    { vesselId: 4, vesselName: 'Bar Bar', month: `${currentYear}-07`, totalCharters: 4, totalDays: 28, totalRevenue: 24000 },
-    { vesselId: 5, vesselName: 'Kalispera', month: `${currentYear}-07`, totalCharters: 3, totalDays: 21, totalRevenue: 14000 },
-    { vesselId: 6, vesselName: 'Infinity', month: `${currentYear}-07`, totalCharters: 4, totalDays: 28, totalRevenue: 32000 },
-    { vesselId: 7, vesselName: 'Perla', month: `${currentYear}-08`, totalCharters: 3, totalDays: 21, totalRevenue: 25500 },
-    { vesselId: 8, vesselName: 'Bob', month: `${currentYear}-08`, totalCharters: 2, totalDays: 14, totalRevenue: 13000 },
-  ];
+  const rawData = await fetchReportsData(filters);
+  console.log('Raw data received:', rawData.length, 'records');
 
-  console.log('Initial charter data count:', data.length);
+  // Group bookings by vessel and month
+  const grouped: Record<string, CharterSummary> = {};
 
-  // Apply vessel filter
-  if (filters.vesselId) {
-    console.log('Vessel filter active - vesselId:', filters.vesselId);
-    const beforeCount = data.length;
-    data = data.filter(c => c.vesselId === filters.vesselId);
-    console.log('After vessel filter:', beforeCount, '->', data.length, 'records');
-  }
+  rawData.forEach(booking => {
+    const vesselId = booking.vesselId || getVesselIdByName(booking.vesselName) || 0;
+    const month = getMonthFromDate(booking.startDate || '');
+    const key = `${vesselId}-${month}`;
 
-  // Apply owner filter
-  if (filters.ownerId) {
-    const ownerVessels = getOwnerVessels(filters.ownerId);
-    console.log('Owner filter active - ownerId:', filters.ownerId, '-> vessels:', ownerVessels);
-    data = data.filter(c => ownerVessels.includes(c.vesselId));
-  }
+    if (!grouped[key]) {
+      grouped[key] = {
+        vesselId,
+        vesselName: booking.vesselName || 'Unknown',
+        month,
+        totalCharters: 0,
+        totalDays: 0,
+        totalRevenue: 0
+      };
+    }
 
-  // Apply date range filter (filter by month)
-  if (filters.dateFrom || filters.dateTo) {
-    const beforeCount = data.length;
-    data = data.filter(c => {
-      const monthStart = c.month + '-01';
-      return isDateInRange(monthStart, filters.dateFrom || null, filters.dateTo || null);
-    });
-    console.log('After date filter:', beforeCount, '->', data.length, 'records');
-  }
+    grouped[key].totalCharters += 1;
+    grouped[key].totalDays += getDaysBetween(booking.startDate || '', booking.endDate || '');
+    grouped[key].totalRevenue += Number(booking.amount) || 0;
+  });
 
-  console.log('Final charter data count:', data.length);
+  const data = Object.values(grouped).sort((a, b) => {
+    if (a.vesselName !== b.vesselName) return a.vesselName.localeCompare(b.vesselName);
+    return a.month.localeCompare(b.month);
+  });
+
+  console.log('Transformed charter data:', data.length, 'records');
   return data;
 }
 
+// Transform raw API data into CommissionSummary format (grouped by vessel)
 async function getCommissionSummary(filters: Filters): Promise<CommissionSummary[]> {
   console.log('=== getCommissionSummary called ===');
   console.log('Filters received:', JSON.stringify(filters, null, 2));
-  // TODO: Replace with actual API call
-  let data: CommissionSummary[] = [
-    { ownerId: 1, ownerName: 'Owner A', vesselName: 'Maria 1', totalRevenue: 35000, commission: 7000, vatOnCommission: 1680, netToOwner: 26320 },
-    { ownerId: 1, ownerName: 'Owner A', vesselName: 'Maria 2', totalRevenue: 25000, commission: 5000, vatOnCommission: 1200, netToOwner: 18800 },
-    { ownerId: 2, ownerName: 'Owner B', vesselName: 'Valesia', totalRevenue: 45000, commission: 9000, vatOnCommission: 2160, netToOwner: 33840 },
-    { ownerId: 2, ownerName: 'Owner B', vesselName: 'Bar Bar', totalRevenue: 36000, commission: 7200, vatOnCommission: 1728, netToOwner: 27072 },
-    { ownerId: 3, ownerName: 'Owner C', vesselName: 'Kalispera', totalRevenue: 28000, commission: 5600, vatOnCommission: 1344, netToOwner: 21056 },
-    { ownerId: 3, ownerName: 'Owner C', vesselName: 'Infinity', totalRevenue: 64000, commission: 12800, vatOnCommission: 3072, netToOwner: 48128 },
-    { ownerId: 4, ownerName: 'Owner D', vesselName: 'Perla', totalRevenue: 51000, commission: 10200, vatOnCommission: 2448, netToOwner: 38352 },
-    { ownerId: 4, ownerName: 'Owner D', vesselName: 'Bob', totalRevenue: 26000, commission: 5200, vatOnCommission: 1248, netToOwner: 19552 },
-  ];
 
-  console.log('Initial commission data count:', data.length);
+  const rawData = await fetchReportsData(filters);
+  console.log('Raw data received:', rawData.length, 'records');
 
-  // Apply vessel filter
-  if (filters.vesselId) {
-    const vesselName = getVesselNameById(filters.vesselId);
-    console.log('Vessel filter active - vesselId:', filters.vesselId, '-> vesselName:', vesselName);
-    if (vesselName) {
-      const beforeCount = data.length;
-      data = data.filter(c => c.vesselName === vesselName);
-      console.log('After vessel filter:', beforeCount, '->', data.length, 'records');
+  // Group by vessel and aggregate commissions
+  const grouped: Record<string, CommissionSummary> = {};
+
+  rawData.forEach(booking => {
+    const vesselId = booking.vesselId || getVesselIdByName(booking.vesselName) || 0;
+    const owner = getOwnerByVesselId(vesselId);
+    const key = booking.vesselName || 'Unknown';
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        ownerId: owner?.id || 0,
+        ownerName: owner?.name || booking.ownerCode || 'Unknown Owner',
+        vesselName: booking.vesselName || 'Unknown',
+        totalRevenue: 0,
+        commission: 0,
+        vatOnCommission: 0,
+        netToOwner: 0
+      };
     }
-  }
 
-  // Apply owner filter
-  if (filters.ownerId) {
-    console.log('Owner filter active - ownerId:', filters.ownerId);
-    data = data.filter(c => c.ownerId === filters.ownerId);
-  }
+    grouped[key].totalRevenue += Number(booking.amount) || 0;
+    grouped[key].commission += Number(booking.commission) || 0;
+    grouped[key].vatOnCommission += Number(booking.vatOnCommission) || 0;
+    grouped[key].netToOwner += Number(booking.netIncome) || 0;
+  });
 
-  console.log('Final commission data count:', data.length);
+  const data = Object.values(grouped);
+  console.log('Transformed commission data:', data.length, 'records');
   return data;
 }
 
+// Transform raw API data into VesselSummary format
 async function getVesselSummary(filters: Filters): Promise<VesselSummary[]> {
   console.log('=== getVesselSummary called ===');
   console.log('Filters received:', JSON.stringify(filters, null, 2));
-  // TODO: Replace with actual API call
 
-  // Generate consistent data (not random) for each vessel
-  const vesselStats: Record<number, { bookings: number; days: number; revenue: number }> = {
-    1: { bookings: 12, days: 84, revenue: 42000 },   // Maria 1
-    2: { bookings: 10, days: 70, revenue: 35000 },   // Maria 2
-    3: { bookings: 14, days: 98, revenue: 73500 },   // Valesia
-    4: { bookings: 11, days: 77, revenue: 46200 },   // Bar Bar
-    5: { bookings: 8, days: 56, revenue: 28000 },    // Kalispera
-    6: { bookings: 15, days: 105, revenue: 84000 },  // Infinity
-    7: { bookings: 13, days: 91, revenue: 68250 },   // Perla
-    8: { bookings: 7, days: 49, revenue: 24500 },    // Bob
-  };
+  const rawData = await fetchReportsData(filters);
+  console.log('Raw data received:', rawData.length, 'records');
 
-  let vessels = VESSELS;
-  console.log('Initial vessels count:', vessels.length);
+  // Group by vessel
+  const grouped: Record<string, VesselSummary> = {};
 
-  // Apply vessel filter
-  if (filters.vesselId) {
-    console.log('Vessel filter active - vesselId:', filters.vesselId);
-    const beforeCount = vessels.length;
-    vessels = vessels.filter(v => v.id === filters.vesselId);
-    console.log('After vessel filter:', beforeCount, '->', vessels.length, 'vessels');
-  }
+  rawData.forEach(booking => {
+    const vesselId = booking.vesselId || getVesselIdByName(booking.vesselName) || 0;
+    const key = booking.vesselName || 'Unknown';
 
-  // Apply owner filter
-  if (filters.ownerId) {
-    const ownerVessels = getOwnerVessels(filters.ownerId);
-    console.log('Owner filter active - ownerId:', filters.ownerId, '-> vessels:', ownerVessels);
-    vessels = vessels.filter(v => ownerVessels.includes(v.id));
-  }
-
-  const result = vessels.map(v => {
-    const stats = vesselStats[v.id] || { bookings: 0, days: 0, revenue: 0 };
-    return {
-      vesselId: v.id,
-      vesselName: v.name,
-      totalBookings: stats.bookings,
-      totalDays: stats.days,
-      totalRevenue: stats.revenue,
-      averagePerDay: stats.days > 0 ? Math.round(stats.revenue / stats.days) : 0
-    };
-  });
-  console.log('Final vessel summary count:', result.length);
-  return result;
-}
-
-async function getOccupancySummary(filters: Filters): Promise<OccupancySummary[]> {
-  console.log('=== getOccupancySummary called ===');
-  console.log('Filters received:', JSON.stringify(filters, null, 2));
-  // TODO: Replace with actual API call
-  // Charter season: April 1st to October 31st = 214 days
-  const SEASON_DAYS = 214;
-
-  // Consistent booked days per vessel
-  const vesselBookedDays: Record<number, number> = {
-    1: 168,  // Maria 1 - 78%
-    2: 140,  // Maria 2 - 65%
-    3: 182,  // Valesia - 85%
-    4: 154,  // Bar Bar - 72%
-    5: 112,  // Kalispera - 52%
-    6: 196,  // Infinity - 92%
-    7: 175,  // Perla - 82%
-    8: 98,   // Bob - 46%
-  };
-
-  let vessels = VESSELS;
-  console.log('Initial vessels count:', vessels.length);
-
-  // Apply vessel filter
-  if (filters.vesselId) {
-    console.log('Vessel filter active - vesselId:', filters.vesselId);
-    const beforeCount = vessels.length;
-    vessels = vessels.filter(v => v.id === filters.vesselId);
-    console.log('After vessel filter:', beforeCount, '->', vessels.length, 'vessels');
-  }
-
-  // Apply owner filter
-  if (filters.ownerId) {
-    const ownerVessels = getOwnerVessels(filters.ownerId);
-    console.log('Owner filter active - ownerId:', filters.ownerId, '-> vessels:', ownerVessels);
-    vessels = vessels.filter(v => ownerVessels.includes(v.id));
-  }
-
-  const result = vessels.map(v => {
-    const bookedDays = vesselBookedDays[v.id] || 0;
-    return {
-      vesselId: v.id,
-      vesselName: v.name,
-      totalDays: SEASON_DAYS,
-      bookedDays: Math.min(bookedDays, SEASON_DAYS),
-      occupancyPercent: Math.round((Math.min(bookedDays, SEASON_DAYS) / SEASON_DAYS) * 100)
-    };
-  });
-  console.log('Final occupancy summary count:', result.length);
-  return result;
-}
-
-async function getBrokerSummary(filters: Filters): Promise<BrokerSummary[]> {
-  console.log('Fetching broker summary with filters:', filters);
-  // TODO: Replace with actual API call
-  // Note: Broker data is aggregated - vessel/owner filters would require more complex data structure
-  // For now, broker summary shows all brokers (vessel filter doesn't apply directly to brokers)
-  return [
-    { brokerId: 1, brokerName: 'Sunsail Greece', brokerEmail: 'bookings@sunsail.gr', totalBookings: 12, totalDays: 84, totalRevenue: 65000, commission: 13000 },
-    { brokerId: 2, brokerName: 'Moorings Charter', brokerEmail: 'info@moorings.com', totalBookings: 8, totalDays: 56, totalRevenue: 48000, commission: 9600 },
-    { brokerId: 3, brokerName: 'Dream Yacht', brokerEmail: 'sales@dreamyacht.com', totalBookings: 15, totalDays: 105, totalRevenue: 82000, commission: 16400 },
-    { brokerId: 4, brokerName: 'Navigare Yachting', brokerEmail: 'charter@navigare.com', totalBookings: 6, totalDays: 42, totalRevenue: 35000, commission: 7000 },
-    { brokerId: 5, brokerName: 'Click&Boat', brokerEmail: 'pro@clickandboat.com', totalBookings: 10, totalDays: 70, totalRevenue: 55000, commission: 11000 },
-  ];
-}
-
-async function getRepeatCustomers(filters: Filters): Promise<RepeatCustomer[]> {
-  console.log('=== getRepeatCustomers called ===');
-  console.log('Filters received:', JSON.stringify(filters, null, 2));
-  // TODO: Replace with actual API call
-  const currentYear = new Date().getFullYear();
-  const lastYear = currentYear - 1;
-
-  let data: RepeatCustomer[] = [
-    {
-      customerId: 1,
-      customerName: 'John Smith',
-      customerEmail: 'john.smith@email.com',
-      totalBookings: 4,
-      totalSpent: 28000,
-      firstBooking: `${lastYear}-06-15`,
-      lastBooking: `${currentYear}-07-20`,
-      bookings: [
-        { bookingCode: `BK-${lastYear}-045`, vesselName: 'Maria 1', startDate: `${lastYear}-06-15`, endDate: `${lastYear}-06-22`, amount: 5000 },
-        { bookingCode: `BK-${lastYear}-089`, vesselName: 'Maria 1', startDate: `${lastYear}-08-05`, endDate: `${lastYear}-08-12`, amount: 6000 },
-        { bookingCode: `BK-${currentYear}-012`, vesselName: 'Valesia', startDate: `${currentYear}-05-10`, endDate: `${currentYear}-05-17`, amount: 7500 },
-        { bookingCode: `BK-${currentYear}-034`, vesselName: 'Infinity', startDate: `${currentYear}-07-20`, endDate: `${currentYear}-07-27`, amount: 9500 },
-      ]
-    },
-    {
-      customerId: 2,
-      customerName: 'Maria Papadopoulou',
-      customerEmail: 'maria.p@gmail.com',
-      totalBookings: 3,
-      totalSpent: 19500,
-      firstBooking: `${lastYear}-06-01`,
-      lastBooking: `${currentYear}-08-10`,
-      bookings: [
-        { bookingCode: `BK-${lastYear}-055`, vesselName: 'Bar Bar', startDate: `${lastYear}-06-01`, endDate: `${lastYear}-06-08`, amount: 6000 },
-        { bookingCode: `BK-${currentYear}-015`, vesselName: 'Maria 2', startDate: `${currentYear}-05-15`, endDate: `${currentYear}-05-22`, amount: 5500 },
-        { bookingCode: `BK-${currentYear}-078`, vesselName: 'Perla', startDate: `${currentYear}-08-10`, endDate: `${currentYear}-08-17`, amount: 8000 },
-      ]
-    },
-    {
-      customerId: 3,
-      customerName: 'Hans Mueller',
-      customerEmail: 'hans.mueller@web.de',
-      totalBookings: 2,
-      totalSpent: 15000,
-      firstBooking: `${lastYear}-07-15`,
-      lastBooking: `${currentYear}-07-01`,
-      bookings: [
-        { bookingCode: `BK-${lastYear}-078`, vesselName: 'Kalispera', startDate: `${lastYear}-07-15`, endDate: `${lastYear}-07-22`, amount: 7000 },
-        { bookingCode: `BK-${currentYear}-045`, vesselName: 'Infinity', startDate: `${currentYear}-07-01`, endDate: `${currentYear}-07-08`, amount: 8000 },
-      ]
-    },
-  ];
-
-  console.log('Initial repeat customers count:', data.length);
-
-  // Apply vessel filter - filter customers who have bookings on the selected vessel
-  if (filters.vesselId) {
-    const vesselName = getVesselNameById(filters.vesselId);
-    console.log('Vessel filter active - vesselId:', filters.vesselId, '-> vesselName:', vesselName);
-    if (vesselName) {
-      const beforeCount = data.length;
-      data = data.filter(c => c.bookings.some(b => b.vesselName === vesselName));
-      console.log('After vessel filter (customers):', beforeCount, '->', data.length, 'customers');
-      // Also filter each customer's bookings to only show the selected vessel
-      data = data.map(c => ({
-        ...c,
-        bookings: c.bookings.filter(b => b.vesselName === vesselName),
-        totalBookings: c.bookings.filter(b => b.vesselName === vesselName).length,
-        totalSpent: c.bookings.filter(b => b.vesselName === vesselName).reduce((sum, b) => sum + b.amount, 0)
-      }));
+    if (!grouped[key]) {
+      grouped[key] = {
+        vesselId,
+        vesselName: booking.vesselName || 'Unknown',
+        totalBookings: 0,
+        totalDays: 0,
+        totalRevenue: 0,
+        averagePerDay: 0
+      };
     }
-  }
 
-  // Apply owner filter - filter by vessels owned
-  if (filters.ownerId) {
-    const ownerVessels = getOwnerVessels(filters.ownerId);
-    const ownerVesselNames = ownerVessels.map(id => getVesselNameById(id)).filter(Boolean);
-    data = data.filter(c => c.bookings.some(b => ownerVesselNames.includes(b.vesselName)));
-    // Also filter bookings
-    data = data.map(c => ({
-      ...c,
-      bookings: c.bookings.filter(b => ownerVesselNames.includes(b.vesselName)),
-      totalBookings: c.bookings.filter(b => ownerVesselNames.includes(b.vesselName)).length,
-      totalSpent: c.bookings.filter(b => ownerVesselNames.includes(b.vesselName)).reduce((sum, b) => sum + b.amount, 0)
-    }));
-  }
+    grouped[key].totalBookings += 1;
+    grouped[key].totalDays += getDaysBetween(booking.startDate || '', booking.endDate || '');
+    grouped[key].totalRevenue += Number(booking.amount) || 0;
+  });
 
-  // Apply date range filter
-  if (filters.dateFrom || filters.dateTo) {
-    data = data.map(c => ({
-      ...c,
-      bookings: c.bookings.filter(b => isDateInRange(b.startDate, filters.dateFrom || null, filters.dateTo || null))
-    }));
-    // Recalculate totals
-    data = data.map(c => ({
-      ...c,
-      totalBookings: c.bookings.length,
-      totalSpent: c.bookings.reduce((sum, b) => sum + b.amount, 0)
-    }));
-    // Remove customers with no bookings in range
-    data = data.filter(c => c.bookings.length > 0);
-  }
+  // Calculate average per day
+  const data = Object.values(grouped).map(v => ({
+    ...v,
+    averagePerDay: v.totalDays > 0 ? Math.round(v.totalRevenue / v.totalDays) : 0
+  }));
 
+  console.log('Transformed vessel data:', data.length, 'records');
   return data;
 }
 
+// Transform raw API data into OccupancySummary format
+async function getOccupancySummary(filters: Filters): Promise<OccupancySummary[]> {
+  console.log('=== getOccupancySummary called ===');
+  console.log('Filters received:', JSON.stringify(filters, null, 2));
+
+  const rawData = await fetchReportsData(filters);
+  console.log('Raw data received:', rawData.length, 'records');
+
+  // Charter season: April 1st to October 31st = 214 days
+  const SEASON_DAYS = 214;
+
+  // Calculate booked days per vessel
+  const grouped: Record<string, { vesselId: number; vesselName: string; bookedDays: number }> = {};
+
+  rawData.forEach(booking => {
+    const vesselId = booking.vesselId || getVesselIdByName(booking.vesselName) || 0;
+    const key = booking.vesselName || 'Unknown';
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        vesselId,
+        vesselName: booking.vesselName || 'Unknown',
+        bookedDays: 0
+      };
+    }
+
+    grouped[key].bookedDays += getDaysBetween(booking.startDate || '', booking.endDate || '');
+  });
+
+  // Convert to OccupancySummary format
+  const data: OccupancySummary[] = Object.values(grouped).map(v => ({
+    vesselId: v.vesselId,
+    vesselName: v.vesselName,
+    totalDays: SEASON_DAYS,
+    bookedDays: Math.min(v.bookedDays, SEASON_DAYS),
+    occupancyPercent: Math.round((Math.min(v.bookedDays, SEASON_DAYS) / SEASON_DAYS) * 100)
+  }));
+
+  console.log('Transformed occupancy data:', data.length, 'records');
+  return data;
+}
+
+// Transform raw API data into BrokerSummary format
+async function getBrokerSummary(filters: Filters): Promise<BrokerSummary[]> {
+  console.log('=== getBrokerSummary called ===');
+  console.log('Filters received:', JSON.stringify(filters, null, 2));
+
+  const rawData = await fetchReportsData(filters);
+  console.log('Raw data received:', rawData.length, 'records');
+
+  // Group by broker
+  const grouped: Record<string, BrokerSummary> = {};
+  let brokerIdCounter = 1;
+
+  rawData.forEach(booking => {
+    const brokerName = booking.broker || 'Direct (Απευθείας)';
+
+    if (!grouped[brokerName]) {
+      grouped[brokerName] = {
+        brokerId: brokerIdCounter++,
+        brokerName,
+        brokerEmail: '', // API doesn't provide broker email
+        totalBookings: 0,
+        totalDays: 0,
+        totalRevenue: 0,
+        commission: 0
+      };
+    }
+
+    grouped[brokerName].totalBookings += 1;
+    grouped[brokerName].totalDays += getDaysBetween(booking.startDate || '', booking.endDate || '');
+    grouped[brokerName].totalRevenue += Number(booking.amount) || 0;
+    grouped[brokerName].commission += Number(booking.foreignCommission) || 0;
+  });
+
+  const data = Object.values(grouped);
+  console.log('Transformed broker data:', data.length, 'records');
+  return data;
+}
+
+// Transform raw API data into RepeatCustomer format
+async function getRepeatCustomers(filters: Filters): Promise<RepeatCustomer[]> {
+  console.log('=== getRepeatCustomers called ===');
+  console.log('Filters received:', JSON.stringify(filters, null, 2));
+
+  const rawData = await fetchReportsData(filters);
+  console.log('Raw data received:', rawData.length, 'records');
+
+  // Group by customer email (as unique identifier)
+  const grouped: Record<string, {
+    customerId: number;
+    customerName: string;
+    customerEmail: string;
+    bookings: CustomerBooking[];
+  }> = {};
+  let customerIdCounter = 1;
+
+  rawData.forEach(booking => {
+    const email = booking.customerEmail || 'unknown@email.com';
+
+    if (!grouped[email]) {
+      grouped[email] = {
+        customerId: customerIdCounter++,
+        customerName: booking.customerName || 'Unknown Customer',
+        customerEmail: email,
+        bookings: []
+      };
+    }
+
+    grouped[email].bookings.push({
+      bookingCode: booking.bookingNumber || 'N/A',
+      vesselName: booking.vesselName || 'Unknown',
+      startDate: booking.startDate || '',
+      endDate: booking.endDate || '',
+      amount: Number(booking.amount) || 0
+    });
+  });
+
+  // Filter to only customers with 2+ bookings (repeat customers)
+  const repeatCustomers = Object.values(grouped)
+    .filter(c => c.bookings.length >= 2)
+    .map(c => {
+      const sortedBookings = c.bookings.sort((a, b) => a.startDate.localeCompare(b.startDate));
+      return {
+        customerId: c.customerId,
+        customerName: c.customerName,
+        customerEmail: c.customerEmail,
+        totalBookings: c.bookings.length,
+        totalSpent: c.bookings.reduce((sum, b) => sum + b.amount, 0),
+        firstBooking: sortedBookings[0]?.startDate || '',
+        lastBooking: sortedBookings[sortedBookings.length - 1]?.startDate || '',
+        bookings: sortedBookings
+      };
+    });
+
+  console.log('Transformed repeat customers:', repeatCustomers.length, 'records');
+  return repeatCustomers;
+}
+
+// Transform raw API data into DirectCustomer format
 async function getDirectCustomers(filters: Filters): Promise<DirectCustomer[]> {
   console.log('=== getDirectCustomers called ===');
   console.log('Filters received:', JSON.stringify(filters, null, 2));
-  // TODO: Replace with actual API call
-  const currentYear = new Date().getFullYear();
 
-  let data: DirectCustomer[] = [
-    { customerId: 101, customerName: 'George Nikolaou', customerEmail: 'g.nikolaou@gmail.com', customerPhone: '+30 694 123 4567', bookingCode: `BK-${currentYear}-022`, vesselName: 'Maria 1', startDate: `${currentYear}-06-01`, endDate: `${currentYear}-06-08`, amount: 5500, source: 'Website' },
-    { customerId: 102, customerName: 'Sophie Martin', customerEmail: 'sophie.m@yahoo.fr', customerPhone: '+33 6 12 34 56 78', bookingCode: `BK-${currentYear}-038`, vesselName: 'Valesia', startDate: `${currentYear}-06-20`, endDate: `${currentYear}-06-27`, amount: 7500, source: 'Phone' },
-    { customerId: 103, customerName: 'Dimitris Alexiou', customerEmail: 'dalexiou@outlook.com', customerPhone: '+30 697 456 7890', bookingCode: `BK-${currentYear}-051`, vesselName: 'Bar Bar', startDate: `${currentYear}-07-05`, endDate: `${currentYear}-07-12`, amount: 6200, source: 'Referral' },
-    { customerId: 104, customerName: 'Emma Wilson', customerEmail: 'emma.w@gmail.com', customerPhone: '+44 7911 123456', bookingCode: `BK-${currentYear}-067`, vesselName: 'Maria 2', startDate: `${currentYear}-07-15`, endDate: `${currentYear}-07-22`, amount: 5800, source: 'Website' },
-    { customerId: 105, customerName: 'Kostas Papadopoulos', customerEmail: 'kpapadopoulos@hotmail.com', customerPhone: '+30 698 789 0123', bookingCode: `BK-${currentYear}-082`, vesselName: 'Infinity', startDate: `${currentYear}-08-01`, endDate: `${currentYear}-08-08`, amount: 8500, source: 'Repeat' },
-    { customerId: 106, customerName: 'Anna Bergström', customerEmail: 'anna.b@gmail.se', customerPhone: '+46 70 123 45 67', bookingCode: `BK-${currentYear}-095`, vesselName: 'Perla', startDate: `${currentYear}-08-15`, endDate: `${currentYear}-08-22`, amount: 7800, source: 'Website' },
-    { customerId: 107, customerName: 'Marco Rossi', customerEmail: 'marco.r@gmail.it', customerPhone: '+39 339 123 4567', bookingCode: `BK-${currentYear}-101`, vesselName: 'Kalispera', startDate: `${currentYear}-07-08`, endDate: `${currentYear}-07-15`, amount: 5000, source: 'Website' },
-    { customerId: 108, customerName: 'Sarah Johnson', customerEmail: 'sarah.j@yahoo.com', customerPhone: '+1 555 123 4567', bookingCode: `BK-${currentYear}-115`, vesselName: 'Bob', startDate: `${currentYear}-08-05`, endDate: `${currentYear}-08-12`, amount: 4800, source: 'Phone' },
-  ];
+  const rawData = await fetchReportsData(filters);
+  console.log('Raw data received:', rawData.length, 'records');
 
-  console.log('Initial direct customers count:', data.length);
+  // Filter for direct bookings (no broker or broker is 'Direct')
+  const directBookings = rawData.filter(booking => {
+    const broker = booking.broker || '';
+    return !broker || broker.toLowerCase().includes('direct') || broker.toLowerCase().includes('απευθείας');
+  });
 
-  // Apply vessel filter
-  if (filters.vesselId) {
-    const vesselName = getVesselNameById(filters.vesselId);
-    console.log('Vessel filter active - vesselId:', filters.vesselId, '-> vesselName:', vesselName);
-    if (vesselName) {
-      const beforeCount = data.length;
-      data = data.filter(c => c.vesselName === vesselName);
-      console.log('After vessel filter:', beforeCount, '->', data.length, 'records');
-    }
-  }
+  let customerIdCounter = 101;
+  const data: DirectCustomer[] = directBookings.map(booking => ({
+    customerId: customerIdCounter++,
+    customerName: booking.customerName || 'Unknown Customer',
+    customerEmail: booking.customerEmail || '',
+    customerPhone: booking.customerPhone || '',
+    bookingCode: booking.bookingNumber || 'N/A',
+    vesselName: booking.vesselName || 'Unknown',
+    startDate: booking.startDate || '',
+    endDate: booking.endDate || '',
+    amount: Number(booking.amount) || 0,
+    source: 'Direct'
+  }));
 
-  // Apply owner filter
-  if (filters.ownerId) {
-    const ownerVessels = getOwnerVessels(filters.ownerId);
-    data = data.filter(c => {
-      const vesselId = getVesselIdByName(c.vesselName);
-      return vesselId && ownerVessels.includes(vesselId);
-    });
-  }
-
-  // Apply date range filter
-  if (filters.dateFrom || filters.dateTo) {
-    data = data.filter(c => isDateInRange(c.startDate, filters.dateFrom || null, filters.dateTo || null));
-  }
-
+  console.log('Transformed direct customers:', data.length, 'records');
   return data;
 }
 
