@@ -89,6 +89,16 @@ function getMonthFromDate(date: string): string {
   return date.substring(0, 7);
 }
 
+// Format money with proper decimal places (e.g., 1234.56 -> "1,234.56€")
+function formatMoney(num: number): string {
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '€';
+}
+
+// Format money without decimals for summary cards (e.g., 1234 -> "1,234€")
+function formatMoneyShort(num: number): string {
+  return Math.round(num).toLocaleString('en-US') + '€';
+}
+
 // Helper function to check if a date is within range
 function isDateInRange(date: string, dateFrom: string | null, dateTo: string | null): boolean {
   if (!dateFrom && !dateTo) return true;
@@ -1042,7 +1052,7 @@ const ConsolidatedReports: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                   <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-xl shadow-lg">
                     <div className="text-green-100 text-xs mb-1">{lang === 'el' ? 'Πληρωμένα' : 'Paid'}</div>
-                    <div className="text-2xl font-bold text-white">{paymentTotals.paid.toLocaleString()}€</div>
+                    <div className="text-2xl font-bold text-white">{formatMoneyShort(paymentTotals.paid)}</div>
                     <div className="text-green-200 text-xs mt-1">{paymentTotals.paidCount} {lang === 'el' ? 'κρατήσεις' : 'bookings'}</div>
                   </div>
                   <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-4 rounded-xl shadow-lg">
@@ -1052,7 +1062,7 @@ const ConsolidatedReports: React.FC = () => {
                   </div>
                   <div className="bg-gradient-to-br from-red-500 to-rose-600 p-4 rounded-xl shadow-lg">
                     <div className="text-red-100 text-xs mb-1">{lang === 'el' ? 'Ανεξόφλητα' : 'Unpaid'}</div>
-                    <div className="text-2xl font-bold text-white">{paymentTotals.unpaid.toLocaleString()}€</div>
+                    <div className="text-2xl font-bold text-white">{formatMoneyShort(paymentTotals.unpaid)}</div>
                     <div className="text-red-200 text-xs mt-1">{paymentTotals.unpaidCount} {lang === 'el' ? 'κρατήσεις' : 'bookings'}</div>
                   </div>
                 </div>
@@ -1061,7 +1071,7 @@ const ConsolidatedReports: React.FC = () => {
                 <div className="bg-white p-4 rounded-lg mb-4 border border-[#d1d5db] shadow-sm">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-[#374151] text-sm font-medium">{lang === 'el' ? 'Σύνολο' : 'Total'}</span>
-                    <span className="text-xl font-bold text-[#1e40af]">{paymentTotals.total.toLocaleString()}€</span>
+                    <span className="text-xl font-bold text-[#1e40af]">{formatMoneyShort(paymentTotals.total)}</span>
                   </div>
                   <div className="h-3 bg-[#e5e7eb] rounded-full overflow-hidden">
                     <div
@@ -1098,9 +1108,9 @@ const ConsolidatedReports: React.FC = () => {
                             <td className="p-3 text-[#6b7280]">
                               {new Date(payment.startDate).toLocaleDateString('el-GR')} - {new Date(payment.endDate).toLocaleDateString('el-GR')}
                             </td>
-                            <td className="p-3 text-right text-[#374151] font-medium">{payment.totalAmount.toLocaleString()}€</td>
-                            <td className="p-3 text-right text-green-600">{payment.paidAmount.toLocaleString()}€</td>
-                            <td className="p-3 text-right text-red-600">{payment.unpaidAmount.toLocaleString()}€</td>
+                            <td className="p-3 text-right text-[#374151] font-medium">{formatMoneyShort(payment.totalAmount)}</td>
+                            <td className="p-3 text-right text-green-600">{formatMoneyShort(payment.paidAmount)}</td>
+                            <td className="p-3 text-right text-red-600">{formatMoneyShort(payment.unpaidAmount)}</td>
                             <td className="p-3 text-center">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 payment.status === 'paid' ? 'bg-green-100 text-green-700' :
@@ -1136,7 +1146,7 @@ const ConsolidatedReports: React.FC = () => {
                   </div>
                   <div className="bg-gradient-to-br from-[#1e40af] to-blue-700 p-4 rounded-xl shadow-lg">
                     <div className="text-blue-100 text-xs mb-1">{lang === 'el' ? 'Συνολικά Έσοδα' : 'Total Revenue'}</div>
-                    <div className="text-2xl font-bold text-white">{charterTotals.totalRevenue.toLocaleString()}€</div>
+                    <div className="text-2xl font-bold text-white">{formatMoneyShort(charterTotals.totalRevenue)}</div>
                   </div>
                 </div>
 
@@ -1160,7 +1170,7 @@ const ConsolidatedReports: React.FC = () => {
                             <td className="p-3 text-[#6b7280]">{charter.month}</td>
                             <td className="p-3 text-right text-[#1e40af] font-medium">{charter.totalCharters}</td>
                             <td className="p-3 text-right text-[#6b7280]">{charter.totalDays}</td>
-                            <td className="p-3 text-right text-green-600 font-medium">{charter.totalRevenue.toLocaleString()}€</td>
+                            <td className="p-3 text-right text-green-600 font-medium">{formatMoneyShort(charter.totalRevenue)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1177,19 +1187,19 @@ const ConsolidatedReports: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                   <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-xl shadow-lg">
                     <div className="text-green-100 text-xs mb-1">{lang === 'el' ? 'Συν. Έσοδα' : 'Total Revenue'}</div>
-                    <div className="text-xl font-bold text-white">{commissionTotals.totalRevenue.toLocaleString()}€</div>
+                    <div className="text-xl font-bold text-white">{formatMoneyShort(commissionTotals.totalRevenue)}</div>
                   </div>
                   <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-4 rounded-xl shadow-lg">
                     <div className="text-orange-100 text-xs mb-1">{lang === 'el' ? 'Προμήθεια' : 'Commission'}</div>
-                    <div className="text-xl font-bold text-white">{commissionTotals.totalCommission.toLocaleString()}€</div>
+                    <div className="text-xl font-bold text-white">{formatMoneyShort(commissionTotals.totalCommission)}</div>
                   </div>
                   <div className="bg-gradient-to-br from-red-500 to-rose-600 p-4 rounded-xl shadow-lg">
                     <div className="text-red-100 text-xs mb-1">{lang === 'el' ? 'ΦΠΑ Προμήθειας' : 'VAT'}</div>
-                    <div className="text-xl font-bold text-white">{commissionTotals.totalVat.toLocaleString()}€</div>
+                    <div className="text-xl font-bold text-white">{formatMoneyShort(commissionTotals.totalVat)}</div>
                   </div>
                   <div className="bg-gradient-to-br from-[#1e40af] to-blue-700 p-4 rounded-xl shadow-lg">
                     <div className="text-blue-100 text-xs mb-1">{lang === 'el' ? 'Καθαρά σε Ιδιοκτ.' : 'Net to Owner'}</div>
-                    <div className="text-xl font-bold text-white">{commissionTotals.totalNet.toLocaleString()}€</div>
+                    <div className="text-xl font-bold text-white">{formatMoneyShort(commissionTotals.totalNet)}</div>
                   </div>
                 </div>
 
@@ -1212,10 +1222,10 @@ const ConsolidatedReports: React.FC = () => {
                           <tr key={idx} className="border-t border-[#e5e7eb] hover:bg-[#f9fafb] transition-colors">
                             <td className="p-3 text-[#374151] font-medium">{comm.ownerName}</td>
                             <td className="p-3 text-[#6b7280]">{comm.vesselName}</td>
-                            <td className="p-3 text-right text-green-600">{comm.totalRevenue.toLocaleString()}€</td>
-                            <td className="p-3 text-right text-orange-600">{comm.commission.toLocaleString()}€</td>
-                            <td className="p-3 text-right text-red-600">{comm.vatOnCommission.toLocaleString()}€</td>
-                            <td className="p-3 text-right text-[#1e40af] font-bold">{comm.netToOwner.toLocaleString()}€</td>
+                            <td className="p-3 text-right text-green-600">{formatMoneyShort(comm.totalRevenue)}</td>
+                            <td className="p-3 text-right text-orange-600">{formatMoneyShort(comm.commission)}</td>
+                            <td className="p-3 text-right text-red-600">{formatMoneyShort(comm.vatOnCommission)}</td>
+                            <td className="p-3 text-right text-[#1e40af] font-bold">{formatMoneyShort(comm.netToOwner)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1240,7 +1250,7 @@ const ConsolidatedReports: React.FC = () => {
                   </div>
                   <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-xl shadow-lg">
                     <div className="text-green-100 text-xs mb-1">{lang === 'el' ? 'Συν. Έσοδα' : 'Total Revenue'}</div>
-                    <div className="text-2xl font-bold text-white">{vesselTotals.totalRevenue.toLocaleString()}€</div>
+                    <div className="text-2xl font-bold text-white">{formatMoneyShort(vesselTotals.totalRevenue)}</div>
                   </div>
                 </div>
 
@@ -1263,8 +1273,8 @@ const ConsolidatedReports: React.FC = () => {
                             <td className="p-3 text-[#374151] font-medium">{vessel.vesselName}</td>
                             <td className="p-3 text-right text-[#1e40af] font-medium">{vessel.totalBookings}</td>
                             <td className="p-3 text-right text-[#6b7280]">{vessel.totalDays}</td>
-                            <td className="p-3 text-right text-green-600 font-medium">{vessel.totalRevenue.toLocaleString()}€</td>
-                            <td className="p-3 text-right text-[#6b7280]">{vessel.averagePerDay.toLocaleString()}€</td>
+                            <td className="p-3 text-right text-green-600 font-medium">{formatMoneyShort(vessel.totalRevenue)}</td>
+                            <td className="p-3 text-right text-[#6b7280]">{formatMoneyShort(vessel.averagePerDay)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1330,11 +1340,11 @@ const ConsolidatedReports: React.FC = () => {
                   </div>
                   <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-xl shadow-lg">
                     <div className="text-green-100 text-xs mb-1">{lang === 'el' ? 'Έσοδα' : 'Revenue'}</div>
-                    <div className="text-2xl font-bold text-white">{brokerTotals.totalRevenue.toLocaleString()}€</div>
+                    <div className="text-2xl font-bold text-white">{formatMoneyShort(brokerTotals.totalRevenue)}</div>
                   </div>
                   <div className="bg-gradient-to-br from-orange-500 to-amber-600 p-4 rounded-xl shadow-lg">
                     <div className="text-orange-100 text-xs mb-1">{lang === 'el' ? 'Προμήθειες' : 'Commissions'}</div>
-                    <div className="text-2xl font-bold text-white">{brokerTotals.totalCommission.toLocaleString()}€</div>
+                    <div className="text-2xl font-bold text-white">{formatMoneyShort(brokerTotals.totalCommission)}</div>
                   </div>
                 </div>
 
@@ -1359,8 +1369,8 @@ const ConsolidatedReports: React.FC = () => {
                             <td className="p-3 text-[#6b7280] text-xs">{broker.brokerEmail}</td>
                             <td className="p-3 text-right text-[#1e40af] font-bold">{broker.totalBookings}</td>
                             <td className="p-3 text-right text-[#6b7280]">{broker.totalDays}</td>
-                            <td className="p-3 text-right text-green-600 font-medium">{broker.totalRevenue.toLocaleString()}€</td>
-                            <td className="p-3 text-right text-orange-600">{broker.commission.toLocaleString()}€</td>
+                            <td className="p-3 text-right text-green-600 font-medium">{formatMoneyShort(broker.totalRevenue)}</td>
+                            <td className="p-3 text-right text-orange-600">{formatMoneyShort(broker.commission)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1369,8 +1379,8 @@ const ConsolidatedReports: React.FC = () => {
                           <td className="p-3" colSpan={2}>{lang === 'el' ? 'ΣΥΝΟΛΟ' : 'TOTAL'}</td>
                           <td className="p-3 text-right text-[#1e40af]">{brokerTotals.totalBookings}</td>
                           <td className="p-3 text-right">{brokerTotals.totalDays}</td>
-                          <td className="p-3 text-right text-green-600">{brokerTotals.totalRevenue.toLocaleString()}€</td>
-                          <td className="p-3 text-right text-orange-600">{brokerTotals.totalCommission.toLocaleString()}€</td>
+                          <td className="p-3 text-right text-green-600">{formatMoneyShort(brokerTotals.totalRevenue)}</td>
+                          <td className="p-3 text-right text-orange-600">{formatMoneyShort(brokerTotals.totalCommission)}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -1394,7 +1404,7 @@ const ConsolidatedReports: React.FC = () => {
                   </div>
                   <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-xl shadow-lg">
                     <div className="text-green-100 text-xs mb-1">{lang === 'el' ? 'Συν. Έσοδα' : 'Total Spent'}</div>
-                    <div className="text-2xl font-bold text-white">{repeatTotals.totalSpent.toLocaleString()}€</div>
+                    <div className="text-2xl font-bold text-white">{formatMoneyShort(repeatTotals.totalSpent)}</div>
                   </div>
                 </div>
 
@@ -1421,7 +1431,7 @@ const ConsolidatedReports: React.FC = () => {
                           <div className="flex items-center gap-6">
                             <div className="text-right">
                               <div className="text-[#1e40af] font-bold">{customer.totalBookings} {lang === 'el' ? 'κρατήσεις' : 'bookings'}</div>
-                              <div className="text-green-600 text-sm">{customer.totalSpent.toLocaleString()}€</div>
+                              <div className="text-green-600 text-sm">{formatMoneyShort(customer.totalSpent)}</div>
                             </div>
                             <span className={`text-[#6b7280] transition-transform ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
                           </div>
@@ -1444,7 +1454,7 @@ const ConsolidatedReports: React.FC = () => {
                                     <span className="text-[#6b7280] text-xs">
                                       {new Date(booking.startDate).toLocaleDateString('el-GR')} - {new Date(booking.endDate).toLocaleDateString('el-GR')}
                                     </span>
-                                    <span className="text-green-600 font-medium">{booking.amount.toLocaleString()}€</span>
+                                    <span className="text-green-600 font-medium">{formatMoneyShort(booking.amount)}</span>
                                   </div>
                                 </div>
                               ))}
@@ -1469,7 +1479,7 @@ const ConsolidatedReports: React.FC = () => {
                   </div>
                   <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-4 rounded-xl shadow-lg">
                     <div className="text-green-100 text-xs mb-1">{lang === 'el' ? 'Συν. Έσοδα' : 'Total Revenue'}</div>
-                    <div className="text-2xl font-bold text-white">{directTotals.totalRevenue.toLocaleString()}€</div>
+                    <div className="text-2xl font-bold text-white">{formatMoneyShort(directTotals.totalRevenue)}</div>
                   </div>
                   {Object.entries(directTotals.bySource).slice(0, 2).map(([source, count]) => (
                     <div key={source} className="bg-gradient-to-br from-purple-500 to-violet-600 p-4 rounded-xl shadow-lg">
@@ -1507,7 +1517,7 @@ const ConsolidatedReports: React.FC = () => {
                             <td className="p-3 text-[#6b7280] text-xs">
                               {new Date(customer.startDate).toLocaleDateString('el-GR')} - {new Date(customer.endDate).toLocaleDateString('el-GR')}
                             </td>
-                            <td className="p-3 text-right text-green-600 font-medium">{customer.amount.toLocaleString()}€</td>
+                            <td className="p-3 text-right text-green-600 font-medium">{formatMoneyShort(customer.amount)}</td>
                             <td className="p-3 text-center">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                 customer.source === 'Website' ? 'bg-blue-100 text-blue-700' :
@@ -1524,7 +1534,7 @@ const ConsolidatedReports: React.FC = () => {
                       <tfoot className="bg-[#f9fafb]">
                         <tr className="text-[#374151] font-bold border-t border-[#d1d5db]">
                           <td className="p-3" colSpan={5}>{lang === 'el' ? 'ΣΥΝΟΛΟ' : 'TOTAL'} ({directTotals.totalCustomers} {lang === 'el' ? 'πελάτες' : 'customers'})</td>
-                          <td className="p-3 text-right text-green-600">{directTotals.totalRevenue.toLocaleString()}€</td>
+                          <td className="p-3 text-right text-green-600">{formatMoneyShort(directTotals.totalRevenue)}</td>
                           <td className="p-3"></td>
                         </tr>
                       </tfoot>
