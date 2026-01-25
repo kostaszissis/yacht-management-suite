@@ -242,17 +242,38 @@ async function getPaymentSummary(filters: Filters): Promise<PaymentSummary[]> {
   const rawData = await fetchReportsData(filters);
   console.log('Raw data received:', rawData.length, 'records');
 
+  // Debug: Log first few raw records to see actual values
+  if (rawData.length > 0) {
+    console.log('Sample raw data (first 3 records):');
+    rawData.slice(0, 3).forEach((b, i) => {
+      console.log(`  [${i}] amount: ${b.amount} (type: ${typeof b.amount}), totalPaid: ${b.totalPaid}, balance: ${b.balance}`);
+    });
+  }
+
   // Transform to PaymentSummary format
-  const data: PaymentSummary[] = rawData.map(booking => ({
-    bookingCode: booking.bookingNumber || 'N/A',
-    vesselName: booking.vesselName || 'Unknown',
-    startDate: booking.startDate || '',
-    endDate: booking.endDate || '',
-    totalAmount: Number(booking.amount) || 0,
-    paidAmount: Number(booking.totalPaid) || 0,
-    unpaidAmount: Number(booking.balance) || 0,
-    status: (booking.paymentStatus as 'paid' | 'partial' | 'unpaid') || 'unpaid'
-  }));
+  const data: PaymentSummary[] = rawData.map(booking => {
+    // Ensure proper number conversion - handle string or number input
+    const amount = parseFloat(String(booking.amount)) || 0;
+    const totalPaid = parseFloat(String(booking.totalPaid)) || 0;
+    const balance = parseFloat(String(booking.balance)) || 0;
+
+    return {
+      bookingCode: booking.bookingNumber || 'N/A',
+      vesselName: booking.vesselName || 'Unknown',
+      startDate: booking.startDate || '',
+      endDate: booking.endDate || '',
+      totalAmount: amount,
+      paidAmount: totalPaid,
+      unpaidAmount: balance,
+      status: (booking.paymentStatus as 'paid' | 'partial' | 'unpaid') || 'unpaid'
+    };
+  });
+
+  // Debug: Log transformed totals
+  const debugTotal = data.reduce((sum, p) => sum + p.totalAmount, 0);
+  const debugPaid = data.reduce((sum, p) => sum + p.paidAmount, 0);
+  const debugBalance = data.reduce((sum, p) => sum + p.unpaidAmount, 0);
+  console.log('DEBUG totals - Total:', debugTotal, 'Paid:', debugPaid, 'Balance:', debugBalance);
 
   console.log('Transformed payment data:', data.length, 'records');
   return data;
@@ -663,12 +684,23 @@ const ConsolidatedReports: React.FC = () => {
 
   // Calculate totals for payments
   const paymentTotals = useMemo(() => {
+    console.log('=== Calculating paymentTotals ===');
+    console.log('paymentData count:', paymentData.length);
+
+    // Debug: Log all amounts
+    if (paymentData.length > 0) {
+      console.log('All amounts:', paymentData.map(p => p.totalAmount));
+    }
+
     const total = paymentData.reduce((acc, p) => acc + p.totalAmount, 0);
     const paid = paymentData.reduce((acc, p) => acc + p.paidAmount, 0);
     const unpaid = paymentData.reduce((acc, p) => acc + p.unpaidAmount, 0);
     const paidCount = paymentData.filter(p => p.status === 'paid').length;
     const partialCount = paymentData.filter(p => p.status === 'partial').length;
     const unpaidCount = paymentData.filter(p => p.status === 'unpaid').length;
+
+    console.log('Calculated totals - Total:', total, 'Paid:', paid, 'Unpaid:', unpaid);
+
     return { total, paid, unpaid, paidCount, partialCount, unpaidCount };
   }, [paymentData]);
 
