@@ -1290,7 +1290,7 @@ const ConsolidatedReports: React.FC = () => {
                 {/* Summary Card */}
                 <div className="bg-gradient-to-br from-[#1e40af] to-blue-700 p-6 rounded-xl shadow-lg mb-4">
                   <div className="text-center">
-                    <div className="text-blue-100 text-sm mb-1">{lang === 'el' ? 'Μέση Κατάληψη Στόλου' : 'Average Fleet Occupancy'}</div>
+                    <div className="text-blue-100 text-sm mb-1">{lang === 'el' ? 'Μέσο Ποσοστό Στόλου' : 'Average Fleet Occupancy'}</div>
                     <div className="text-5xl font-bold text-white">{avgOccupancy}%</div>
                     <div className="text-blue-200 text-xs mt-2">
                       {lang === 'el' ? 'Περίοδος: 1 Απριλίου - 31 Οκτωβρίου (214 ημέρες)' : 'Season: April 1 - October 31 (214 days)'}
