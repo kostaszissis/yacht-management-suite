@@ -894,7 +894,7 @@ const ConsolidatedReports: React.FC = () => {
     { key: 'charters', labelEl: 'Ναύλα', labelEn: 'Charters', icon: '⛵' },
     { key: 'commissions', labelEl: 'Προμήθειες', labelEn: 'Commissions', icon: '💰' },
     { key: 'vessels', labelEl: 'Σκάφη', labelEn: 'Vessels', icon: '🚢' },
-    { key: 'occupancy', labelEl: 'Κατάληψη', labelEn: 'Occupancy', icon: '📊' },
+    { key: 'occupancy', labelEl: 'Ποσοστό', labelEn: 'Occupancy', icon: '📊' },
     { key: 'brokers', labelEl: 'Brokers', labelEn: 'Brokers', icon: '🤝' },
     { key: 'repeat', labelEl: 'Επαναλ. Πελάτες', labelEn: 'Repeat Customers', icon: '🔄' },
     { key: 'direct', labelEl: 'Direct Πελάτες', labelEn: 'Direct Customers', icon: '📞' }
