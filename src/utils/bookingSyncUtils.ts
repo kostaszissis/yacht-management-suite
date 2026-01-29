@@ -8,6 +8,12 @@
  * - check-in time (startTime)
  * - check-out date (endDate)
  * - check-out time (endTime)
+ * - charterer first name
+ * - charterer last name
+ * - charterer address
+ * - charterer email
+ * - charterer phone
+ * - sameAsSkipper (checkbox)
  * - skipper first name
  * - skipper last name
  * - skipper address
@@ -25,6 +31,14 @@ export interface SyncedBookingData {
   startTime: string;      // check-in time
   endDate: string;        // check-out date
   endTime: string;        // check-out time
+  // Charterer fields
+  chartererFirstName: string;
+  chartererLastName: string;
+  chartererAddress: string;
+  chartererEmail: string;
+  chartererPhone: string;
+  sameAsSkipper: boolean;
+  // Skipper fields
   skipperFirstName: string;
   skipperLastName: string;
   skipperAddress: string;
@@ -45,6 +59,14 @@ export const saveBookingSync = (data: Partial<SyncedBookingData>, source: 'page1
       startTime: data.startTime ?? existing?.startTime ?? '',
       endDate: data.endDate ?? existing?.endDate ?? '',
       endTime: data.endTime ?? existing?.endTime ?? '',
+      // Charterer fields
+      chartererFirstName: data.chartererFirstName ?? existing?.chartererFirstName ?? '',
+      chartererLastName: data.chartererLastName ?? existing?.chartererLastName ?? '',
+      chartererAddress: data.chartererAddress ?? existing?.chartererAddress ?? '',
+      chartererEmail: data.chartererEmail ?? existing?.chartererEmail ?? '',
+      chartererPhone: data.chartererPhone ?? existing?.chartererPhone ?? '',
+      sameAsSkipper: data.sameAsSkipper ?? existing?.sameAsSkipper ?? false,
+      // Skipper fields
       skipperFirstName: data.skipperFirstName ?? existing?.skipperFirstName ?? '',
       skipperLastName: data.skipperLastName ?? existing?.skipperLastName ?? '',
       skipperAddress: data.skipperAddress ?? existing?.skipperAddress ?? '',
@@ -95,6 +117,12 @@ export const page1ToSyncFormat = (form: {
   checkInTime?: string;
   checkOutDate?: string;
   checkOutTime?: string;
+  chartererFirstName?: string;
+  chartererLastName?: string;
+  chartererAddress?: string;
+  chartererEmail?: string;
+  chartererPhone?: string;
+  sameAsSkipper?: boolean;
   skipperFirstName?: string;
   skipperLastName?: string;
   skipperAddress?: string;
@@ -108,6 +136,12 @@ export const page1ToSyncFormat = (form: {
     startTime: form.checkInTime || '',
     endDate: form.checkOutDate || '',
     endTime: form.checkOutTime || '',
+    chartererFirstName: form.chartererFirstName || '',
+    chartererLastName: form.chartererLastName || '',
+    chartererAddress: form.chartererAddress || '',
+    chartererEmail: form.chartererEmail || '',
+    chartererPhone: form.chartererPhone || '',
+    sameAsSkipper: form.sameAsSkipper || false,
     skipperFirstName: form.skipperFirstName || '',
     skipperLastName: form.skipperLastName || '',
     skipperAddress: form.skipperAddress || '',
@@ -124,6 +158,12 @@ export const syncToPage1Format = (sync: SyncedBookingData | null): {
   checkInTime: string;
   checkOutDate: string;
   checkOutTime: string;
+  chartererFirstName: string;
+  chartererLastName: string;
+  chartererAddress: string;
+  chartererEmail: string;
+  chartererPhone: string;
+  sameAsSkipper: boolean;
   skipperFirstName: string;
   skipperLastName: string;
   skipperAddress: string;
@@ -138,6 +178,12 @@ export const syncToPage1Format = (sync: SyncedBookingData | null): {
     checkInTime: sync.startTime || '',
     checkOutDate: sync.endDate || '',
     checkOutTime: sync.endTime || '',
+    chartererFirstName: sync.chartererFirstName || '',
+    chartererLastName: sync.chartererLastName || '',
+    chartererAddress: sync.chartererAddress || '',
+    chartererEmail: sync.chartererEmail || '',
+    chartererPhone: sync.chartererPhone || '',
+    sameAsSkipper: sync.sameAsSkipper || false,
     skipperFirstName: sync.skipperFirstName || '',
     skipperLastName: sync.skipperLastName || '',
     skipperAddress: sync.skipperAddress || '',
@@ -154,6 +200,12 @@ export const fleetToSyncFormat = (
     startTime?: string;
     endDate?: string;
     endTime?: string;
+    chartererFirstName?: string;
+    chartererLastName?: string;
+    chartererAddress?: string;
+    chartererEmail?: string;
+    chartererPhone?: string;
+    sameAsSkipper?: boolean;
     skipperFirstName?: string;
     skipperLastName?: string;
     skipperAddress?: string;
@@ -169,6 +221,12 @@ export const fleetToSyncFormat = (
     startTime: newCharter.startTime || '',
     endDate: newCharter.endDate || '',
     endTime: newCharter.endTime || '',
+    chartererFirstName: newCharter.chartererFirstName || '',
+    chartererLastName: newCharter.chartererLastName || '',
+    chartererAddress: newCharter.chartererAddress || '',
+    chartererEmail: newCharter.chartererEmail || '',
+    chartererPhone: newCharter.chartererPhone || '',
+    sameAsSkipper: newCharter.sameAsSkipper || false,
     skipperFirstName: newCharter.skipperFirstName || '',
     skipperLastName: newCharter.skipperLastName || '',
     skipperAddress: newCharter.skipperAddress || '',
@@ -184,6 +242,12 @@ export const syncToFleetFormat = (sync: SyncedBookingData | null): {
   startTime: string;
   endDate: string;
   endTime: string;
+  chartererFirstName: string;
+  chartererLastName: string;
+  chartererAddress: string;
+  chartererEmail: string;
+  chartererPhone: string;
+  sameAsSkipper: boolean;
   skipperFirstName: string;
   skipperLastName: string;
   skipperAddress: string;
@@ -197,6 +261,12 @@ export const syncToFleetFormat = (sync: SyncedBookingData | null): {
     startTime: sync.startTime || '',
     endDate: sync.endDate || '',
     endTime: sync.endTime || '',
+    chartererFirstName: sync.chartererFirstName || '',
+    chartererLastName: sync.chartererLastName || '',
+    chartererAddress: sync.chartererAddress || '',
+    chartererEmail: sync.chartererEmail || '',
+    chartererPhone: sync.chartererPhone || '',
+    sameAsSkipper: sync.sameAsSkipper || false,
     skipperFirstName: sync.skipperFirstName || '',
     skipperLastName: sync.skipperLastName || '',
     skipperAddress: sync.skipperAddress || '',

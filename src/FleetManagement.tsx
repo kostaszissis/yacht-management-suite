@@ -6033,6 +6033,10 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     foreignBrokerPercent: '20',
     broker: '', // Broker / Agency name
     departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
+    // Charterer fields
+    chartererFirstName: '', chartererLastName: '', chartererAddress: '', chartererEmail: '', chartererPhone: '',
+    sameAsSkipper: false,
+    // Skipper fields
     skipperFirstName: '', skipperLastName: '', skipperAddress: '', skipperEmail: '', skipperPhone: ''
   });
 
@@ -6646,6 +6650,13 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       // 🔥 Keep existing payment data when editing, reset when adding
       paymentStatus: isEditMode ? (editingCharter.paymentStatus || 'Pending') : 'Pending',
       payments: isEditMode ? (editingCharter.payments || []) : [],
+      // Charterer fields
+      chartererFirstName: newCharter.chartererFirstName,
+      chartererLastName: newCharter.chartererLastName,
+      chartererAddress: newCharter.chartererAddress,
+      chartererEmail: newCharter.chartererEmail,
+      chartererPhone: newCharter.chartererPhone,
+      sameAsSkipper: newCharter.sameAsSkipper,
       // 🔥 FIX 9: Skipper fields
       skipperFirstName: newCharter.skipperFirstName,
       skipperLastName: newCharter.skipperLastName,
@@ -7158,6 +7169,70 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       <option value="Pending Approval" className="bg-orange-400 text-black">🟠 PENDING APPROVAL (Προς Έγκριση)</option>
                       <option value="Confirmed" className="bg-green-500 text-white">🟢 CONFIRMED (Κλεισμένο)</option>
                     </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* CHARTERER INFORMATION Section */}
+              <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
+                <h3 className="text-lg font-bold text-green-400 mb-3">CHARTERER INFORMATION</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">First Name</label>
+                      <input type="text" name="chartererFirstName" value={newCharter.chartererFirstName} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Όνομα" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
+                      <input type="text" name="chartererLastName" value={newCharter.chartererLastName} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Επώνυμο" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Address</label>
+                    <input type="text" name="chartererAddress" value={newCharter.chartererAddress} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Διεύθυνση" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                      <input type="email" name="chartererEmail" value={newCharter.chartererEmail} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="email@example.com" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+                      <input type="tel" name="chartererPhone" value={newCharter.chartererPhone} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="+30 69..." className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
+                    </div>
+                  </div>
+
+                  {/* Same as Skipper Checkbox */}
+                  <div className="mt-3 p-3 bg-gray-600 rounded-lg border-2 border-yellow-500">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newCharter.sameAsSkipper}
+                        onChange={(e) => {
+                          const isChecked = e.target.checked;
+                          if (isChecked) {
+                            // Copy charterer fields to skipper fields
+                            setNewCharter(prev => ({
+                              ...prev,
+                              sameAsSkipper: true,
+                              skipperFirstName: prev.chartererFirstName,
+                              skipperLastName: prev.chartererLastName,
+                              skipperAddress: prev.chartererAddress,
+                              skipperEmail: prev.chartererEmail,
+                              skipperPhone: prev.chartererPhone
+                            }));
+                          } else {
+                            setNewCharter(prev => ({
+                              ...prev,
+                              sameAsSkipper: false
+                            }));
+                          }
+                        }}
+                        className="w-5 h-5 accent-yellow-500"
+                      />
+                      <span className="text-yellow-400 font-medium">Ο Charterer είναι και Skipper</span>
+                    </label>
+                    <p className="text-xs text-gray-400 mt-1 ml-8">Αν επιλεγεί, τα στοιχεία του Charterer αντιγράφονται στον Skipper</p>
                   </div>
                 </div>
               </div>

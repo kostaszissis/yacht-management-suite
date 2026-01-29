@@ -364,6 +364,14 @@ export default function Page1() {
     checkInTime: "",
     checkOutDate: "",
     checkOutTime: "",
+    // Charterer fields
+    chartererFirstName: "",
+    chartererLastName: "",
+    chartererAddress: "",
+    chartererEmail: "",
+    chartererPhone: "",
+    sameAsSkipper: false,
+    // Skipper fields
     skipperFirstName: "",
     skipperLastName: "",
     skipperAddress: "",
@@ -1231,6 +1239,14 @@ export default function Page1() {
         bookingNumber: form.bookingNumber,
         vesselName: `${form.vesselCategory} - ${form.vesselName}`,
         selectedVessel: form.vesselName,
+        // Charterer fields
+        chartererFirstName: form.chartererFirstName,
+        chartererLastName: form.chartererLastName,
+        chartererAddress: form.chartererAddress,
+        chartererEmail: form.chartererEmail,
+        chartererPhone: form.chartererPhone,
+        sameAsSkipper: form.sameAsSkipper,
+        // Skipper fields
         skipperFirstName: form.skipperFirstName,
         skipperLastName: form.skipperLastName,
         skipperEmail: form.skipperEmail,
@@ -1616,11 +1632,138 @@ export default function Page1() {
               )}
             </div>
 
-            <div ref={nameRef} className="border-2 rounded-xl p-4 transition-all duration-300" 
-              style={{ 
-                borderColor: skipperNameComplete ? brand.successBorder : brand.blue, 
-                background: skipperNameComplete ? brand.successBg : 'transparent' 
+            {/* CHARTERER INFORMATION Section */}
+            <div className="border-2 rounded-xl p-4 transition-all duration-300"
+              style={{
+                borderColor: (form.chartererFirstName && form.chartererLastName) ? '#10b981' : '#22c55e',
+                background: (form.chartererFirstName && form.chartererLastName) ? '#f0fdf4' : 'transparent',
+                borderWidth: '2px'
               }}>
+              <h3 className="text-lg font-bold text-green-600 mb-3">
+                {lang === 'el' ? 'CHARTERER INFORMATION' : 'CHARTERER INFORMATION'}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-green-700">
+                    {lang === 'el' ? 'Όνομα' : 'First Name'}
+                  </label>
+                  <input
+                    name="chartererFirstName"
+                    value={form.chartererFirstName}
+                    onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
+                    disabled={mode === 'out'}
+                    className={`w-full border-2 border-green-400 rounded p-2 mt-2 transition-all duration-300 focus:border-green-600 focus:outline-none ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder={lang === 'el' ? 'Όνομα' : 'First Name'}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-green-700">
+                    {lang === 'el' ? 'Επώνυμο' : 'Last Name'}
+                  </label>
+                  <input
+                    name="chartererLastName"
+                    value={form.chartererLastName}
+                    onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
+                    disabled={mode === 'out'}
+                    className={`w-full border-2 border-green-400 rounded p-2 mt-2 transition-all duration-300 focus:border-green-600 focus:outline-none ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder={lang === 'el' ? 'Επώνυμο' : 'Last Name'}
+                  />
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="block font-semibold text-green-700">
+                  {lang === 'el' ? 'Διεύθυνση' : 'Address'}
+                </label>
+                <input
+                  name="chartererAddress"
+                  value={form.chartererAddress}
+                  onChange={handleChange}
+                  onKeyDown={handleFormKeyDown}
+                  disabled={mode === 'out'}
+                  className={`w-full border-2 border-green-400 rounded p-2 mt-2 transition-all duration-300 focus:border-green-600 focus:outline-none ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  placeholder={lang === 'el' ? 'Διεύθυνση' : 'Address'}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div>
+                  <label className="block font-semibold text-green-700">Email</label>
+                  <input
+                    type="email"
+                    name="chartererEmail"
+                    value={form.chartererEmail}
+                    onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
+                    disabled={mode === 'out'}
+                    className={`w-full border-2 border-green-400 rounded p-2 mt-2 transition-all duration-300 focus:border-green-600 focus:outline-none ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder="email@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-green-700">
+                    {lang === 'el' ? 'Τηλέφωνο' : 'Phone'}
+                  </label>
+                  <input
+                    type="tel"
+                    name="chartererPhone"
+                    value={form.chartererPhone}
+                    onChange={handleChange}
+                    onKeyDown={handleFormKeyDown}
+                    disabled={mode === 'out'}
+                    className={`w-full border-2 border-green-400 rounded p-2 mt-2 transition-all duration-300 focus:border-green-600 focus:outline-none ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder="+30 69..."
+                  />
+                </div>
+              </div>
+
+              {/* Same as Skipper Checkbox */}
+              <div className="mt-4 p-3 bg-yellow-50 border-2 border-yellow-400 rounded-lg">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.sameAsSkipper}
+                    onChange={(e) => {
+                      const isChecked = e.target.checked;
+                      if (isChecked) {
+                        setForm(prev => ({
+                          ...prev,
+                          sameAsSkipper: true,
+                          skipperFirstName: prev.chartererFirstName,
+                          skipperLastName: prev.chartererLastName,
+                          skipperAddress: prev.chartererAddress,
+                          skipperEmail: prev.chartererEmail,
+                          skipperPhone: prev.chartererPhone
+                        }));
+                      } else {
+                        setForm(prev => ({
+                          ...prev,
+                          sameAsSkipper: false
+                        }));
+                      }
+                    }}
+                    disabled={mode === 'out'}
+                    className="w-5 h-5 accent-yellow-500"
+                  />
+                  <span className="text-yellow-700 font-medium">
+                    {lang === 'el' ? 'Ο Charterer είναι και Skipper' : 'Charterer is also the Skipper'}
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500 mt-1 ml-8">
+                  {lang === 'el' ? 'Αν επιλεγεί, τα στοιχεία του Charterer αντιγράφονται στον Skipper' : 'If checked, Charterer info is copied to Skipper'}
+                </p>
+              </div>
+            </div>
+
+            {/* SKIPPER INFORMATION Section */}
+            <div ref={nameRef} className="border-2 rounded-xl p-4 transition-all duration-300"
+              style={{
+                borderColor: skipperNameComplete ? brand.successBorder : brand.blue,
+                background: skipperNameComplete ? brand.successBg : 'transparent'
+              }}>
+              <h3 className="text-lg font-bold mb-3" style={{ color: brand.blue }}>
+                {lang === 'el' ? 'SKIPPER INFORMATION' : 'SKIPPER INFORMATION'}
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="relative">
                   <label className="block font-semibold cursor-pointer" onClick={()=>speakLabel(t.firstName)}>
