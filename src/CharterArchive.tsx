@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getVessels } from './services/apiService';
+import { getVessels, getBookingsByVessel } from './services/apiService';
 
 interface CharterArchiveProps {
   onClose: () => void;
@@ -12,14 +12,13 @@ interface DocumentData {
 }
 
 interface ArchiveData {
-  bookingConfirmation?: string;
-  charterAgreement?: string;
   notes?: string;
   customFields?: { label: string; value: string }[];
   documents?: {
+    bookingConfirmation?: DocumentData | null;
+    charterAgreement?: DocumentData | null;
     skipperLicense?: DocumentData | null;
     crewList?: DocumentData | null;
-    charterParty?: DocumentData | null;
     other?: DocumentData[];
   };
 }
@@ -55,6 +54,12 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
   // Custom fields state
   const [customFields, setCustomFields] = useState<{ label: string; value: string }[]>([]);
 
+  // Charters per vessel (loaded separately from API)
+  const [vesselCharters, setVesselCharters] = useState<{[vesselId: string]: any[]}>({});
+
+  // Year filter state (default to current year)
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+
   // Load vessels on mount
   useEffect(() => {
     const loadData = async () => {
@@ -62,6 +67,18 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
       try {
         const data = await getVessels();
         setVessels(data || []);
+
+        // Load charters for each vessel
+        const chartersMap: {[key: string]: any[]} = {};
+        for (const vessel of (data || [])) {
+          try {
+            const charters = await getBookingsByVessel(vessel.id);
+            chartersMap[vessel.id] = charters || [];
+          } catch (e) {
+            chartersMap[vessel.id] = [];
+          }
+        }
+        setVesselCharters(chartersMap);
       } catch (error) {
         console.error('Error loading vessels:', error);
         setVessels([]);
@@ -87,40 +104,61 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
     }
   }, [selectedCharter]);
 
-  // Get charters for selected vessel
+  // Filter charters by selected year
+  const filterChartersByYear = (charters: any[]): any[] => {
+    if (selectedYear === 'all') return charters;
+    return charters.filter((c: any) => {
+      const dateStr = c.startDate || c.start_date;
+      if (!dateStr) return false;
+      const year = new Date(dateStr).getFullYear();
+      return year === parseInt(selectedYear);
+    });
+  };
+
+  // Get charter count for a vessel (filtered by year)
+  const getCharterCountForYear = (vesselId: string): number => {
+    const charters = vesselCharters[vesselId] || [];
+    return filterChartersByYear(charters).length;
+  };
+
+  // Get charters for selected vessel (filtered by year)
   const getVesselCharters = (): any[] => {
     if (!selectedVessel) return [];
-    return (selectedVessel.charters || []).sort((a: any, b: any) => {
+    const charters = vesselCharters[selectedVessel.id] || [];
+    const filtered = filterChartersByYear(charters);
+    return filtered.sort((a: any, b: any) => {
       return new Date(b.startDate || b.start_date || '').getTime() -
              new Date(a.startDate || a.start_date || '').getTime();
     });
   };
 
-  // Count documents for a charter
+  // Count documents for a charter (4 main documents)
   const getDocumentStatus = (charterCode: string): { complete: number; total: number } => {
     try {
       const saved = localStorage.getItem(`charter_archive_${charterCode}`);
-      if (!saved) return { complete: 0, total: 3 };
+      if (!saved) return { complete: 0, total: 4 };
       const data = JSON.parse(saved);
       const docs = data.documents || {};
       let count = 0;
+      if (docs.bookingConfirmation?.dataUrl) count++;
+      if (docs.charterAgreement?.dataUrl) count++;
       if (docs.skipperLicense?.dataUrl) count++;
       if (docs.crewList?.dataUrl) count++;
-      if (docs.charterParty?.dataUrl) count++;
-      return { complete: count, total: 3 };
+      return { complete: count, total: 4 };
     } catch {
-      return { complete: 0, total: 3 };
+      return { complete: 0, total: 4 };
     }
   };
 
-  // Count document status for vessel
+  // Count document status for vessel (4 main documents for "full", filtered by year)
   const getVesselDocStats = (vessel: any): { full: number; partial: number; none: number } => {
-    const charters = vessel.charters || [];
+    const allCharters = vesselCharters[vessel.id] || [];
+    const charters = filterChartersByYear(allCharters);
     let full = 0, partial = 0, none = 0;
     charters.forEach((c: any) => {
       const code = c.code || c.bookingNumber || c.id;
       const status = getDocumentStatus(code);
-      if (status.complete === 3) full++;
+      if (status.complete === 4) full++;
       else if (status.complete > 0) partial++;
       else none++;
     });
@@ -283,7 +321,7 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
 
   // Render document upload slot
   const renderDocumentSlot = (
-    docType: 'skipperLicense' | 'crewList' | 'charterParty',
+    docType: 'bookingConfirmation' | 'charterAgreement' | 'skipperLicense' | 'crewList',
     title: string,
     subtitle: string
   ) => {
@@ -370,6 +408,22 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
               </button>
             </div>
 
+            {/* Year Filter */}
+            <div className="bg-white p-4 flex items-center gap-4 border-b border-[#e5e7eb]">
+              <label className="text-[#374151] text-sm font-semibold">Σεζόν:</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="bg-[#f9fafb] text-[#374151] border border-[#d1d5db] rounded-lg px-4 py-2 text-sm font-semibold focus:border-[#1e40af] focus:outline-none"
+              >
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
+                <option value="all">Όλα</option>
+              </select>
+            </div>
+
             {/* Content */}
             <div className="bg-[#f3f4f6] p-6 flex-1 overflow-y-auto rounded-b-2xl">
               {loading ? (
@@ -384,7 +438,7 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {vessels.map((vessel, idx) => {
                     const stats = getVesselDocStats(vessel);
-                    const charterCount = vessel.charters?.length || 0;
+                    const charterCount = getCharterCountForYear(vessel.id);
                     return (
                       <div
                         key={vessel.id || idx}
@@ -393,7 +447,7 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
                       >
                         <h3 className="text-[#1e40af] text-lg font-bold">{vessel.name}</h3>
                         <p className="text-[#6b7280] text-sm">{vessel.type} {vessel.model ? `• ${vessel.model}` : ''}</p>
-                        <p className="text-[#374151] text-sm font-semibold mt-2">{charterCount} ναύλα</p>
+                        <p className="text-[#374151] text-sm font-semibold mt-2">{charterCount} ναύλα ({selectedYear === 'all' ? 'Όλα' : selectedYear})</p>
                         <div className="flex gap-2 mt-2">
                           {stats.full > 0 && (
                             <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">✅ {stats.full}</span>
@@ -427,7 +481,7 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
                   </svg>
                 </button>
                 <div>
-                  <h1 className="text-2xl font-bold">📁 {selectedVessel.name} — Ναύλα</h1>
+                  <h1 className="text-2xl font-bold">📁 {selectedVessel.name} — Ναύλα {selectedYear === 'all' ? '(Όλα)' : selectedYear}</h1>
                   <p className="text-blue-200 text-sm">{selectedVessel.type} {selectedVessel.model ? `• ${selectedVessel.model}` : ''}</p>
                 </div>
               </div>
@@ -487,6 +541,7 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
                           <span className="text-xs">{docStatus.complete >= 1 ? '✅' : '❌'}</span>
                           <span className="text-xs">{docStatus.complete >= 2 ? '✅' : '❌'}</span>
                           <span className="text-xs">{docStatus.complete >= 3 ? '✅' : '❌'}</span>
+                          <span className="text-xs">{docStatus.complete >= 4 ? '✅' : '❌'}</span>
                         </div>
                         <span className="text-[#1e40af] text-lg">→</span>
                       </div>
@@ -555,53 +610,16 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
                 </div>
               </div>
 
-              {/* SECTION B: BOOKING CONFIRMATION */}
-              <div className="bg-white rounded-xl shadow-md p-5 mb-4">
-                <h3 className="text-[#1e40af] text-lg font-bold mb-3">✉ BOOKING CONFIRMATION</h3>
-                <textarea
-                  value={archiveData.bookingConfirmation || ''}
-                  onChange={(e) => updateArchiveField('bookingConfirmation', e.target.value)}
-                  placeholder="Επικολλήστε εδώ το Booking Confirmation..."
-                  className="w-full h-48 bg-[#f9fafb] text-[#374151] border border-[#d1d5db] rounded-lg p-4 text-sm resize-y focus:border-[#1e40af] focus:outline-none focus:ring-2 focus:ring-[#1e40af] focus:ring-opacity-20"
-                />
-                <div className="flex justify-end mt-2">
-                  <button
-                    onClick={saveArchiveData}
-                    className="bg-[#059669] text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-700 transition text-sm"
-                  >
-                    💾 Αποθήκευση
-                  </button>
-                </div>
-              </div>
-
-              {/* SECTION C: CHARTER AGREEMENT */}
-              <div className="bg-white rounded-xl shadow-md p-5 mb-4">
-                <h3 className="text-[#1e40af] text-lg font-bold mb-3">📜 ΝΑΥΛΟΣΥΜΦΩΝΟ</h3>
-                <textarea
-                  value={archiveData.charterAgreement || ''}
-                  onChange={(e) => updateArchiveField('charterAgreement', e.target.value)}
-                  placeholder="Επικολλήστε εδώ το Ναυλοσύμφωνο..."
-                  className="w-full h-48 bg-[#f9fafb] text-[#374151] border border-[#d1d5db] rounded-lg p-4 text-sm resize-y focus:border-[#1e40af] focus:outline-none focus:ring-2 focus:ring-[#1e40af] focus:ring-opacity-20"
-                />
-                <div className="flex justify-end mt-2">
-                  <button
-                    onClick={saveArchiveData}
-                    className="bg-[#059669] text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-700 transition text-sm"
-                  >
-                    💾 Αποθήκευση
-                  </button>
-                </div>
-              </div>
-
-              {/* SECTION D: DOCUMENTS */}
+              {/* SECTION B: DOCUMENTS (5 file upload slots) */}
               <div className="bg-white rounded-xl shadow-md p-5 mb-4">
                 <h3 className="text-[#1e40af] text-lg font-bold mb-4">📎 ΕΓΓΡΑΦΑ</h3>
 
+                {renderDocumentSlot('bookingConfirmation', 'Booking Confirmation', 'PDF επιβεβαίωσης κράτησης')}
+                {renderDocumentSlot('charterAgreement', 'Ναυλοσύμφωνο / Charter Party', 'Υπογεγραμμένο ναυλοσύμφωνο')}
                 {renderDocumentSlot('skipperLicense', 'Δίπλωμα Skipper', "Skipper's License")}
                 {renderDocumentSlot('crewList', 'Crew List', 'Λίστα Πληρώματος - υπογεγραμμένο')}
-                {renderDocumentSlot('charterParty', 'Charter Party', 'Υπογεγραμμένο από Λιμεναρχείο')}
 
-                {/* Other Documents */}
+                {/* Other Documents (multiple files) */}
                 <div className="bg-[#f9fafb] border border-[#d1d5db] rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
