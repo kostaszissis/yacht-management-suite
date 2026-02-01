@@ -4,6 +4,7 @@ import authService from './authService';
 import ChatManagementModal from './ChatManagementModal';
 import UserGuide from './UserGuide';
 import InstallButton from './InstallButton';
+import CharterArchive from './CharterArchive';
 import { textMatches } from './utils/searchUtils';
 // 🔥 FIX 16: Import API functions for multi-device sync
 // 🔥 FIX 31: Added checkExpiredOptions for auto-expire
@@ -1382,6 +1383,8 @@ export default function AdminDashboard({
   const [financialsMenuExpanded, setFinancialsMenuExpanded] = useState(false);
   // 📊 Statistics modal state
   const [showStatisticsModal, setShowStatisticsModal] = useState(false);
+  // 📁 Charter Archive modal state
+  const [showCharterArchive, setShowCharterArchive] = useState(false);
 
   // Task categories for navigation (all same light blue color)
   const taskCategories = [
@@ -1726,6 +1729,16 @@ export default function AdminDashboard({
                 </div>
               </div>
             )}
+
+            {/* 📁 Charter Archive Button */}
+            <button
+              onClick={() => setShowCharterArchive(true)}
+              className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+              title="Αρχείο Ναύλων"
+            >
+              <span className="text-xl">📁</span>
+              <span className="text-sm font-bold">ΑΡΧΕΙΟ ΝΑΥΛΩΝ</span>
+            </button>
           </div>
 
           {/* Center - Boats List (more compact) */}
@@ -1869,6 +1882,12 @@ export default function AdminDashboard({
                       📋 ΣΥΓΚΕΝΤΡΩΤΙΚΑ
                     </button>
                     <button
+                      onClick={() => setShowCharterArchive(true)}
+                      className="w-full h-10 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-lg text-white text-sm font-bold transition-colors shadow-md"
+                    >
+                      📁 ΑΡΧΕΙΟ ΝΑΥΛΩΝ
+                    </button>
+                    <button
                       onClick={() => alert('ΤΙΜΟΛΟΓΙΑ - Coming soon!')}
                       className="w-full h-10 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-bold transition-colors"
                     >
@@ -1915,6 +1934,11 @@ export default function AdminDashboard({
         onClose={() => setShowStatisticsModal(false)}
         boats={boats}
       />
+
+      {/* Charter Archive Modal */}
+      {showCharterArchive && (
+        <CharterArchive onClose={() => setShowCharterArchive(false)} />
+      )}
     </div>
   );
 }
