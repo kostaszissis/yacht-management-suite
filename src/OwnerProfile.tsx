@@ -161,17 +161,17 @@ export default function OwnerProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-gradient-to-br from-[#f3f4f6] to-[#f3f4f6] flex items-center justify-center">
+        <div className="text-[#374151] text-xl">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-[#f3f4f6] to-[#f3f4f6]">
 
       {/* Header */}
-      <header className="bg-slate-800 shadow-lg sticky top-0 z-50 border-b-2 border-teal-500">
+      <header className="bg-white shadow-lg sticky top-0 z-50 border-b-2 border-[#1e40af]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
@@ -189,22 +189,22 @@ export default function OwnerProfile() {
                 ←
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-white">
+                <h1 className="text-2xl font-bold text-[#374151]">
                   {language === 'en' ? 'Profile Settings' : 'Rythmiseis Profil'}
                 </h1>
-                <p className="text-sm text-teal-300">
+                <p className="text-sm text-[#1e40af]">
                   {language === 'en' ? 'Manage your account' : 'Diaheirisi logariamou'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-teal-500 text-white rounded-lg font-semibold">
+              <div className="px-4 py-2 bg-[#1e40af] text-[#374151] rounded-lg font-semibold">
                 {ownerCode}
               </div>
               <button
                 onClick={() => setLanguage(language === 'en' ? 'gr' : 'en')}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold text-white transition-colors"
+                className="px-4 py-2 bg-[#f9fafb] hover:bg-slate-600 rounded-lg font-semibold text-[#374151] transition-colors"
               >
                 {language === 'en' ? 'GR' : 'EN'}
               </button>
@@ -219,10 +219,10 @@ export default function OwnerProfile() {
         {/* Profile Icon */}
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">👤</div>
-          <h2 className="text-2xl font-bold text-white">
+          <h2 className="text-2xl font-bold text-[#374151]">
             {language === 'en' ? 'Your Profile' : 'To Profil Sas'}
           </h2>
-          <p className="text-teal-300 mt-2">
+          <p className="text-[#1e40af] mt-2">
             {language === 'en'
               ? 'Set your email to receive charter notifications'
               : 'Orisete to email sas gia eidopoiiseis naulon'}
@@ -233,19 +233,19 @@ export default function OwnerProfile() {
         {message && (
           <div className={`mb-6 p-4 rounded-lg text-center font-semibold ${
             message.type === 'success'
-              ? 'bg-green-600 text-white'
-              : 'bg-red-600 text-white'
+              ? 'bg-green-600 text-[#374151]'
+              : 'bg-red-600 text-[#374151]'
           }`}>
             {message.text}
           </div>
         )}
 
         {/* Profile Form */}
-        <div className="bg-slate-800 rounded-xl p-6 shadow-lg border-2 border-teal-500/30">
+        <div className="bg-white rounded-xl p-6 shadow-lg border-2 border-[#1e40af]/30">
 
           {/* Email - Required */}
           <div className="mb-6">
-            <label className="block text-teal-300 font-semibold mb-2">
+            <label className="block text-[#1e40af] font-semibold mb-2">
               {language === 'en' ? 'Email Address *' : 'Email *'}
             </label>
             <input
@@ -253,9 +253,9 @@ export default function OwnerProfile() {
               value={profile.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               placeholder="your@email.com"
-              className="w-full px-4 py-3 bg-slate-700 border-2 border-teal-500/50 rounded-lg text-white placeholder-gray-400 focus:border-teal-400 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 bg-[#f9fafb] border-2 border-[#1e40af]/50 rounded-lg text-[#374151] placeholder-gray-400 focus:border-[#1e40af] focus:outline-none transition-colors"
             />
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-[#6b7280] mt-1">
               {language === 'en'
                 ? 'Required for receiving charter notifications'
                 : 'Apaiteitai gia tin lipsi eidopoiiseon'}
@@ -264,7 +264,7 @@ export default function OwnerProfile() {
 
           {/* Full Name */}
           <div className="mb-6">
-            <label className="block text-teal-300 font-semibold mb-2">
+            <label className="block text-[#1e40af] font-semibold mb-2">
               {language === 'en' ? 'Full Name' : 'Onoma'}
             </label>
             <input
@@ -272,13 +272,13 @@ export default function OwnerProfile() {
               value={profile.fullName}
               onChange={(e) => handleInputChange('fullName', e.target.value)}
               placeholder={language === 'en' ? 'John Doe' : 'Onoma Epitheto'}
-              className="w-full px-4 py-3 bg-slate-700 border-2 border-slate-600 rounded-lg text-white placeholder-gray-400 focus:border-teal-400 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 bg-[#f9fafb] border-2 border-[#d1d5db] rounded-lg text-[#374151] placeholder-gray-400 focus:border-[#1e40af] focus:outline-none transition-colors"
             />
           </div>
 
           {/* Phone */}
           <div className="mb-6">
-            <label className="block text-teal-300 font-semibold mb-2">
+            <label className="block text-[#1e40af] font-semibold mb-2">
               {language === 'en' ? 'Phone Number' : 'Tilefono'}
             </label>
             <input
@@ -286,13 +286,13 @@ export default function OwnerProfile() {
               value={profile.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
               placeholder="+30 6971234567"
-              className="w-full px-4 py-3 bg-slate-700 border-2 border-slate-600 rounded-lg text-white placeholder-gray-400 focus:border-teal-400 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 bg-[#f9fafb] border-2 border-[#d1d5db] rounded-lg text-[#374151] placeholder-gray-400 focus:border-[#1e40af] focus:outline-none transition-colors"
             />
           </div>
 
           {/* Company */}
           <div className="mb-6">
-            <label className="block text-teal-300 font-semibold mb-2">
+            <label className="block text-[#1e40af] font-semibold mb-2">
               {language === 'en' ? 'Company Name (optional)' : 'Etaireia (proairetiko)'}
             </label>
             <input
@@ -300,13 +300,13 @@ export default function OwnerProfile() {
               value={profile.company}
               onChange={(e) => handleInputChange('company', e.target.value)}
               placeholder={language === 'en' ? 'Company Ltd' : 'Etaireia EPE'}
-              className="w-full px-4 py-3 bg-slate-700 border-2 border-slate-600 rounded-lg text-white placeholder-gray-400 focus:border-teal-400 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 bg-[#f9fafb] border-2 border-[#d1d5db] rounded-lg text-[#374151] placeholder-gray-400 focus:border-[#1e40af] focus:outline-none transition-colors"
             />
           </div>
 
           {/* Tax ID */}
           <div className="mb-6">
-            <label className="block text-teal-300 font-semibold mb-2">
+            <label className="block text-[#1e40af] font-semibold mb-2">
               {language === 'en' ? 'Tax ID (optional)' : 'AFM (proairetiko)'}
             </label>
             <input
@@ -314,13 +314,13 @@ export default function OwnerProfile() {
               value={profile.taxId}
               onChange={(e) => handleInputChange('taxId', e.target.value)}
               placeholder="123456789"
-              className="w-full px-4 py-3 bg-slate-700 border-2 border-slate-600 rounded-lg text-white placeholder-gray-400 focus:border-teal-400 focus:outline-none transition-colors"
+              className="w-full px-4 py-3 bg-[#f9fafb] border-2 border-[#d1d5db] rounded-lg text-[#374151] placeholder-gray-400 focus:border-[#1e40af] focus:outline-none transition-colors"
             />
           </div>
 
           {/* Address */}
           <div className="mb-6">
-            <label className="block text-teal-300 font-semibold mb-2">
+            <label className="block text-[#1e40af] font-semibold mb-2">
               {language === 'en' ? 'Address (optional)' : 'Dieuthinsi (proairetiko)'}
             </label>
             <textarea
@@ -328,7 +328,7 @@ export default function OwnerProfile() {
               onChange={(e) => handleInputChange('address', e.target.value)}
               placeholder={language === 'en' ? 'Street, City, ZIP' : 'Odos, Poli, TK'}
               rows={3}
-              className="w-full px-4 py-3 bg-slate-700 border-2 border-slate-600 rounded-lg text-white placeholder-gray-400 focus:border-teal-400 focus:outline-none transition-colors resize-none"
+              className="w-full px-4 py-3 bg-[#f9fafb] border-2 border-[#d1d5db] rounded-lg text-[#374151] placeholder-gray-400 focus:border-[#1e40af] focus:outline-none transition-colors resize-none"
             />
           </div>
 
@@ -339,8 +339,8 @@ export default function OwnerProfile() {
             className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
               saving
                 ? 'bg-gray-600 cursor-not-allowed'
-                : 'bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 hover:scale-[1.02]'
-            } text-white shadow-lg`}
+                : 'bg-gradient-to-r from-[#1e40af] to-blue-800 hover:from-blue-700 hover:to-blue-900 hover:scale-[1.02]'
+            } text-[#374151] shadow-lg`}
           >
             {saving
               ? (language === 'en' ? 'Saving...' : 'Apothikeyetai...')
@@ -350,14 +350,14 @@ export default function OwnerProfile() {
         </div>
 
         {/* Info Box */}
-        <div className="mt-6 bg-slate-800/50 border border-teal-500/30 rounded-xl p-4">
+        <div className="mt-6 bg-white/50 border border-[#1e40af]/30 rounded-xl p-4">
           <div className="flex items-start gap-3">
             <span className="text-2xl">ℹ️</span>
             <div>
-              <h4 className="text-white font-semibold">
+              <h4 className="text-[#374151] font-semibold">
                 {language === 'en' ? 'Why set your email?' : 'Giati na orisete email?'}
               </h4>
-              <p className="text-gray-400 text-sm mt-1">
+              <p className="text-[#6b7280] text-sm mt-1">
                 {language === 'en'
                   ? 'When your email is set, you will receive automatic notifications when new charter options are created, when reservations are confirmed, and other important updates about your vessels.'
                   : 'Otan orisete email, tha lamvanete eidopoiiseis gia nea naula, epivevaiosis kai alles enimeroseis.'}

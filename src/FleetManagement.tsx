@@ -1290,16 +1290,16 @@ export default function FleetManagement() {
   };
 
   return (
-    <div className="h-screen w-screen bg-gray-900 text-gray-100 font-sans">
+    <div className="h-screen w-screen bg-[#f3f4f6] text-[#374151] font-sans">
       <MessageDisplay message={message} />
 
       {/* 🔥 NEW: Page 1 Bookings Notification Banner */}
       {page1BookingsNeedingAmount.count > 0 && (
         <div
           onClick={handleNotificationClick}
-          className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-600 to-blue-800 text-white py-3 px-4 cursor-pointer hover:from-blue-700 hover:to-blue-900 transition-all shadow-lg border-b-2 border-blue-400"
+          className="fixed top-0 left-0 right-0 z-50 bg-[#1e40af] text-white py-3 px-4 cursor-pointer hover:bg-blue-800 transition-all shadow-lg border-b border-[#d1d5db]"
         >
-          <div className="max-w-lg mx-auto flex items-center justify-between">
+          <div className="w-full px-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl animate-bounce">🔔</span>
               <div>
@@ -1312,7 +1312,7 @@ export default function FleetManagement() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="bg-blue-500 px-3 py-1 rounded-full text-sm font-bold">
+              <span className="bg-blue-700 px-3 py-1 rounded-full text-sm font-bold">
                 {page1BookingsNeedingAmount.count}
               </span>
               <span className="text-xl">→</span>
@@ -1321,7 +1321,7 @@ export default function FleetManagement() {
         </div>
       )}
 
-      <div className={`h-full w-full max-w-lg mx-auto bg-gray-900 shadow-2xl overflow-hidden ${page1BookingsNeedingAmount.count > 0 ? 'pt-16' : ''}`}>
+      <div className={`min-h-screen w-full bg-[#f3f4f6] overflow-hidden ${page1BookingsNeedingAmount.count > 0 ? 'pt-16' : ''}`}>
         {renderPage()}
       </div>
 
@@ -1376,38 +1376,55 @@ function MessageDisplay({ message }) {
 
 function FullScreenLoader() {
   return (
-    <div className="flex items-center justify-center h-full bg-gray-900">
-      <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-teal-500"></div>
+    <div className="flex items-center justify-center h-full bg-[#f3f4f6]">
+      <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#1e40af]"></div>
     </div>
   );
 }
 
-function Header({ title, onBack, onHome = null }) {
+function Header({ title, onBack, onHome = null, lightTheme = false, subtitle = null }) {
   const user = authService.getCurrentUser();
 
+  // Light theme colors
+  const headerBg = lightTheme ? 'bg-[#1e40af]' : 'bg-white';
+  const headerBorder = lightTheme ? 'border-[#d1d5db]' : 'border-[#d1d5db]';
+  const titleColor = lightTheme ? 'text-white' : 'text-[#374151]';
+  const userColor = lightTheme ? 'text-blue-200' : 'text-[#1e40af]';
+  const subtitleColor = lightTheme ? 'text-blue-100' : 'text-[#6b7280]';
+  const buttonHover = lightTheme ? 'hover:bg-blue-700' : 'hover:bg-[#f9fafb]';
+  const backButtonColor = lightTheme ? 'text-white' : 'text-[#1e40af]';
+
   return (
-    <div className="bg-gray-800 p-4 shadow-md flex items-center justify-between sticky top-0 z-20 w-full max-w-lg mx-auto border-b border-gray-700">
-      {/* LEFT: Home emoji - logout AND navigate to HomePage */}
+    <div className={`${headerBg} p-4 shadow-md flex items-center justify-between sticky top-0 z-20 w-full border-b ${headerBorder}`}>
+      {/* LEFT: Home button - styled with house icon */}
       {onHome && (
         <button
           onClick={onHome}
-          className="p-2 -ml-2 hover:bg-gray-700 rounded-lg transition-colors flex flex-col items-center"
-          title="Αποσύνδεση & Επιστροφή στην Αρχική"
+          className="bg-[#1e40af] hover:bg-blue-700 border border-blue-400 rounded-lg px-3 py-2 transition-colors flex flex-col items-center min-w-[60px]"
+          title="Αρχική"
         >
-          <span className="text-2xl">🏠</span>
-          <span className="text-[10px] text-red-400 mt-0.5">Home</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span className="text-[10px] text-white mt-1 font-medium">Αρχική</span>
         </button>
       )}
-      {!onHome && <div className="w-12"></div>}
+      {!onHome && <div className="w-16"></div>}
 
       <div className="flex-grow text-center">
-        <h1 className="text-xl font-bold text-gray-100 truncate px-2">{title}</h1>
+        <h1 className={`text-xl font-bold ${titleColor} truncate px-2`}>{title}</h1>
         {user && (
           <div className="flex items-center justify-center gap-2 mt-1">
             {user.role === 'OWNER' ? icons.eye : icons.shield}
-            <span className="text-xs text-teal-400 font-semibold">
+            <span className={`text-xs ${userColor} font-semibold`}>
               {user.role === 'OWNER' ? `${user.name} (View Only)` : user.name}
             </span>
+          </div>
+        )}
+        {subtitle && (
+          <div className="text-xl font-semibold text-[#1e40af] mt-1">
+            {subtitle}
           </div>
         )}
       </div>
@@ -1416,7 +1433,7 @@ function Header({ title, onBack, onHome = null }) {
       {onBack && (
         <button
           onClick={onBack}
-          className="text-teal-400 p-2 -mr-2 hover:bg-gray-700 rounded-lg transition-colors flex flex-col items-center"
+          className={`${backButtonColor} p-2 -mr-2 ${buttonHover} rounded-lg transition-colors flex flex-col items-center`}
           title="Πίσω (παραμένετε συνδεδεμένοι)"
         >
           {icons.returnArrow}
@@ -1428,16 +1445,23 @@ function Header({ title, onBack, onHome = null }) {
   );
 }
 
-function BottomNav({ activePage, onNavigate }) {
+function BottomNav({ activePage, onNavigate, lightTheme = false }) {
   const items = [
     { name: 'dashboard', label: 'Αρχική', icon: icons.home },
     { name: 'messages', label: 'Μηνύματα', icon: icons.message },
   ];
 
+  // Light theme colors - white background with blue/gray icons
+  const navBg = 'bg-white';
+  const navBorder = 'border-[#d1d5db]';
+  const activeColor = 'text-[#1e40af] bg-[#f3f4f6]';
+  const inactiveColor = 'text-[#6b7280]';
+  const hoverColor = 'hover:text-[#1e40af]';
+
   return (
-    <div className="bg-gray-800 p-2 shadow-inner-top flex justify-around sticky bottom-0 z-20 w-full max-w-lg mx-auto border-t border-gray-700">
+    <div className={`${navBg} p-2 shadow-inner-top flex justify-around sticky bottom-0 z-20 w-full border-t ${navBorder}`}>
       {items.map((item) => (
-        <button key={item.name} onClick={() => onNavigate(item.name)} className={`flex flex-col items-center justify-center p-2 rounded-lg w-24 ${activePage === item.name ? 'text-teal-400 bg-gray-700' : 'text-gray-400'} hover:text-teal-300 transition-colors`}>
+        <button key={item.name} onClick={() => onNavigate(item.name)} className={`flex flex-col items-center justify-center p-2 rounded-lg w-24 ${activePage === item.name ? activeColor : inactiveColor} ${hoverColor} transition-colors`}>
           {item.icon}
           <span className="text-xs mt-1">{item.label}</span>
         </button>
@@ -1495,11 +1519,11 @@ function AddBoatModal({ onClose, onBoatAdded }) {
   if (!authService.canManageFleet()) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 text-center">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 text-center">
           <div className="text-6xl mb-4">🔒</div>
           <h2 className="text-2xl font-bold text-red-400 mb-4">Access Denied</h2>
-          <p className="text-gray-300 mb-6">You don't have permission to add boats.</p>
-          <button onClick={onClose} className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg">
+          <p className="text-[#374151] mb-6">You don't have permission to add boats.</p>
+          <button onClick={onClose} className="px-6 py-3 bg-[#f9fafb] hover:bg-gray-100 text-white font-bold rounded-lg">
             Close
           </button>
         </div>
@@ -1548,10 +1572,10 @@ function AddBoatModal({ onClose, onBoatAdded }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl p-6 my-8">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 my-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-teal-400">Προσθήκη Νέου Σκάφους</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">{icons.x}</button>
+          <h2 className="text-2xl font-bold text-[#1e40af]">Προσθήκη Νέου Σκάφους</h2>
+          <button onClick={onClose} className="text-[#6b7280] hover:text-white">{icons.x}</button>
         </div>
 
         {error && (
@@ -1562,7 +1586,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-[#374151] mb-2">
               ID Σκάφους <span className="text-red-500">*</span>
             </label>
             <input
@@ -1570,13 +1594,13 @@ function AddBoatModal({ onClose, onBoatAdded }) {
               value={newBoat.id}
               onChange={(e) => setNewBoat({ ...newBoat, id: e.target.value.toUpperCase() })}
               placeholder="π.χ. APOLLO"
-              className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
             />
-            <p className="text-xs text-gray-400 mt-1">Μοναδικός κωδικός για σύνδεση</p>
+            <p className="text-xs text-[#6b7280] mt-1">Μοναδικός κωδικός για σύνδεση</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-[#374151] mb-2">
               Πλήρες Όνομα <span className="text-red-500">*</span>
             </label>
             <input
@@ -1584,18 +1608,18 @@ function AddBoatModal({ onClose, onBoatAdded }) {
               value={newBoat.name}
               onChange={(e) => setNewBoat({ ...newBoat, name: e.target.value })}
               placeholder="π.χ. Bavaria 50-APOLLO"
-              className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-[#374151] mb-2">
               Τύπος <span className="text-red-500">*</span>
             </label>
             <select
               value={newBoat.type}
               onChange={(e) => setNewBoat({ ...newBoat, type: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
             >
               <option value="Catamaran">Catamaran</option>
               <option value="Monohull">Monohull</option>
@@ -1603,7 +1627,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-[#374151] mb-2">
               Μοντέλο (προαιρετικό)
             </label>
             <input
@@ -1611,23 +1635,23 @@ function AddBoatModal({ onClose, onBoatAdded }) {
               value={newBoat.model}
               onChange={(e) => setNewBoat({ ...newBoat, model: e.target.value })}
               placeholder="π.χ. Bavaria 50"
-              className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
             />
           </div>
 
           {/* 🔥 FIX 37: Owner Details Section */}
-          <div className="border-t border-cyan-500 pt-4 mt-4">
-            <h3 className="text-lg font-bold text-cyan-400 mb-3">👤 Στοιχεία Ιδιοκτήτη</h3>
+          <div className="border-t border-[#1e40af] pt-4 mt-4">
+            <h3 className="text-lg font-bold text-[#1e40af] mb-3">👤 Στοιχεία Ιδιοκτήτη</h3>
 
             {/* Owner Code Selection with Auto-fill */}
             <div className="mb-3">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-[#374151] mb-2">
                 Κωδικός Ιδιοκτήτη (υπάρχων)
               </label>
               <select
                 value={newBoat.ownerCode}
                 onChange={(e) => handleOwnerCodeChange(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
               >
                 <option value="">-- Επιλέξτε ή εισάγετε νέο --</option>
                 {existingOwners.map(owner => (
@@ -1636,12 +1660,12 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-400 mt-1">Επιλέξτε για αυτόματη συμπλήρωση στοιχείων</p>
+              <p className="text-xs text-[#6b7280] mt-1">Επιλέξτε για αυτόματη συμπλήρωση στοιχείων</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-[#374151] mb-2">
                   Όνομα Ιδιοκτήτη
                 </label>
                 <input
@@ -1649,12 +1673,12 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerName}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerName: e.target.value })}
                   placeholder="Ονοματεπώνυμο"
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-cyan-300 mb-2">
+                <label className="block text-sm font-medium text-[#1e40af] mb-2">
                   Email Ιδιοκτήτη ⭐
                 </label>
                 <input
@@ -1662,12 +1686,12 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerEmail}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerEmail: e.target.value })}
                   placeholder="owner@email.com"
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border-2 border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border-2 border-[#1e40af] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-[#374151] mb-2">
                   Εταιρεία
                 </label>
                 <input
@@ -1675,12 +1699,12 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerCompany}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerCompany: e.target.value })}
                   placeholder="Εταιρεία ΕΠΕ"
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-[#374151] mb-2">
                   ΑΦΜ
                 </label>
                 <input
@@ -1688,12 +1712,12 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerTaxId}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerTaxId: e.target.value })}
                   placeholder="123456789"
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-[#374151] mb-2">
                   Τηλέφωνο
                 </label>
                 <input
@@ -1701,12 +1725,12 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerPhone}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerPhone: e.target.value })}
                   placeholder="+30 697 1234567"
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-[#374151] mb-2">
                   Διεύθυνση
                 </label>
                 <input
@@ -1714,7 +1738,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerAddress}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerAddress: e.target.value })}
                   placeholder="Οδός, Πόλη, ΤΚ"
-                  className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
             </div>
@@ -1724,13 +1748,13 @@ function AddBoatModal({ onClose, onBoatAdded }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition duration-200"
+              className="flex-1 px-4 py-3 bg-[#f9fafb] hover:bg-gray-100 text-white font-bold rounded-lg transition duration-200"
             >
               Ακύρωση
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition duration-200"
+              className="flex-1 px-4 py-3 bg-[#1e40af] hover:bg-blue-800 text-white font-bold rounded-lg transition duration-200"
             >
               Προσθήκη
             </button>
@@ -1885,16 +1909,16 @@ function EmployeeManagementModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b border-gray-700">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex justify-between items-center p-4 border-b border-[#d1d5db]">
           <h2 className="text-2xl font-bold text-purple-400 flex items-center gap-2">
             {icons.shield}
             <span>Διαχείριση Υπαλλήλων</span>
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white p-2">{icons.x}</button>
+          <button onClick={onClose} className="text-[#6b7280] hover:text-white p-2">{icons.x}</button>
         </div>
 
-        <div className="p-4 border-b border-gray-700">
+        <div className="p-4 border-b border-[#d1d5db]">
           <button
             onClick={() => setShowAddForm(!showAddForm)}
             className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2"
@@ -1904,24 +1928,24 @@ function EmployeeManagementModal({ onClose }) {
           </button>
 
           {showAddForm && (
-            <div className="mt-4 p-4 bg-gray-900 rounded-lg space-y-4 border border-gray-700">
+            <div className="mt-4 p-4 bg-[#f3f4f6] rounded-lg space-y-4 border border-[#d1d5db]">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Όνομα *</label>
+                <label className="block text-sm font-medium text-[#374151] mb-2">Όνομα *</label>
                 <input
                   type="text"
                   value={newEmployee.name}
                   onChange={(e) => setNewEmployee(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="π.χ. Γιάννης"
-                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Ρόλος *</label>
+                <label className="block text-sm font-medium text-[#374151] mb-2">Ρόλος *</label>
                 <select
                   value={newEmployee.role}
                   onChange={(e) => handleRoleChange(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="TECHNICAL">🔧 TECHNICAL - Τεχνικός</option>
                   <option value="BOOKING">📅 BOOKING - Κρατήσεις</option>
@@ -1930,8 +1954,8 @@ function EmployeeManagementModal({ onClose }) {
                 </select>
               </div>
 
-              <div className="p-3 bg-gray-800 rounded-lg border border-gray-600">
-                <p className="text-sm font-semibold text-gray-300 mb-2">Permissions για {newEmployee.role}:</p>
+              <div className="p-3 bg-white rounded-lg border border-[#d1d5db]">
+                <p className="text-sm font-semibold text-[#374151] mb-2">Permissions για {newEmployee.role}:</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className={newEmployee.canDoCheckInOut ? 'text-green-400' : 'text-red-400'}>
                     {newEmployee.canDoCheckInOut ? '✅' : '❌'} Check-in/out
@@ -1971,7 +1995,7 @@ function EmployeeManagementModal({ onClose }) {
         </div>
 
         <div className="flex-grow overflow-y-auto p-4">
-          <h3 className="text-lg font-semibold text-gray-300 mb-3">
+          <h3 className="text-lg font-semibold text-[#374151] mb-3">
             Υπάλληλοι ({employees.length})
           </h3>
           
@@ -1979,7 +2003,7 @@ function EmployeeManagementModal({ onClose }) {
             {employees.map(emp => (
               <div 
                 key={emp.code} 
-                className={`p-4 rounded-lg border ${emp.enabled ? 'bg-gray-900 border-gray-700' : 'bg-gray-950 border-red-900 opacity-60'}`}
+                className={`p-4 rounded-lg border ${emp.enabled ? 'bg-[#f3f4f6] border-[#d1d5db]' : 'bg-gray-100 border-red-900 opacity-60'}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -1988,7 +2012,7 @@ function EmployeeManagementModal({ onClose }) {
                     </div>
                     <div>
                       <p className="font-bold text-white">{emp.name}</p>
-                      <p className="text-xs text-gray-400 font-mono">{emp.code}</p>
+                      <p className="text-xs text-[#6b7280] font-mono">{emp.code}</p>
                     </div>
                   </div>
                   
@@ -2021,10 +2045,10 @@ function EmployeeManagementModal({ onClose }) {
           </div>
         </div>
 
-        <div className="p-4 border-t border-gray-700">
+        <div className="p-4 border-t border-[#d1d5db]">
           <button
             onClick={onClose}
-            className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg"
+            className="w-full bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-3 px-4 rounded-lg"
           >
             Κλείσιμο
           </button>
@@ -2328,13 +2352,13 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-red-900">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex justify-between items-center p-4 border-b border-[#d1d5db] bg-red-900">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             ⚠️
             <span>Διαγραφή Δεδομένων</span>
           </h2>
-          <button onClick={onClose} className="text-gray-300 hover:text-white p-2">{icons.x}</button>
+          <button onClick={onClose} className="text-[#374151] hover:text-white p-2">{icons.x}</button>
         </div>
 
         {step === 1 && (
@@ -2353,7 +2377,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                   
                   return (
                     <div key={dataType.key} className={`rounded-lg border-2 transition-all ${
-                      item.enabled ? 'bg-red-900 border-red-500' : 'bg-gray-900 border-gray-700'
+                      item.enabled ? 'bg-red-900 border-red-500' : 'bg-[#f3f4f6] border-[#d1d5db]'
                     }`}>
                       {/* Header */}
                       <button
@@ -2366,7 +2390,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                           {item.enabled && '✓'}
                         </div>
                         <span className="text-2xl">{dataType.icon}</span>
-                        <span className={`font-bold ${item.enabled ? 'text-white' : 'text-gray-300'}`}>
+                        <span className={`font-bold ${item.enabled ? 'text-white' : 'text-[#374151]'}`}>
                           {dataType.label}
                         </span>
                       </button>
@@ -2380,7 +2404,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                               className={`flex-1 py-2 px-3 rounded text-sm font-bold ${
                                 item.mode === 'all' 
                                   ? 'bg-red-600 text-white' 
-                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                  : 'bg-[#f9fafb] text-[#374151] hover:bg-gray-100'
                               }`}
                             >
                               ΟΛΑ
@@ -2393,7 +2417,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                               className={`flex-1 py-2 px-3 rounded text-sm font-bold ${
                                 item.mode === 'selective' 
                                   ? 'bg-orange-600 text-white' 
-                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                  : 'bg-[#f9fafb] text-[#374151] hover:bg-gray-100'
                               }`}
                             >
                               ΕΠΙΛΕΚΤΙΚΑ
@@ -2402,12 +2426,12 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
 
                           {/* Boat selection */}
                           {item.mode === 'selective' && (
-                            <div className="mt-3 p-2 bg-gray-800 rounded-lg">
+                            <div className="mt-3 p-2 bg-white rounded-lg">
                               <div className="flex justify-between items-center mb-2">
-                                <span className="text-xs text-gray-400">Επιλέξτε σκάφη:</span>
+                                <span className="text-xs text-[#6b7280]">Επιλέξτε σκάφη:</span>
                                 <button
                                   onClick={() => selectAllBoatsForItem(dataType.key)}
-                                  className="text-xs text-teal-400 hover:text-teal-300"
+                                  className="text-xs text-[#1e40af] hover:text-[#1e40af]"
                                 >
                                   {item.boats.length === boats.length ? 'Κανένα' : 'Όλα'}
                                 </button>
@@ -2420,7 +2444,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                                     className={`p-2 rounded text-xs font-bold ${
                                       item.boats.includes(boat.id)
                                         ? 'bg-orange-600 text-white'
-                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                        : 'bg-[#f9fafb] text-[#6b7280] hover:bg-gray-100'
                                     }`}
                                   >
                                     {boat.name || boat.id}
@@ -2444,7 +2468,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                               className={`flex-1 py-2 px-3 rounded text-sm font-bold ${
                                 item.mode === 'all'
                                   ? 'bg-red-600 text-white'
-                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                  : 'bg-[#f9fafb] text-[#374151] hover:bg-gray-100'
                               }`}
                             >
                               ΟΛΑ
@@ -2459,7 +2483,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                               className={`flex-1 py-2 px-3 rounded text-sm font-bold ${
                                 item.mode === 'selective'
                                   ? 'bg-orange-600 text-white'
-                                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                  : 'bg-[#f9fafb] text-[#374151] hover:bg-gray-100'
                               }`}
                             >
                               ΕΠΙΛΕΚΤΙΚΑ
@@ -2468,24 +2492,24 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
 
                           {/* Booking selection */}
                           {item.mode === 'selective' && (
-                            <div className="mt-3 p-2 bg-gray-800 rounded-lg max-h-60 overflow-y-auto">
+                            <div className="mt-3 p-2 bg-white rounded-lg max-h-60 overflow-y-auto">
                               {loadingBookings ? (
                                 <div className="text-center py-4">
-                                  <span className="text-gray-400">⏳ Φόρτωση κρατήσεων...</span>
+                                  <span className="text-[#6b7280]">⏳ Φόρτωση κρατήσεων...</span>
                                 </div>
                               ) : apiBookings.length === 0 ? (
                                 <div className="text-center py-4">
-                                  <span className="text-gray-400">Δεν υπάρχουν κρατήσεις</span>
+                                  <span className="text-[#6b7280]">Δεν υπάρχουν κρατήσεις</span>
                                 </div>
                               ) : (
                                 <>
                                   <div className="flex justify-between items-center mb-2">
-                                    <span className="text-xs text-gray-400">
+                                    <span className="text-xs text-[#6b7280]">
                                       Επιλέξτε κρατήσεις ({selectedItems.page1Charters.bookings?.length || 0}/{apiBookings.length}):
                                     </span>
                                     <button
                                       onClick={selectAllBookings}
-                                      className="text-xs text-teal-400 hover:text-teal-300"
+                                      className="text-xs text-[#1e40af] hover:text-[#1e40af]"
                                     >
                                       {selectedItems.page1Charters.bookings?.length === apiBookings.length ? 'Κανένα' : 'Όλα'}
                                     </button>
@@ -2501,12 +2525,12 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                                           className={`w-full p-2 rounded text-left text-xs ${
                                             isSelected
                                               ? 'bg-orange-600 text-white'
-                                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                              : 'bg-[#f9fafb] text-[#374151] hover:bg-gray-100'
                                           }`}
                                         >
                                           <div className="flex justify-between items-center">
                                             <span className="font-bold">{bookingCode}</span>
-                                            <span className={isSelected ? 'text-white' : 'text-gray-400'}>
+                                            <span className={isSelected ? 'text-white' : 'text-[#6b7280]'}>
                                               {isSelected ? '✓' : ''}
                                             </span>
                                           </div>
@@ -2540,8 +2564,8 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
               </div>
             )}
 
-            <div className="p-4 border-t border-gray-700 space-y-2">
-              <div className="text-center text-sm text-gray-400 mb-2">
+            <div className="p-4 border-t border-[#d1d5db] space-y-2">
+              <div className="text-center text-sm text-[#6b7280] mb-2">
                 {getSelectedCount()} κατηγορίες επιλεγμένες
               </div>
               <button
@@ -2550,14 +2574,14 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                 className={`w-full font-bold py-3 px-4 rounded-lg ${
                   isValidSelection()
                     ? 'bg-red-600 hover:bg-red-700 text-white' 
-                    : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                    : 'bg-[#f9fafb] text-gray-500 cursor-not-allowed'
                 }`}
               >
                 Συνέχεια →
               </button>
               <button
                 onClick={onClose}
-                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg"
+                className="w-full bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-3 px-4 rounded-lg"
               >
                 Ακύρωση
               </button>
@@ -2574,7 +2598,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
             </div>
 
             <div className="flex-grow overflow-y-auto p-4">
-              <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-4">
+              <div className="bg-[#f3f4f6] p-4 rounded-lg border border-[#d1d5db] mb-4">
                 <h4 className="font-bold text-red-400 mb-3">Θα διαγραφούν:</h4>
                 <div className="space-y-2">
                   {getSummary().map((item, idx) => (
@@ -2582,14 +2606,14 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                       <span className="text-red-400">✗</span>
                       <span>{item.icon}</span>
                       <span className="text-white font-bold">{item.label}</span>
-                      <span className="text-gray-400">→ {item.detail}</span>
+                      <span className="text-[#6b7280]">→ {item.detail}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-[#374151] mb-2">
                   Κωδικός Admin:
                 </label>
                 <input
@@ -2597,7 +2621,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                   value={adminCode}
                   onChange={(e) => setAdminCode(e.target.value)}
                   placeholder="Εισάγετε τον κωδικό ADMIN"
-                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500 text-center text-lg"
+                  className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-red-500 text-center text-lg"
                 />
               </div>
 
@@ -2608,7 +2632,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
               )}
             </div>
 
-            <div className="p-4 border-t border-gray-700 space-y-2">
+            <div className="p-4 border-t border-[#d1d5db] space-y-2">
               <button
                 onClick={handleConfirmDelete}
                 className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg"
@@ -2617,7 +2641,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
               </button>
               <button
                 onClick={() => { setStep(1); setError(''); setAdminCode(''); }}
-                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg"
+                className="w-full bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-3 px-4 rounded-lg"
               >
                 ← Πίσω
               </button>
@@ -2651,7 +2675,7 @@ function ActivityLogModal({ onClose }) {
     if (action.includes('delete') || action.includes('clear')) return 'text-red-400';
     if (action.includes('add') || action.includes('create')) return 'text-blue-400';
     if (action.includes('edit') || action.includes('update')) return 'text-purple-400';
-    if (action.includes('view')) return 'text-gray-400';
+    if (action.includes('view')) return 'text-[#6b7280]';
     return 'text-white';
   };
 
@@ -2683,24 +2707,24 @@ function ActivityLogModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-blue-900">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex justify-between items-center p-4 border-b border-[#d1d5db] bg-blue-900">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             📊
             <span>Activity Log</span>
           </h2>
-          <button onClick={onClose} className="text-gray-300 hover:text-white p-2">{icons.x}</button>
+          <button onClick={onClose} className="text-[#374151] hover:text-white p-2">{icons.x}</button>
         </div>
 
         {/* Filter */}
-        <div className="p-3 border-b border-gray-700 bg-gray-900">
+        <div className="p-3 border-b border-[#d1d5db] bg-[#f3f4f6]">
           <div className="flex gap-2 flex-wrap">
             {['all', 'login', 'add', 'edit', 'delete', 'view'].map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1 rounded text-xs font-bold ${
-                  filter === f ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  filter === f ? 'bg-blue-600 text-white' : 'bg-[#f9fafb] text-[#374151] hover:bg-gray-100'
                 }`}
               >
                 {f === 'all' ? 'Όλα' : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -2714,13 +2738,13 @@ function ActivityLogModal({ onClose }) {
           {filteredLogs.length > 0 ? (
             <div className="space-y-2">
               {filteredLogs.map((log, idx) => (
-                <div key={idx} className="bg-gray-900 p-3 rounded-lg border border-gray-700">
+                <div key={idx} className="bg-[#f3f4f6] p-3 rounded-lg border border-[#d1d5db]">
                   <div className="flex items-start gap-2">
                     <span className="text-lg">{getActionIcon(log.action)}</span>
                     <div className="flex-grow">
                       <div className="flex justify-between items-start">
                         <div>
-                          <span className="font-bold text-teal-400 text-base">
+                          <span className="font-bold text-[#1e40af] text-base">
                             {log.employeeName || log.user || 'Unknown'}
                           </span>
                           <span className="text-gray-500 text-xs ml-2">
@@ -2749,18 +2773,18 @@ function ActivityLogModal({ onClose }) {
           ) : (
             <div className="text-center py-8">
               <span className="text-4xl">📭</span>
-              <p className="text-gray-400 mt-2">Δεν υπάρχουν εγγραφές</p>
+              <p className="text-[#6b7280] mt-2">Δεν υπάρχουν εγγραφές</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-700">
+        <div className="p-4 border-t border-[#d1d5db]">
           <div className="flex justify-between items-center">
             <span className="text-xs text-gray-500">{filteredLogs.length} εγγραφές</span>
             <button
               onClick={onClose}
-              className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-lg"
+              className="bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-2 px-6 rounded-lg"
             >
               Κλείσιμο
             </button>
@@ -2835,14 +2859,14 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
         </h2>
         <button 
           onClick={onClose} 
-          className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-bold"
+          className="bg-[#f9fafb] hover:bg-gray-100 text-white px-4 py-2 rounded-lg font-bold"
         >
           ✕ Κλείσιμο
         </button>
       </div>
 
       {/* Totals Summary */}
-      <div className="p-4 bg-gray-900 border-b border-gray-700">
+      <div className="p-4 bg-[#f3f4f6] border-b border-[#d1d5db]">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div className="bg-green-900 p-4 rounded-lg">
             <div className="text-sm text-green-300 mb-1">ΣΥΝΟΛΙΚΑ ΕΣΟΔΑ</div>
@@ -2856,8 +2880,8 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
               {formatCurrency(financialsData.totals.expenses)}
             </div>
           </div>
-          <div className="bg-gray-800 p-4 rounded-lg border-2 border-gray-600">
-            <div className="text-sm text-gray-300 mb-1">ΚΑΘΑΡΟ ΑΠΟΤΕΛΕΣΜΑ</div>
+          <div className="bg-white p-4 rounded-lg border-2 border-[#d1d5db]">
+            <div className="text-sm text-[#374151] mb-1">ΚΑΘΑΡΟ ΑΠΟΤΕΛΕΣΜΑ</div>
             <div className={`text-2xl sm:text-3xl font-bold ${financialsData.totals.net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               {formatCurrency(financialsData.totals.net)}
             </div>
@@ -2868,18 +2892,18 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
       {/* Main Content */}
       <div className="flex-grow flex overflow-hidden">
         {/* Boats List - Left Side */}
-        <div className="w-1/3 sm:w-1/4 border-r border-gray-700 overflow-y-auto bg-gray-900 flex flex-col">
-          <div className="p-2 border-b border-gray-700 bg-gray-800">
+        <div className="w-1/3 sm:w-1/4 border-r border-[#d1d5db] overflow-y-auto bg-[#f3f4f6] flex flex-col">
+          <div className="p-2 border-b border-[#d1d5db] bg-white">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="🔍 Αναζήτηση..."
-              className="w-full px-2 py-1 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:ring-1 focus:ring-teal-500 text-xs"
+              className="w-full px-2 py-1 bg-[#f9fafb] text-white rounded border border-[#d1d5db] focus:outline-none focus:ring-1 focus:ring-[#1e40af] text-xs"
             />
           </div>
-          <div className="p-2 border-b border-gray-700 bg-gray-800">
-            <h3 className="font-bold text-teal-400 text-sm">
+          <div className="p-2 border-b border-[#d1d5db] bg-white">
+            <h3 className="font-bold text-[#1e40af] text-sm">
               Σκάφη ({filteredBoats.length}{searchTerm ? ` / ${boats.length}` : ''})
             </h3>
           </div>
@@ -2893,10 +2917,10 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
                   onClick={() => loadBoatDetails(boat.id)}
                   className={`w-full text-left p-3 rounded-lg transition-colors border-2 ${
                     selectedBoat === boat.id
-                      ? 'bg-teal-700 border-teal-500'
+                      ? 'bg-[#1e40af] border-[#1e40af]'
                       : hasPage1Bookings
                         ? 'bg-blue-900/50 border-blue-500 hover:bg-blue-800/50'
-                        : 'bg-gray-800 hover:bg-gray-700 border-gray-700'
+                        : 'bg-white hover:bg-[#f9fafb] border-[#d1d5db]'
                   }`}
                 >
                   {/* 📝 Page 1 booking badge - prominent at top */}
@@ -2922,10 +2946,10 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
         </div>
 
         {/* Details - Right Side */}
-        <div className="flex-grow overflow-y-auto bg-gray-950 p-4">
+        <div className="flex-grow overflow-y-auto bg-gray-100 p-4">
           {selectedBoat && detailedData ? (
             <>
-              <h3 className="text-xl font-bold text-teal-400 mb-4">
+              <h3 className="text-xl font-bold text-[#1e40af] mb-4">
                 📊 {selectedBoat} - Αναλυτικά
               </h3>
 
@@ -2937,7 +2961,7 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
                 {detailedData.charters.length > 0 ? (
                   <div className="space-y-2">
                     {detailedData.charters.map((charter, idx) => (
-                      <div key={idx} className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-[#d1d5db]">
                         <div className="flex justify-between items-start">
                           <div>
                             <span className="font-bold text-white">{charter.code || charter.charterCode || `#${idx + 1}`}</span>
@@ -2949,7 +2973,7 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
                             {formatCurrency(charter.amount || charter.charterAmount)}
                           </span>
                         </div>
-                        <div className="text-xs text-gray-400 mt-1">
+                        <div className="text-xs text-[#6b7280] mt-1">
                           {charter.clientName || charter.charterer || 'N/A'}
                           {charter.status && (
                             <span className={`ml-2 px-2 py-0.5 rounded ${
@@ -2977,7 +3001,7 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
                 {detailedData.invoices.length > 0 ? (
                   <div className="space-y-2">
                     {detailedData.invoices.map((invoice, idx) => (
-                      <div key={idx} className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                      <div key={idx} className="bg-white p-3 rounded-lg border border-[#d1d5db]">
                         <div className="flex justify-between items-start">
                           <div>
                             <span className="font-bold text-white">{invoice.description || invoice.title || `#${idx + 1}`}</span>
@@ -2988,7 +3012,7 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
                           </span>
                         </div>
                         {invoice.category && (
-                          <div className="text-xs text-gray-400 mt-1">
+                          <div className="text-xs text-[#6b7280] mt-1">
                             {invoice.category}
                           </div>
                         )}
@@ -3025,11 +3049,17 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
   const reactNavigate = useNavigate();
   const isOwnerUser = authService.isOwner();
 
+  // Home button handler - logout and navigate to home page
+  const handleHome = () => {
+    authService.logout();
+    reactNavigate('/');
+  };
+
   // 🔥 FIX 3: Null check AFTER all hooks
   if (!boat) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
-        <div className="text-teal-400 text-xl">Loading...</div>
+      <div className="flex flex-col h-full bg-[#f3f4f6] items-center justify-center">
+        <div className="text-[#1e40af] text-xl">Loading...</div>
       </div>
     );
   }
@@ -3080,40 +3110,40 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
-      <Header title={boat.name || 'Dashboard'} onBack={handleBackNavigation} />
-      
-      <div className="p-4 bg-gradient-to-r from-gray-800 to-gray-900 border-b border-gray-700">
+    <div className="flex flex-col h-full bg-[#f3f4f6]">
+      <Header title={boat.name || 'Dashboard'} onBack={handleBackNavigation} onHome={handleHome} lightTheme={true} />
+
+      <div className="p-4 bg-white border-b border-[#d1d5db] shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-2xl font-bold text-teal-400">{boat.name || boat.id}</h2>
-            <p className="text-sm text-gray-400">{boat.id}</p>
+            <h2 className="text-2xl font-bold text-[#374151]">{boat.name || boat.id}</h2>
+            <p className="text-sm text-[#6b7280]">{boat.id}</p>
           </div>
           {user && (
             <div className="text-right">
-              <div className="text-sm text-gray-400">Logged as</div>
-              <div className="text-sm font-bold text-teal-400">{user.name || user.code}</div>
-              <div className="text-xs text-gray-500">
+              <div className="text-sm text-[#6b7280]">Logged as</div>
+              <div className="text-sm font-bold text-[#374151]">{user.name || user.code}</div>
+              <div className="text-xs text-[#6b7280]">
                 {isOwnerUser ? 'Owner (View Only)' : user.role}
               </div>
             </div>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2 text-xs">
-          <div className="flex items-center gap-1 px-2 py-1 bg-gray-700 rounded">
+          <div className="flex items-center gap-1 px-2 py-1 bg-[#f3f4f6] border border-[#d1d5db] rounded">
             {isOwnerUser ? icons.eye : icons.shield}
-            <span className="text-gray-300">
+            <span className="text-[#374151]">
               {visibleCategories.length} / {allCategories.length} modules available
               {isOwnerUser && ' (View Only)'}
             </span>
           </div>
         </div>
       </div>
-      
+
       <div className="flex-grow overflow-y-auto pb-20">
         <div className="p-4">
-          <h3 className="text-lg font-semibold mb-4 text-gray-300">
+          <h3 className="text-lg font-semibold mb-4 text-[#374151]">
             {isOwnerUser ? 'All Modules (View Only)' : 'Available Modules'}
           </h3>
           <div className="grid grid-cols-2 gap-3">
@@ -3124,25 +3154,23 @@ function DashboardPage({ boat, onSelectCategory, navigate, ownerCode }) {
                   authService.logActivity('select_category', `${boat.id}/${cat.name}`);
                   onSelectCategory(cat.name);
                 }}
-                className="bg-gray-800 p-4 h-28 rounded-lg shadow-lg flex flex-col items-center justify-center text-center transition-all duration-300 hover:bg-gray-700 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 border border-gray-700 hover:border-teal-500 transform-gpu"
+                className="bg-white p-4 h-28 rounded-lg shadow-md flex flex-col items-center justify-center text-center transition-all duration-300 hover:bg-gray-50 hover:shadow-xl hover:-translate-y-2 hover:scale-105 border border-[#d1d5db] hover:border-[#1e40af] transform-gpu"
                 style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
               >
-                <div className="text-teal-400 mb-2">
+                <div className="text-[#1e40af] mb-2">
                   {React.cloneElement(cat.icon, { width: 28, height: 28 })}
                 </div>
-                <span className="text-center text-sm font-semibold text-gray-200 leading-tight">
+                <span className="text-center text-sm font-semibold text-[#374151] leading-tight">
                   {cat.name}
                 </span>
                 {isOwnerUser && (
-                  <span className="text-xs text-gray-500 mt-1">{icons.eye}</span>
+                  <span className="text-xs text-[#6b7280] mt-1">{icons.eye}</span>
                 )}
               </button>
             ))}
           </div>
         </div>
       </div>
-      
-      <BottomNav activePage={'dashboard'} onNavigate={handleBackNavigation} />
     </div>
   );
 }
@@ -3230,7 +3258,7 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
       case 'Expired':
       case 'expired':
       case 'EXPIRED':
-        return { bg: 'bg-gray-700', text: 'text-white', status: 'text-gray-300' };
+        return { bg: 'bg-[#f9fafb]', text: 'text-white', status: 'text-[#374151]' };
       default:
         // 🔥 FALLBACK: Any unknown status defaults to YELLOW (pending)
         return { bg: 'bg-yellow-400', text: 'text-black', status: 'text-black' };
@@ -3311,7 +3339,7 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
                               <div className={`absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full shadow-lg shadow-red-500/50 ${paymentInfo.lightBlink ? 'animate-pulse' : ''}`}></div>
                             )}
                             <div className="font-bold text-sm">{charter.code}</div>
-                            <div className="text-teal-300 text-sm">{charter.amount?.toFixed(0)}€</div>
+                            <div className="text-[#1e40af] text-sm">{charter.amount?.toFixed(0)}€</div>
                             {/* 🔥 Payment Status - ΚΕΙΜΕΝΟ αντί για emoji */}
                             <div className={`text-xs font-semibold ${paymentInfo?.color}`}>
                               {paymentInfo?.text}
@@ -3425,38 +3453,38 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
   };
   
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-[#f3f4f6]">
       <Header title="ΣΥΓΚΕΝΤΡΩΤΙΚΑ ΣΤΟΙΧΕΙΑ" onBack={handleBackToOwnerDashboard} />
       
-      <div className="p-4 bg-gradient-to-r from-gray-800 to-gray-900 border-b border-gray-700">
+      <div className="p-4 bg-white border-b border-[#d1d5db] shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <div className="text-2xl">👤</div>
             <div>
-              <div className="text-sm text-gray-400">Owner Code:</div>
-              <div className="text-lg font-bold text-teal-400">{ownerCode}</div>
+              <div className="text-sm text-[#6b7280]">Owner Code:</div>
+              <div className="text-lg font-bold text-[#1e40af]">{ownerCode}</div>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-sm text-gray-400">Vessels:</div>
-            <div className="text-lg font-bold text-white">{boatIds.length}</div>
+            <div className="text-sm text-[#6b7280]">Vessels:</div>
+            <div className="text-lg font-bold text-[#374151]">{boatIds.length}</div>
           </div>
         </div>
         {/* 🔥 BUG FIX: Display boat NAMES instead of IDs */}
-        <div className="text-sm text-gray-400">{boatIds.map(id => allBoats.find(b => b.id === id)?.name || id).join(', ')}</div>
+        <div className="text-sm text-[#6b7280]">{boatIds.map(id => allBoats.find(b => b.id === id)?.name || id).join(', ')}</div>
       </div>
       
-      <div className="flex border-b border-gray-700 bg-gray-800">
-        <button onClick={() => setActiveTab('financials')} className={`flex-1 py-3 px-2 font-semibold text-sm ${activeTab === 'financials' ? 'text-teal-400 border-b-2 border-teal-400 bg-gray-900' : 'text-gray-400'}`}>
+      <div className="flex border-b border-[#d1d5db] bg-white">
+        <button onClick={() => setActiveTab('financials')} className={`flex-1 py-3 px-2 font-semibold text-sm ${activeTab === 'financials' ? 'text-[#1e40af] border-b-2 border-[#1e40af] bg-[#f3f4f6]' : 'text-[#6b7280]'}`}>
           💰 Οικονομικά
         </button>
-        <button onClick={() => setActiveTab('bookingSheet')} className={`flex-1 py-3 px-2 font-semibold text-sm ${activeTab === 'bookingSheet' ? 'text-teal-400 border-b-2 border-teal-400 bg-gray-900' : 'text-gray-400'}`}>
+        <button onClick={() => setActiveTab('bookingSheet')} className={`flex-1 py-3 px-2 font-semibold text-sm ${activeTab === 'bookingSheet' ? 'text-[#1e40af] border-b-2 border-[#1e40af] bg-[#f3f4f6]' : 'text-[#6b7280]'}`}>
           📅 Booking
         </button>
-        <button onClick={() => setActiveTab('charters')} className={`flex-1 py-3 px-2 font-semibold text-sm ${activeTab === 'charters' ? 'text-teal-400 border-b-2 border-teal-400 bg-gray-900' : 'text-gray-400'}`}>
+        <button onClick={() => setActiveTab('charters')} className={`flex-1 py-3 px-2 font-semibold text-sm ${activeTab === 'charters' ? 'text-[#1e40af] border-b-2 border-[#1e40af] bg-[#f3f4f6]' : 'text-[#6b7280]'}`}>
           ⚓ Ναύλοι
         </button>
-        <button onClick={() => setActiveTab('documents')} className={`flex-1 py-3 px-2 font-semibold text-sm ${activeTab === 'documents' ? 'text-teal-400 border-b-2 border-teal-400 bg-gray-900' : 'text-gray-400'}`}>
+        <button onClick={() => setActiveTab('documents')} className={`flex-1 py-3 px-2 font-semibold text-sm ${activeTab === 'documents' ? 'text-[#1e40af] border-b-2 border-[#1e40af] bg-[#f3f4f6]' : 'text-[#6b7280]'}`}>
           📄 Έγγραφα
         </button>
       </div>
@@ -3470,19 +3498,19 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="🔍 Αναζήτηση σκάφους (όνομα, τύπος, μοντέλο...)"
-              className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+              className="w-full px-4 py-2 bg-white text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af] text-sm"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-white"
               >
                 ✕
               </button>
             )}
           </div>
           {searchTerm && (
-            <div className="text-center text-xs text-gray-400 mt-1">
+            <div className="text-center text-xs text-[#6b7280] mt-1">
               Βρέθηκαν {filteredBoatIds.length} από {boatIds.length} σκάφη
             </div>
           )}
@@ -3499,8 +3527,8 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
                 <div className="text-xs font-medium text-red-200">ΣΥΝ. ΕΞΟΔΑ</div>
                 <div className="text-lg font-bold text-white">{totals.totalExpenses.toFixed(2)}€</div>
               </div>
-              <div className="bg-gradient-to-br from-gray-700 to-gray-800 p-3 rounded-lg shadow-lg">
-                <div className="text-xs font-medium text-gray-300">ΚΑΘΑΡΟ</div>
+              <div className="bg-gradient-to-br from-gray-100 to-gray-200 p-3 rounded-lg shadow-lg">
+                <div className="text-xs font-medium text-[#374151]">ΚΑΘΑΡΟ</div>
                 <div className={`text-lg font-bold ${totals.netResult >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {totals.netResult.toFixed(2)}€
                 </div>
@@ -3517,24 +3545,24 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
               const boatTotal = boatIncome - boatCharterExpenses - boatInvoiceExpenses;
               
               return (
-                <div key={boatId} className="bg-gray-800 p-4 rounded-lg mb-3 border border-gray-700">
+                <div key={boatId} className="bg-white p-4 rounded-lg mb-3 border border-[#d1d5db]">
                   {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
-                  <h3 className="text-lg font-bold text-teal-400 mb-3">{allBoats.find(b => b.id === boatId)?.name || boatId}</h3>
+                  <h3 className="text-lg font-bold text-[#1e40af] mb-3">{allBoats.find(b => b.id === boatId)?.name || boatId}</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-400">Έσοδα:</span>
+                      <span className="text-[#6b7280]">Έσοδα:</span>
                       <span className="text-green-400 font-semibold">{boatIncome.toFixed(2)}€</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">Έξοδα (Ναύλων):</span>
+                      <span className="text-[#6b7280]">Έξοδα (Ναύλων):</span>
                       <span className="text-red-400 font-semibold">{boatCharterExpenses.toFixed(2)}€</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">Έξοδα (Τιμολ.):</span>
+                      <span className="text-[#6b7280]">Έξοδα (Τιμολ.):</span>
                       <span className="text-red-400 font-semibold">{boatInvoiceExpenses.toFixed(2)}€</span>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-gray-700">
-                      <span className="text-gray-300 font-semibold">Καθαρό:</span>
+                    <div className="flex justify-between pt-2 border-t border-[#d1d5db]">
+                      <span className="text-[#374151] font-semibold">Καθαρό:</span>
                       <span className={`font-bold ${boatTotal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {boatTotal.toFixed(2)}€
                       </span>
@@ -3547,9 +3575,9 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
         )}
         
         {activeTab === 'bookingSheet' && (
-          <div className="fixed inset-0 z-50 bg-gray-900 flex flex-col">
-            <div className="bg-gray-800 p-2 flex items-center justify-between border-b border-gray-700">
-              <button onClick={() => setActiveTab('financials')} className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg">
+          <div className="fixed inset-0 z-50 bg-[#f3f4f6] flex flex-col">
+            <div className="bg-white p-2 flex items-center justify-between border-b border-[#d1d5db]">
+              <button onClick={() => setActiveTab('financials')} className="text-[#1e40af] p-2 hover:bg-[#f9fafb] rounded-lg">
                 {icons.chevronLeft}
               </button>
               <h1 className="text-lg font-bold text-white">Booking Sheet - {ownerCode}</h1>
@@ -3571,22 +3599,22 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
               return (
                 <div key={boatId} className="mb-6">
                   {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
-                  <h3 className="text-lg font-bold text-teal-400 mb-3 flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-[#1e40af] mb-3 flex items-center gap-2">
                     <span>⚓</span>
                     <span>{allBoats.find(b => b.id === boatId)?.name || boatId}</span>
-                    <span className="text-sm text-gray-400">({boatData.charters.length})</span>
+                    <span className="text-sm text-[#6b7280]">({boatData.charters.length})</span>
                   </h3>
                   <div className="space-y-2">
                     {boatData.charters.map(charter => (
-                      <div key={charter.id} className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                      <div key={charter.id} className="bg-white p-3 rounded-lg border border-[#d1d5db]">
                         <div className="flex justify-between items-center">
                           <div>
                             <div className="font-bold text-white">{charter.code}</div>
-                            <div className="text-xs text-gray-400">{charter.startDate ? charter.startDate.split('-').reverse().join('/') : ''} - {charter.endDate ? charter.endDate.split('-').reverse().join('/') : ''}</div>
+                            <div className="text-xs text-[#6b7280]">{charter.startDate ? charter.startDate.split('-').reverse().join('/') : ''} - {charter.endDate ? charter.endDate.split('-').reverse().join('/') : ''}</div>
                           </div>
                           <div className="text-right">
                             <div className="font-bold text-green-400">{charter.amount?.toFixed(2)}€</div>
-                            <div className="text-xs text-gray-400">{charter.status}</div>
+                            <div className="text-xs text-[#6b7280]">{charter.status}</div>
                           </div>
                         </div>
                       </div>
@@ -3607,16 +3635,16 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
               return (
                 <div key={boatId} className="mb-6">
                   {/* 🔥 BUG FIX: Display boat NAME instead of ID */}
-                  <h3 className="text-lg font-bold text-teal-400 mb-3 flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-[#1e40af] mb-3 flex items-center gap-2">
                     <span>📄</span>
                     <span>{allBoats.find(b => b.id === boatId)?.name || boatId}</span>
-                    <span className="text-sm text-gray-400">({boatData.documents.length})</span>
+                    <span className="text-sm text-[#6b7280]">({boatData.documents.length})</span>
                   </h3>
                   <div className="space-y-2">
                     {boatData.documents.map(doc => (
-                      <div key={doc.id} className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+                      <div key={doc.id} className="bg-white p-3 rounded-lg border border-[#d1d5db]">
                         <div className="font-bold text-white">{doc.title}</div>
-                        <div className="text-xs text-gray-400">{doc.fileName}</div>
+                        <div className="text-xs text-[#6b7280]">{doc.fileName}</div>
                       </div>
                     ))}
                   </div>
@@ -3709,8 +3737,8 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
   // 🔥 FIX 3: Null check AFTER all hooks
   if (!boat) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
-        <div className="text-teal-400 text-xl">Loading...</div>
+      <div className="flex flex-col h-full bg-[#f3f4f6] items-center justify-center">
+        <div className="text-[#1e40af] text-xl">Loading...</div>
       </div>
     );
   }
@@ -3897,7 +3925,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
   };
 
   if (loading) return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-[#f3f4f6]">
       <Header title="Booking Sheet" onBack={() => navigate('boatDashboard')} />
       <FullScreenLoader />
       <BottomNav activePage={null} onNavigate={navigate} />
@@ -3905,15 +3933,15 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
   );
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-gray-900 fixed inset-0 z-50">
-      <div className="bg-gray-800 p-2 flex items-center justify-between border-b border-gray-700">
-        <button onClick={() => navigate('boatDashboard')} className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg">
+    <div className="flex flex-col h-screen w-screen bg-[#f3f4f6] fixed inset-0 z-50">
+      <div className="bg-white p-2 flex items-center justify-between border-b border-[#d1d5db]">
+        <button onClick={() => navigate('boatDashboard')} className="text-[#1e40af] p-2 hover:bg-[#f9fafb] rounded-lg">
           {icons.chevronLeft}
         </button>
         <div className="flex flex-col items-center">
           <h1 className="text-lg font-bold text-white">Booking Sheet - {boat.name || boat.id}</h1>
           <div className="flex items-center">
-            <span className="text-xs text-gray-400">Last updated: {lastUpdated.toLocaleTimeString()}</span>
+            <span className="text-xs text-[#6b7280]">Last updated: {lastUpdated.toLocaleTimeString()}</span>
             {isRefreshing && (
               <span className="ml-3 px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full animate-pulse">
                 🔄 Updating...
@@ -3942,7 +3970,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
         </div>
       )}
 
-      <div className="p-2 bg-gray-800 border-b border-gray-700">
+      <div className="p-2 bg-white border-b border-[#d1d5db]">
         {/* 🔥 FIX: Legend colors - YELLOW (#FBBF24), GREEN (#10B981), RED */}
         <div className="flex flex-wrap justify-center gap-4 text-xs">
           <div className="flex items-center gap-1">
@@ -3960,10 +3988,10 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
         </div>
       </div>
       
-      <div className="flex justify-between items-center p-2 bg-gray-800 border-b border-gray-700">
-        <button onClick={() => changeMonth(-1)} className="text-teal-400 p-2 hover:bg-gray-700 rounded transition-colors text-2xl">{icons.chevronLeft}</button>
-        <h2 className="text-2xl font-bold text-teal-400 capitalize">{monthName} {year}</h2>
-        <button onClick={() => changeMonth(1)} className="text-teal-400 p-2 hover:bg-gray-700 rounded transition-colors text-2xl">{icons.chevronRight}</button>
+      <div className="flex justify-between items-center p-2 bg-white border-b border-[#d1d5db]">
+        <button onClick={() => changeMonth(-1)} className="text-[#1e40af] p-2 hover:bg-[#f9fafb] rounded transition-colors text-2xl">{icons.chevronLeft}</button>
+        <h2 className="text-2xl font-bold text-[#1e40af] capitalize">{monthName} {year}</h2>
+        <button onClick={() => changeMonth(1)} className="text-[#1e40af] p-2 hover:bg-[#f9fafb] rounded transition-colors text-2xl">{icons.chevronRight}</button>
       </div>
 
       <div className="flex-grow overflow-y-auto p-2">
@@ -3972,7 +4000,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
             const isBooked = !!week.booking;
             const status = week.booking?.status || 'Pending';
             const statusInfo = getStatusText(status);
-            const colorClass = isBooked ? getStatusColor(status) : 'bg-gray-800 border-gray-700';
+            const colorClass = isBooked ? getStatusColor(status) : 'bg-white border-[#d1d5db]';
             
             // 🔥 FIXED: Payment status με ΚΕΙΜΕΝΟ
             const paymentInfo = isBooked ? getPaymentStatusInfo(week.booking.paymentStatus) : null;
@@ -3987,8 +4015,8 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
               >
                 <div className="flex justify-between items-center">
                   <div className="text-left">
-                    <p className="text-base font-semibold text-gray-300">{`Εβδομάδα ${index + 1}`}</p>
-                    <p className="text-sm text-gray-400">{`${formatDate(week.start)} - ${formatDate(week.end)}`}</p>
+                    <p className="text-base font-semibold text-[#374151]">{`Εβδομάδα ${index + 1}`}</p>
+                    <p className="text-sm text-[#6b7280]">{`${formatDate(week.start)} - ${formatDate(week.end)}`}</p>
                   </div>
                   <div className="text-right">
                     {isBooked ? (
@@ -4001,7 +4029,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
                         {/* Οικονομικά μόνο αν δεν είναι TECHNICAL */}
                         {canViewFinancials && (
                           <>
-                            <p className="text-base font-semibold text-teal-300">{week.booking.amount?.toFixed(2)}€</p>
+                            <p className="text-base font-semibold text-[#1e40af]">{week.booking.amount?.toFixed(2)}€</p>
                             <p className={`text-xs font-semibold ${paymentInfo?.color}`}>
                               {paymentInfo?.text}
                             </p>
@@ -4023,38 +4051,38 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
       {/* Charter Detail Popup */}
       {selectedBookingForPopup && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSelectedBookingForPopup(null)}>
-          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-white" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-white" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Charter Details</h3>
-              <button onClick={() => setSelectedBookingForPopup(null)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+              <button onClick={() => setSelectedBookingForPopup(null)} className="text-[#6b7280] hover:text-white text-2xl">&times;</button>
             </div>
 
-            <div className="bg-gray-700 p-4 rounded-lg mb-4 space-y-2 border border-gray-600">
-              <div className="flex justify-between"><span className="text-gray-300">CODE:</span><span className="font-bold">{selectedBookingForPopup.code}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">YACHT:</span><span className="font-bold">{boat.name || boat.id}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">FROM:</span><span className="font-bold">{selectedBookingForPopup.startTime && `${selectedBookingForPopup.startTime} - `}{selectedBookingForPopup.startDate ? new Date(selectedBookingForPopup.startDate).toLocaleDateString('en-GB') : ''}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">TO:</span><span className="font-bold">{selectedBookingForPopup.endTime && `${selectedBookingForPopup.endTime} - `}{selectedBookingForPopup.endDate ? new Date(selectedBookingForPopup.endDate).toLocaleDateString('en-GB') : ''}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">DEPARTURE:</span><span className="font-bold">{selectedBookingForPopup.departure || 'ALIMOS MARINA'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">ARRIVAL:</span><span className="font-bold">{selectedBookingForPopup.arrival || 'ALIMOS MARINA'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">STATUS:</span><span className="font-bold">{selectedBookingForPopup.status?.toUpperCase()}</span></div>
+            <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 space-y-2 border border-[#d1d5db]">
+              <div className="flex justify-between"><span className="text-[#374151]">CODE:</span><span className="font-bold">{selectedBookingForPopup.code}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">YACHT:</span><span className="font-bold">{boat.name || boat.id}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">FROM:</span><span className="font-bold">{selectedBookingForPopup.startTime && `${selectedBookingForPopup.startTime} - `}{selectedBookingForPopup.startDate ? new Date(selectedBookingForPopup.startDate).toLocaleDateString('en-GB') : ''}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">TO:</span><span className="font-bold">{selectedBookingForPopup.endTime && `${selectedBookingForPopup.endTime} - `}{selectedBookingForPopup.endDate ? new Date(selectedBookingForPopup.endDate).toLocaleDateString('en-GB') : ''}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">DEPARTURE:</span><span className="font-bold">{selectedBookingForPopup.departure || 'ALIMOS MARINA'}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">ARRIVAL:</span><span className="font-bold">{selectedBookingForPopup.arrival || 'ALIMOS MARINA'}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">STATUS:</span><span className="font-bold">{selectedBookingForPopup.status?.toUpperCase()}</span></div>
             </div>
 
             {/* Skipper info */}
             {(selectedBookingForPopup.skipperFirstName || selectedBookingForPopup.skipperLastName) && (
-              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+              <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
                 <h4 className="font-bold text-lg mb-2">SKIPPER:</h4>
                 <div className="space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-gray-300">Name:</span><span className="font-bold">{selectedBookingForPopup.skipperFirstName} {selectedBookingForPopup.skipperLastName}</span></div>
-                  {selectedBookingForPopup.skipperEmail && <div className="flex justify-between"><span className="text-gray-300">Email:</span><span>{selectedBookingForPopup.skipperEmail}</span></div>}
-                  {selectedBookingForPopup.skipperPhone && <div className="flex justify-between"><span className="text-gray-300">Phone:</span><span>{selectedBookingForPopup.skipperPhone}</span></div>}
-                  {selectedBookingForPopup.skipperAddress && <div className="flex justify-between"><span className="text-gray-300">Address:</span><span>{selectedBookingForPopup.skipperAddress}</span></div>}
+                  <div className="flex justify-between"><span className="text-[#374151]">Name:</span><span className="font-bold">{selectedBookingForPopup.skipperFirstName} {selectedBookingForPopup.skipperLastName}</span></div>
+                  {selectedBookingForPopup.skipperEmail && <div className="flex justify-between"><span className="text-[#374151]">Email:</span><span>{selectedBookingForPopup.skipperEmail}</span></div>}
+                  {selectedBookingForPopup.skipperPhone && <div className="flex justify-between"><span className="text-[#374151]">Phone:</span><span>{selectedBookingForPopup.skipperPhone}</span></div>}
+                  {selectedBookingForPopup.skipperAddress && <div className="flex justify-between"><span className="text-[#374151]">Address:</span><span>{selectedBookingForPopup.skipperAddress}</span></div>}
                 </div>
               </div>
             )}
 
             {/* EXTRAS section */}
             {selectedBookingForPopup.extras && selectedBookingForPopup.extras.length > 0 && (
-              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+              <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
                 <h4 className="font-bold text-lg mb-2">EXTRAS:</h4>
                 <div className="space-y-1">
                   {selectedBookingForPopup.extras.map((extra: string, idx: number) => (
@@ -4069,22 +4097,22 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
 
             {/* NOTES section */}
             {selectedBookingForPopup.notes && selectedBookingForPopup.notes.trim() && (
-              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+              <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
                 <h4 className="font-bold text-lg mb-2 text-blue-400">ΣΗΜΕΙΩΣΕΙΣ:</h4>
-                <p className="text-gray-300 whitespace-pre-wrap">{selectedBookingForPopup.notes}</p>
+                <p className="text-[#374151] whitespace-pre-wrap">{selectedBookingForPopup.notes}</p>
               </div>
             )}
 
             {/* Financial info - only for non-technical users */}
             {canViewFinancials && (
-              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+              <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
                 <h4 className="font-bold text-lg mb-2">FINANCIAL TERMS:</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between text-green-400"><span>Charter Fee:</span><span className="font-bold">{selectedBookingForPopup.amount?.toFixed(2)}€</span></div>
                   <div className="flex justify-between text-red-400"><span>Commission:</span><span className="font-bold">-{selectedBookingForPopup.commission?.toFixed(2)}€</span></div>
                   <div className="flex justify-between text-red-400"><span>VAT (24%):</span><span className="font-bold">-{selectedBookingForPopup.vat_on_commission?.toFixed(2)}€</span></div>
-                  <hr className="border-gray-600" />
-                  <div className="flex justify-between text-xl font-bold"><span>NET INCOME:</span><span className="text-teal-400">{((selectedBookingForPopup.amount || 0) - (selectedBookingForPopup.commission || 0) - (selectedBookingForPopup.vat_on_commission || 0)).toFixed(2)}€</span></div>
+                  <hr className="border-[#d1d5db]" />
+                  <div className="flex justify-between text-xl font-bold"><span>NET INCOME:</span><span className="text-[#1e40af]">{((selectedBookingForPopup.amount || 0) - (selectedBookingForPopup.commission || 0) - (selectedBookingForPopup.vat_on_commission || 0)).toFixed(2)}€</span></div>
                 </div>
               </div>
             )}
@@ -4125,8 +4153,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   // 🔥 FIX 3: Null check AFTER all hooks
   if (!boat) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
-        <div className="text-teal-400 text-xl">Loading...</div>
+      <div className="flex flex-col h-full bg-[#f3f4f6] items-center justify-center">
+        <div className="text-[#1e40af] text-xl">Loading...</div>
       </div>
     );
   }
@@ -4474,7 +4502,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-[#f3f4f6]">
       <Header title="ΕΓΓΡΑΦΑ & ΣΤΟΙΧΕΙΑ" onBack={() => navigate('boatDashboard')} />
 
       {isOwnerUser && (
@@ -4486,11 +4514,11 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
         </div>
       )}
 
-      <div className="flex border-b border-gray-700 bg-gray-800">
-        <button onClick={() => { setActiveTab('details'); authService.logActivity('view_boat_details', boat.id); }} className={`flex-1 py-3 px-4 font-semibold ${activeTab === 'details' ? 'text-teal-400 border-b-2 border-teal-400 bg-gray-900' : 'text-gray-400'}`}>
+      <div className="flex border-b border-[#d1d5db] bg-white">
+        <button onClick={() => { setActiveTab('details'); authService.logActivity('view_boat_details', boat.id); }} className={`flex-1 py-3 px-4 font-semibold ${activeTab === 'details' ? 'text-[#1e40af] border-b-2 border-[#1e40af] bg-[#f3f4f6]' : 'text-[#6b7280]'}`}>
           📋 Στοιχεία
         </button>
-        <button onClick={() => { setActiveTab('documents'); authService.logActivity('view_boat_documents', boat.id); }} className={`flex-1 py-3 px-4 font-semibold ${activeTab === 'documents' ? 'text-teal-400 border-b-2 border-teal-400 bg-gray-900' : 'text-gray-400'}`}>
+        <button onClick={() => { setActiveTab('documents'); authService.logActivity('view_boat_documents', boat.id); }} className={`flex-1 py-3 px-4 font-semibold ${activeTab === 'documents' ? 'text-[#1e40af] border-b-2 border-[#1e40af] bg-[#f3f4f6]' : 'text-[#6b7280]'}`}>
           📄 Έγγραφα
         </button>
       </div>
@@ -4503,20 +4531,20 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
                 <button onClick={() => saveBoatDetails(boatDetails)} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg">
                   <span>💾</span><span>Αποθήκευση Στοιχείων</span>
                 </button>
-                <button onClick={handleAddField} className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-gray-700">
+                <button onClick={handleAddField} className="w-full bg-white hover:bg-[#f9fafb] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-[#d1d5db]">
                   <span>➕</span><span>Προσθήκη Νέου Πεδίου</span>
                 </button>
               </div>
             )}
 
             {/* Technical Details - Owner details moved to ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ section */}
-            <h4 className="text-md font-bold text-gray-400 mb-3">📋 Τεχνικά Στοιχεία</h4>
+            <h4 className="text-md font-bold text-[#6b7280] mb-3">📋 Τεχνικά Στοιχεία</h4>
             <div className="space-y-4">
               {Object.entries(boatDetails)
                 .map(([field, value]) => (
-                <div key={field} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                <div key={field} className="bg-white p-4 rounded-lg border border-[#d1d5db]">
                   <div className="flex justify-between items-start mb-2">
-                    <label className="text-sm font-semibold text-gray-300">{field}</label>
+                    <label className="text-sm font-semibold text-[#374151]">{field}</label>
                     {canEdit && (
                       <button onClick={() => handleRemoveField(field)} className="text-red-500 hover:text-red-400">{icons.x}</button>
                     )}
@@ -4526,7 +4554,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
                     value={value}
                     onChange={(e) => handleDetailChange(field, e.target.value)}
                     disabled={!canEdit}
-                    className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60 cursor-not-allowed' : 'focus:border-teal-500 focus:outline-none'}`}
+                    className={`w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60 cursor-not-allowed' : 'focus:border-[#1e40af] focus:outline-none'}`}
                     placeholder={canEdit ? 'Εισάγετε τιμή...' : 'Δεν υπάρχει τιμή'}
                   />
                 </div>
@@ -4539,16 +4567,16 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
           <div>
             {canEdit && (
               <div className="mb-4">
-                <button onClick={() => setShowAddDoc(!showAddDoc)} className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-gray-700">
+                <button onClick={() => setShowAddDoc(!showAddDoc)} className="w-full bg-white hover:bg-[#f9fafb] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-[#d1d5db]">
                   {icons.plus}
                   <span>{showAddDoc ? 'Ακύρωση' : 'Προσθήκη Εγγράφου'}</span>
                 </button>
 
                 {showAddDoc && (
-                  <div className="mt-4 p-4 bg-gray-800 rounded-lg space-y-3 border border-gray-700">
-                    <input type="text" value={newDocTitle} onChange={(e) => setNewDocTitle(e.target.value)} placeholder="Τίτλος εγγράφου (π.χ. Boarding Pass)" className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
-                    <input type="file" ref={fileInputRef} accept=".pdf,.doc,.docx" onChange={handleFileUpload} className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600" />
-                    <p className="text-xs text-gray-400">Υποστηριζόμενα: PDF, Word (.doc, .docx)</p>
+                  <div className="mt-4 p-4 bg-white rounded-lg space-y-3 border border-[#d1d5db]">
+                    <input type="text" value={newDocTitle} onChange={(e) => setNewDocTitle(e.target.value)} placeholder="Τίτλος εγγράφου (π.χ. Boarding Pass)" className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+                    <input type="file" ref={fileInputRef} accept=".pdf,.doc,.docx" onChange={handleFileUpload} className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db]" />
+                    <p className="text-xs text-[#6b7280]">Υποστηριζόμενα: PDF, Word (.doc, .docx)</p>
                   </div>
                 )}
               </div>
@@ -4556,17 +4584,17 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
 
             <div className="space-y-3">
               {documents.length === 0 ? (
-                <div className="bg-gray-800 p-8 rounded-lg text-center border border-gray-700">
+                <div className="bg-white p-8 rounded-lg text-center border border-[#d1d5db]">
                   <div className="text-5xl mb-3">📄</div>
-                  <p className="text-gray-400">Δεν υπάρχουν έγγραφα</p>
+                  <p className="text-[#6b7280]">Δεν υπάρχουν έγγραφα</p>
                 </div>
               ) : (
                 documents.map((doc) => (
-                  <div key={doc.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                  <div key={doc.id} className="bg-white p-4 rounded-lg border border-[#d1d5db]">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="text-lg font-bold text-teal-400">{doc.title}</h3>
-                        <p className="text-sm text-gray-400">{doc.fileName}</p>
+                        <h3 className="text-lg font-bold text-[#1e40af]">{doc.title}</h3>
+                        <p className="text-sm text-[#6b7280]">{doc.fileName}</p>
                         <p className="text-xs text-gray-500">📅 {new Date(doc.uploadedAt).toLocaleDateString('en-GB')} {doc.uploadedBy && ` • 👤 ${doc.uploadedBy}`}</p>
                       </div>
                       <div className="flex gap-2">
@@ -4625,8 +4653,8 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
 
   if (!boat) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
-        <div className="text-teal-400 text-xl">Loading...</div>
+      <div className="flex flex-col h-full bg-[#f3f4f6] items-center justify-center">
+        <div className="text-[#1e40af] text-xl">Loading...</div>
       </div>
     );
   }
@@ -4914,14 +4942,14 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
   const customFields = Object.entries(ownerDetails).filter(([field]) => !FIXED_FIELDS.includes(field));
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-[#f3f4f6]">
       <Header title="ΣΤΟΙΧΕΙΑ ΙΔΙΟΚΤΗΤΗ" onBack={() => navigate('boatDashboard')} />
 
       <div className="flex-grow p-4 overflow-y-auto pb-20">
         {/* Header with boat info */}
-        <div className="mb-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
-          <div className="text-lg font-bold text-teal-400">{boat.name || boat.id}</div>
-          <div className="text-sm text-gray-400">{boat.type} {boat.model && `• ${boat.model}`}</div>
+        <div className="mb-4 p-3 bg-white rounded-lg border border-[#d1d5db]">
+          <div className="text-lg font-bold text-[#1e40af]">{boat.name || boat.id}</div>
+          <div className="text-sm text-[#6b7280]">{boat.type} {boat.model && `• ${boat.model}`}</div>
         </div>
 
         {/* Loading indicator */}
@@ -4944,8 +4972,8 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
         )}
 
         {/* Owner Details Form */}
-        <div className="p-4 bg-gradient-to-r from-cyan-900/50 to-blue-900/50 rounded-lg border-2 border-cyan-500">
-          <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
+        <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border-2 border-[#1e40af]">
+          <h3 className="text-lg font-bold text-[#1e40af] mb-4 flex items-center gap-2">
             👤 Στοιχεία Ιδιοκτήτη Σκάφους
           </h3>
 
@@ -4954,25 +4982,25 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
             <div className="grid grid-cols-2 gap-3">
               {/* First Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">Όνομα</label>
+                <label className="block text-sm font-semibold text-[#374151] mb-2">Όνομα</label>
                 <input
                   type="text"
                   value={ownerDetails['Όνομα'] || ''}
                   onChange={(e) => handleChange('Όνομα', e.target.value)}
                   disabled={!canEdit}
-                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                  className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                   placeholder="Όνομα"
                 />
               </div>
               {/* Last Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">Επώνυμο</label>
+                <label className="block text-sm font-semibold text-[#374151] mb-2">Επώνυμο</label>
                 <input
                   type="text"
                   value={ownerDetails['Επώνυμο'] || ''}
                   onChange={(e) => handleChange('Επώνυμο', e.target.value)}
                   disabled={!canEdit}
-                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                  className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                   placeholder="Επώνυμο"
                 />
               </div>
@@ -4980,83 +5008,83 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
 
             {/* Owner Email */}
             <div>
-              <label className="block text-sm font-semibold text-cyan-300 mb-2">Email Ιδιοκτήτη ⭐</label>
+              <label className="block text-sm font-semibold text-[#1e40af] mb-2">Email Ιδιοκτήτη ⭐</label>
               <input
                 type="email"
                 value={ownerDetails['Email Ιδιοκτήτη'] || ''}
                 onChange={(e) => handleChange('Email Ιδιοκτήτη', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border-2 border-cyan-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-400 focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border-2 border-[#1e40af] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="owner@email.com"
               />
-              <p className="text-xs text-cyan-400 mt-1">Για αποστολή ειδοποιήσεων ναύλων</p>
+              <p className="text-xs text-[#1e40af] mt-1">Για αποστολή ειδοποιήσεων ναύλων</p>
             </div>
 
             {/* Company Email */}
             <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Email Εταιρείας</label>
+              <label className="block text-sm font-semibold text-[#374151] mb-2">Email Εταιρείας</label>
               <input
                 type="email"
                 value={ownerDetails['Email Εταιρείας'] || ''}
                 onChange={(e) => handleChange('Email Εταιρείας', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="company@email.com"
               />
             </div>
 
             {/* Company */}
             <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Εταιρεία</label>
+              <label className="block text-sm font-semibold text-[#374151] mb-2">Εταιρεία</label>
               <input
                 type="text"
                 value={ownerDetails['Εταιρεία'] || ''}
                 onChange={(e) => handleChange('Εταιρεία', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="Εταιρεία ΕΠΕ"
               />
             </div>
 
             {/* Tax ID */}
             <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">ΑΦΜ</label>
+              <label className="block text-sm font-semibold text-[#374151] mb-2">ΑΦΜ</label>
               <input
                 type="text"
                 value={ownerDetails['ΑΦΜ'] || ''}
                 onChange={(e) => handleChange('ΑΦΜ', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="123456789"
               />
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Τηλέφωνο</label>
+              <label className="block text-sm font-semibold text-[#374151] mb-2">Τηλέφωνο</label>
               <input
                 type="tel"
                 value={ownerDetails['Τηλέφωνο Ιδιοκτήτη'] || ''}
                 onChange={(e) => handleChange('Τηλέφωνο Ιδιοκτήτη', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="+30 697 1234567"
               />
             </div>
 
             {/* Address - Split into 4 fields */}
             <div className="space-y-3">
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Διεύθυνση</label>
+              <label className="block text-sm font-semibold text-[#374151] mb-2">Διεύθυνση</label>
 
               {/* Street */}
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Οδός</label>
+                <label className="block text-xs text-[#6b7280] mb-1">Οδός</label>
                 <input
                   type="text"
                   value={ownerDetails['Οδός'] || ''}
                   onChange={(e) => handleChange('Οδός', e.target.value)}
                   disabled={!canEdit}
-                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                  className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                   placeholder="π.χ. Λεωφόρος Αλεξάνδρας"
                 />
               </div>
@@ -5065,26 +5093,26 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
               <div className="grid grid-cols-2 gap-3">
                 {/* Number */}
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Αριθμός</label>
+                  <label className="block text-xs text-[#6b7280] mb-1">Αριθμός</label>
                   <input
                     type="text"
                     value={ownerDetails['Αριθμός'] || ''}
                     onChange={(e) => handleChange('Αριθμός', e.target.value)}
                     disabled={!canEdit}
-                    className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                    className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                     placeholder="π.χ. 123"
                   />
                 </div>
 
                 {/* Postal Code */}
                 <div>
-                  <label className="block text-xs text-gray-400 mb-1">Τ.Κ.</label>
+                  <label className="block text-xs text-[#6b7280] mb-1">Τ.Κ.</label>
                   <input
                     type="text"
                     value={ownerDetails['Τ.Κ.'] || ''}
                     onChange={(e) => handleChange('Τ.Κ.', e.target.value)}
                     disabled={!canEdit}
-                    className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                    className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                     placeholder="π.χ. 11523"
                   />
                 </div>
@@ -5092,13 +5120,13 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
 
               {/* City */}
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Πόλη</label>
+                <label className="block text-xs text-[#6b7280] mb-1">Πόλη</label>
                 <input
                   type="text"
                   value={ownerDetails['Πόλη'] || ''}
                   onChange={(e) => handleChange('Πόλη', e.target.value)}
                   disabled={!canEdit}
-                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                  className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                   placeholder="π.χ. Αθήνα"
                 />
               </div>
@@ -5106,13 +5134,13 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
 
             {/* Custom Fields */}
             {customFields.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-cyan-700">
-                <h4 className="text-sm font-bold text-cyan-300 mb-3">📝 Επιπλέον Πεδία</h4>
+              <div className="mt-6 pt-4 border-t border-[#1e40af]">
+                <h4 className="text-sm font-bold text-[#1e40af] mb-3">📝 Επιπλέον Πεδία</h4>
                 <div className="space-y-3">
                   {customFields.map(([field, value]) => (
-                    <div key={field} className="bg-gray-800 p-3 rounded-lg border border-gray-600">
+                    <div key={field} className="bg-white p-3 rounded-lg border border-[#d1d5db]">
                       <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-semibold text-gray-300">{field}</label>
+                        <label className="text-sm font-semibold text-[#374151]">{field}</label>
                         {canEdit && (
                           <button
                             onClick={() => handleRemoveField(field)}
@@ -5127,7 +5155,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                         value={value || ''}
                         onChange={(e) => handleChange(field, e.target.value)}
                         disabled={!canEdit}
-                        className={`w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 ${!canEdit ? 'opacity-60' : 'focus:border-cyan-500 focus:outline-none'}`}
+                        className={`w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                         placeholder="Εισάγετε τιμή..."
                       />
                     </div>
@@ -5140,7 +5168,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
             {canEdit && !showAddField && (
               <button
                 onClick={() => setShowAddField(true)}
-                className="w-full mt-4 bg-gray-700 hover:bg-gray-600 text-cyan-400 font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-gray-600"
+                className="w-full mt-4 bg-[#f9fafb] hover:bg-gray-100 text-[#1e40af] font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-[#d1d5db]"
               >
                 <span>➕</span><span>Προσθήκη Νέου Πεδίου</span>
               </button>
@@ -5148,20 +5176,20 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
 
             {/* Add New Field Form */}
             {canEdit && showAddField && (
-              <div className="mt-4 p-4 bg-gray-800 rounded-lg border-2 border-cyan-600">
-                <h4 className="text-sm font-bold text-cyan-300 mb-3">➕ Νέο Πεδίο</h4>
+              <div className="mt-4 p-4 bg-white rounded-lg border-2 border-[#1e40af]">
+                <h4 className="text-sm font-bold text-[#1e40af] mb-3">➕ Νέο Πεδίο</h4>
                 <input
                   type="text"
                   value={newFieldName}
                   onChange={(e) => setNewFieldName(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-cyan-500 focus:outline-none mb-3"
+                  className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none mb-3"
                   placeholder="Όνομα πεδίου (π.χ. ΙΒΑΝ, Σημειώσεις)"
                   autoFocus
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={handleAddField}
-                    className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg"
+                    className="flex-1 bg-[#1e40af] hover:bg-blue-800 text-white font-bold py-2 px-4 rounded-lg"
                   >
                     ✅ Προσθήκη
                   </button>
@@ -5198,8 +5226,8 @@ function DetailsPage({ boat, category, navigate, showMessage }) {
   // 🔥 FIX 3: Null check AFTER all hooks
   if (!boat) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
-        <div className="text-teal-400 text-xl">Loading...</div>
+      <div className="flex flex-col h-full bg-[#f3f4f6] items-center justify-center">
+        <div className="text-[#1e40af] text-xl">Loading...</div>
       </div>
     );
   }
@@ -5264,9 +5292,12 @@ function DetailsPage({ boat, category, navigate, showMessage }) {
     }
   };
 
+  // Build subtitle with vessel info
+  const boatSubtitle = boat ? `${boat.name} • ${boat.type} • ${boat.model || ''}`.replace(/ • $/, '') : null;
+
   return (
-    <div className="flex flex-col h-full bg-gray-900">
-      <Header title={category} onBack={() => navigate('boatDashboard')} />
+    <div className="flex flex-col h-full bg-[#f3f4f6]">
+      <Header title={category} onBack={() => navigate('boatDashboard')} subtitle={boatSubtitle} />
       <div className="flex-grow p-4 overflow-y-auto pb-20">{renderCategoryContent()}</div>
       <BottomNav activePage={null} onNavigate={navigate} />
     </div>
@@ -5289,14 +5320,14 @@ function MediaPage({ items, boatId, showMessage }) {
       )}
       {canEdit && (
          <div className="mb-4">
-            <button className="flex items-center justify-center w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 opacity-50 cursor-not-allowed border border-gray-700">
+            <button className="flex items-center justify-center w-full bg-white hover:bg-[#f9fafb] text-white font-bold py-3 px-4 rounded-lg transition duration-200 opacity-50 cursor-not-allowed border border-[#d1d5db]">
               {icons.upload} <span className="ml-2">(Σύντομα) Ανέβασμα Media</span>
             </button>
          </div>
       )}
-      <div className="bg-gray-800 p-6 rounded-lg text-center border border-gray-700">
+      <div className="bg-white p-6 rounded-lg text-center border border-[#d1d5db]">
         <div className="text-5xl mb-3">📸</div>
-        <p className="text-gray-400">Η λειτουργία Φωτογραφιών & Βίντεο δεν είναι ακόμα διαθέσιμη.</p>
+        <p className="text-[#6b7280]">Η λειτουργία Φωτογραφιών & Βίντεο δεν είναι ακόμα διαθέσιμη.</p>
       </div>
     </div>
   );
@@ -5774,7 +5805,7 @@ function TaskPage({ boat, showMessage }) {
             </div>
           </div>
           {winterizationData.lastSaved && (
-            <div className="mt-2 text-xs text-gray-400">
+            <div className="mt-2 text-xs text-[#6b7280]">
               📅 Τελευταία ενημέρωση: {new Date(winterizationData.lastSaved).toLocaleDateString('en-GB')}
             </div>
           )}
@@ -7052,25 +7083,25 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
             } else {
               setShowAddForm(true);
             }
-          }} className={`flex items-center justify-center w-full ${editingCharter ? 'bg-blue-800 hover:bg-blue-700 border-blue-600' : 'bg-gray-800 hover:bg-gray-700 border-gray-700'} text-white font-bold py-3 px-4 rounded-lg transition duration-200 border`}>
+          }} className={`flex items-center justify-center w-full ${editingCharter ? 'bg-blue-800 hover:bg-blue-700 border-blue-600' : 'bg-white hover:bg-[#f9fafb] border-[#d1d5db]'} text-white font-bold py-3 px-4 rounded-lg transition duration-200 border`}>
             {editingCharter ? icons.edit : icons.plus} <span className="ml-2">{showAddForm ? 'Ακύρωση' : 'Προσθήκη Νέου Ναύλου'}</span>
           </button>
           
           {showAddForm && (
-            <form onSubmit={(e) => e.preventDefault()} className={`mt-4 p-5 rounded-lg border-2 space-y-4 ${editingCharter ? 'bg-blue-900 border-blue-600' : 'bg-gray-800 border-gray-700'}`}>
+            <form onSubmit={(e) => e.preventDefault()} className={`mt-4 p-5 rounded-lg border-2 space-y-4 ${editingCharter ? 'bg-blue-900 border-blue-600' : 'bg-white border-[#d1d5db]'}`}>
               {/* 🔥 Edit mode header banner */}
               {editingCharter && (
                 <div className="bg-blue-600 text-white p-3 rounded-lg text-center font-bold text-lg mb-2 border-2 border-blue-400">
                   ✏️ ΕΠΕΞΕΡΓΑΣΙΑ ΝΑΥΛΟΥ: {editingCharter.code}
                 </div>
               )}
-              <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
-                <h3 className="text-lg font-bold text-teal-400 mb-3">
+              <div className="bg-[#f9fafb] p-4 rounded-lg border border-[#d1d5db]">
+                <h3 className="text-lg font-bold text-[#1e40af] mb-3">
                   {editingCharter ? '✏️ ΕΠΕΞΕΡΓΑΣΙΑ ΝΑΥΛΟΥ' : 'CHARTERING INFORMATION'}
                 </h3>
                 <div className="grid grid-cols-1 gap-3">
                   <div ref={charterCodeRef}>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Κωδικός Ναύλου *</label>
+                    <label className="block text-sm font-medium text-[#374151] mb-2">Κωδικός Ναύλου *</label>
                     {/* 🔥 FIX 30: Added autoComplete="off" to fix Chrome typing issue */}
                     <input
                       type="text"
@@ -7084,7 +7115,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       autoCorrect="off"
                       autoCapitalize="off"
                       spellCheck={false}
-                      className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${charterCodeError ? 'border-red-500' : 'border-gray-500'} focus:border-teal-500 focus:outline-none`}
+                      className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${charterCodeError ? 'border-red-500' : 'border-gray-500'} focus:border-[#1e40af] focus:outline-none`}
                     />
                     {charterCodeError && (
                       <p className="mt-2 text-sm text-red-400 font-medium">{charterCodeError}</p>
@@ -7093,7 +7124,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                   <div ref={datesRef}>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">CHECK-IN DATE *</label>
+                        <label className="block text-sm font-medium text-[#374151] mb-2">CHECK-IN DATE *</label>
                         <input
                           type="date"
                           name="startDate"
@@ -7102,24 +7133,24 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                           onKeyDown={handleFormKeyDown}
                           onBlur={() => newCharter.startDate && newCharter.endDate && validateDatesOnBlur(newCharter.startDate, newCharter.endDate, editingCharter?.id)}
                           min={new Date().toISOString().split('T')[0]}
-                          className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${doubleBookingError ? 'border-red-500' : 'border-gray-500'} focus:border-teal-500 focus:outline-none`}
+                          className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${doubleBookingError ? 'border-red-500' : 'border-gray-500'} focus:border-[#1e40af] focus:outline-none`}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">CHECK-IN TIME</label>
+                        <label className="block text-sm font-medium text-[#374151] mb-2">CHECK-IN TIME</label>
                         <input
                           type="time"
                           name="startTime"
                           value={newCharter.startTime}
                           onChange={handleFormChange}
                           onKeyDown={handleFormKeyDown}
-                          className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
+                          className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-[#1e40af] focus:outline-none"
                         />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">CHECK-OUT DATE *</label>
+                        <label className="block text-sm font-medium text-[#374151] mb-2">CHECK-OUT DATE *</label>
                         <input
                           type="date"
                           name="endDate"
@@ -7128,18 +7159,18 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                           onKeyDown={handleFormKeyDown}
                           onBlur={() => newCharter.startDate && newCharter.endDate && validateDatesOnBlur(newCharter.startDate, newCharter.endDate, editingCharter?.id)}
                           min={newCharter.startDate || new Date().toISOString().split('T')[0]}
-                          className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${dateRangeError || doubleBookingError ? 'border-red-500' : 'border-gray-500'} focus:border-teal-500 focus:outline-none`}
+                          className={`w-full px-3 py-2 bg-gray-600 text-white rounded-lg border ${dateRangeError || doubleBookingError ? 'border-red-500' : 'border-gray-500'} focus:border-[#1e40af] focus:outline-none`}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">CHECK-OUT TIME</label>
+                        <label className="block text-sm font-medium text-[#374151] mb-2">CHECK-OUT TIME</label>
                         <input
                           type="time"
                           name="endTime"
                           value={newCharter.endTime}
                           onChange={handleFormChange}
                           onKeyDown={handleFormKeyDown}
-                          className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none"
+                          className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-[#1e40af] focus:outline-none"
                         />
                       </div>
                     </div>
@@ -7152,17 +7183,17 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">DEPARTURE</label>
-                      <input type="text" name="departure" value={newCharter.departure} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
+                      <label className="block text-sm font-medium text-[#374151] mb-2">DEPARTURE</label>
+                      <input type="text" name="departure" value={newCharter.departure} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-[#1e40af] focus:outline-none" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">ARRIVAL</label>
-                      <input type="text" name="arrival" value={newCharter.arrival} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none" />
+                      <label className="block text-sm font-medium text-[#374151] mb-2">ARRIVAL</label>
+                      <input type="text" name="arrival" value={newCharter.arrival} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-[#1e40af] focus:outline-none" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">STATUS</label>
-                    <select name="status" value={newCharter.status} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-3 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-teal-500 focus:outline-none font-bold">
+                    <label className="block text-sm font-medium text-[#374151] mb-2">STATUS</label>
+                    <select name="status" value={newCharter.status} onChange={handleFormChange} onKeyDown={handleFormKeyDown} className="w-full px-3 py-3 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-[#1e40af] focus:outline-none font-bold">
                       <option value="Draft" className="bg-blue-400 text-white">📝 DRAFT (Από Check-in)</option>
                       <option value="Option" className="bg-yellow-400 text-black">🟡 OPTION (Αναμονή Owner)</option>
                       <option value="Reservation" className="bg-yellow-400 text-black">🟡 RESERVATION (Κράτηση)</option>
@@ -7174,30 +7205,30 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
               </div>
 
               {/* CHARTERER INFORMATION Section */}
-              <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
+              <div className="bg-[#f9fafb] p-4 rounded-lg border border-[#d1d5db]">
                 <h3 className="text-lg font-bold text-green-400 mb-3">CHARTERER INFORMATION</h3>
                 <div className="grid grid-cols-1 gap-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">First Name</label>
+                      <label className="block text-sm font-medium text-[#374151] mb-2">First Name</label>
                       <input type="text" name="chartererFirstName" value={newCharter.chartererFirstName} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Όνομα" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
+                      <label className="block text-sm font-medium text-[#374151] mb-2">Last Name</label>
                       <input type="text" name="chartererLastName" value={newCharter.chartererLastName} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Επώνυμο" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Address</label>
+                    <label className="block text-sm font-medium text-[#374151] mb-2">Address</label>
                     <input type="text" name="chartererAddress" value={newCharter.chartererAddress} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Διεύθυνση" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                      <label className="block text-sm font-medium text-[#374151] mb-2">Email</label>
                       <input type="email" name="chartererEmail" value={newCharter.chartererEmail} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="email@example.com" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+                      <label className="block text-sm font-medium text-[#374151] mb-2">Phone</label>
                       <input type="tel" name="chartererPhone" value={newCharter.chartererPhone} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="+30 69..." className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-green-500 focus:outline-none" />
                     </div>
                   </div>
@@ -7232,36 +7263,36 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       />
                       <span className="text-yellow-400 font-medium">Ο Charterer είναι και Skipper</span>
                     </label>
-                    <p className="text-xs text-gray-400 mt-1 ml-8">Αν επιλεγεί, τα στοιχεία του Charterer αντιγράφονται στον Skipper</p>
+                    <p className="text-xs text-[#6b7280] mt-1 ml-8">Αν επιλεγεί, τα στοιχεία του Charterer αντιγράφονται στον Skipper</p>
                   </div>
                 </div>
               </div>
 
               {/* 🔥 FIX 9: Skipper Information Section */}
-              <div ref={skipperInfoRef} className="bg-gray-700 p-4 rounded-lg border border-gray-600">
+              <div ref={skipperInfoRef} className="bg-[#f9fafb] p-4 rounded-lg border border-[#d1d5db]">
                 <h3 className="text-lg font-bold text-blue-400 mb-3">SKIPPER INFORMATION</h3>
                 <div className="grid grid-cols-1 gap-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">First Name</label>
+                      <label className="block text-sm font-medium text-[#374151] mb-2">First Name</label>
                       <input type="text" name="skipperFirstName" value={newCharter.skipperFirstName} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Όνομα" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Last Name</label>
+                      <label className="block text-sm font-medium text-[#374151] mb-2">Last Name</label>
                       <input type="text" name="skipperLastName" value={newCharter.skipperLastName} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Επώνυμο" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Address</label>
+                    <label className="block text-sm font-medium text-[#374151] mb-2">Address</label>
                     <input type="text" name="skipperAddress" value={newCharter.skipperAddress} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="Διεύθυνση" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                      <label className="block text-sm font-medium text-[#374151] mb-2">Email</label>
                       <input type="email" name="skipperEmail" value={newCharter.skipperEmail} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="email@example.com" className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+                      <label className="block text-sm font-medium text-[#374151] mb-2">Phone</label>
                       <input type="tel" name="skipperPhone" value={newCharter.skipperPhone} onChange={handleFormChange} onKeyDown={handleFormKeyDown} placeholder="+30 69..." className="w-full px-3 py-2 bg-gray-600 text-white rounded-lg border border-gray-500 focus:border-blue-500 focus:outline-none" />
                     </div>
                   </div>
@@ -7288,13 +7319,13 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                         ))}
                       </datalist>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">Προαιρετικό - Optional</p>
+                    <p className="text-xs text-[#6b7280] mt-1">Προαιρετικό - Optional</p>
                   </div>
                 </div>
               </div>
 
               {/* EXTRAS Section */}
-              <div className="bg-gray-700 p-4 rounded-lg border-2 border-orange-500 mb-4">
+              <div className="bg-[#f9fafb] p-4 rounded-lg border-2 border-orange-500 mb-4">
                 <h3 className="text-lg font-bold text-orange-400 mb-3">EXTRAS:</h3>
                 <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
                   {[
@@ -7307,7 +7338,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                     'Nespresso', 'One way Mykonos', 'One way Athens', 'Late check-in',
                     'Life Vest', 'Fishing Gear', 'Sea Scooter', 'Beach Towel', 'Wifi Router'
                   ].map((extra) => (
-                    <label key={extra} className="flex items-center gap-2 text-sm text-gray-200 cursor-pointer hover:bg-gray-600 p-1 rounded">
+                    <label key={extra} className="flex items-center gap-2 text-sm text-[#374151] cursor-pointer hover:bg-gray-100 p-1 rounded">
                       <input
                         type="checkbox"
                         checked={selectedExtras.includes(extra)}
@@ -7324,7 +7355,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                     </label>
                   ))}
                   {customExtras.map((extra) => (
-                    <label key={extra} className="flex items-center gap-2 text-sm text-green-300 cursor-pointer hover:bg-gray-600 p-1 rounded">
+                    <label key={extra} className="flex items-center gap-2 text-sm text-green-300 cursor-pointer hover:bg-gray-100 p-1 rounded">
                       <input
                         type="checkbox"
                         checked={selectedExtras.includes(extra)}
@@ -7358,7 +7389,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
               </div>
 
               {/* NOTES Section */}
-              <div className="bg-gray-700 p-4 rounded-lg border-2 border-blue-500">
+              <div className="bg-[#f9fafb] p-4 rounded-lg border-2 border-blue-500">
                 <h3 className="text-lg font-bold text-blue-400 mb-3">ΣΗΜΕΙΩΣΕΙΣ / NOTES:</h3>
                 <textarea
                   value={charterNotes}
@@ -7369,8 +7400,8 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                 />
               </div>
 
-              <div className="bg-gray-700 p-4 rounded-lg border-2 border-teal-500">
-                <h3 className="text-lg font-bold text-teal-400 mb-3">FINANCIAL TERMS:</h3>
+              <div className="bg-[#f9fafb] p-4 rounded-lg border-2 border-[#1e40af]">
+                <h3 className="text-lg font-bold text-[#1e40af] mb-3">FINANCIAL TERMS:</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-sm font-medium text-green-400 mb-2">Charter Fee (Income): *</label>
@@ -7451,7 +7482,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       className="w-full px-3 py-3 bg-gray-600 text-white text-lg font-bold rounded-lg border-2 border-red-500 focus:border-red-400 focus:outline-none"
                     />
                   </div>
-                  <div className="pt-3 border-t-2 border-gray-600 space-y-2">
+                  <div className="pt-3 border-t-2 border-[#d1d5db] space-y-2">
                     {financials.hasForeignBroker && (
                       <div className="flex justify-between items-center">
                         <span className="text-orange-400 font-medium">Foreign Broker Commission:</span>
@@ -7468,9 +7499,9 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       <span className="text-red-400 font-medium">VAT on Commission (24%):</span>
                       <span className="text-red-400 font-bold text-lg">-{financials.vatOnGreekCommission.toFixed(2)}€</span>
                     </div>
-                    <div className="pt-3 border-t-2 border-teal-500 flex justify-between items-center">
-                      <span className="text-teal-400 font-bold text-xl">NET INCOME:</span>
-                      <span className="text-teal-400 font-bold text-2xl">{financials.netIncome.toFixed(2)}€</span>
+                    <div className="pt-3 border-t-2 border-[#1e40af] flex justify-between items-center">
+                      <span className="text-[#1e40af] font-bold text-xl">NET INCOME:</span>
+                      <span className="text-[#1e40af] font-bold text-2xl">{financials.netIncome.toFixed(2)}€</span>
                     </div>
                   </div>
                 </div>
@@ -7490,7 +7521,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                 type="button"
                 id="save-charter-btn"
                 onClick={handleAddCharter}
-                className={`w-full py-3 px-4 rounded-lg font-bold text-lg transition duration-200 ${isFormValid ? (editingCharter ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-teal-600 hover:bg-teal-700 text-white') : 'bg-gray-600 text-gray-400 cursor-not-allowed'}`}
+                className={`w-full py-3 px-4 rounded-lg font-bold text-lg transition duration-200 ${isFormValid ? (editingCharter ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-[#1e40af] hover:bg-blue-800 text-white') : 'bg-gray-600 text-[#6b7280] cursor-not-allowed'}`}
               >
                 {editingCharter ? '✏️ Ενημέρωση Ναύλου' : '💾 Αποθήκευση Ναύλου'} {!isFormValid && '(Συμπληρώστε τα υποχρεωτικά πεδία)'}
               </button>
@@ -7505,8 +7536,8 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
           onClick={() => setCharterFilter('all')}
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
             charterFilter === 'all'
-              ? 'bg-teal-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              ? 'bg-[#1e40af] text-white'
+              : 'bg-[#f9fafb] text-[#374151] hover:bg-gray-100'
           }`}
         >
           Όλα ({items.length})
@@ -7516,7 +7547,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
             charterFilter === 'page1'
               ? 'bg-blue-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              : 'bg-[#f9fafb] text-[#374151] hover:bg-gray-100'
           }`}
         >
           📝 Από Check-in ({page1Count})
@@ -7526,7 +7557,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
           className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
             charterFilter === 'confirmed'
               ? 'bg-green-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              : 'bg-[#f9fafb] text-[#374151] hover:bg-gray-100'
           }`}
         >
           ✅ Confirmed ({items.filter(c => c.status === 'Confirmed').length})
@@ -7554,7 +7585,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
             <button
               key={charter.id}
               onClick={() => handleSelectCharter(charter)}
-              className={`w-full text-left bg-gray-800 p-4 rounded-lg hover:bg-gray-700 transition duration-200 border border-gray-700 hover:border-teal-500 relative ${urgentPayment ? 'animate-blink-urgent' : ''}`}
+              className={`w-full text-left bg-white p-4 rounded-lg hover:bg-[#f9fafb] transition duration-200 border border-[#d1d5db] hover:border-[#1e40af] relative ${urgentPayment ? 'animate-blink-urgent' : ''}`}
             >
               {/* 🔥 Red light - μόνο για ΑΝΕΞΟΦΛΗΤΟ/ΜΕΡΙΚΗ ΠΛΗΡΩΜΗ */}
               {paymentInfo.showLight && (
@@ -7569,8 +7600,8 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
               
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-bold text-teal-400">{charter.code}</h3>
-                  <p className="text-sm text-gray-400">
+                  <h3 className="text-lg font-bold text-[#1e40af]">{charter.code}</h3>
+                  <p className="text-sm text-[#6b7280]">
                     {charter.startDate ? new Date(charter.startDate).toLocaleDateString('en-GB') : ''} - {charter.endDate ? new Date(charter.endDate).toLocaleDateString('en-GB') : ''}
                   </p>
                   <p className="text-xs text-gray-500 mt-1 flex items-center gap-2 flex-wrap">
@@ -7917,10 +7948,10 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6 overflow-y-auto max-h-[90vh] border border-gray-700">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 overflow-y-auto max-h-[90vh] border border-[#d1d5db]">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold text-teal-400">CHARTER SPECIMEN</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">{icons.x}</button>
+          <h2 className="text-2xl font-bold text-[#1e40af]">CHARTER SPECIMEN</h2>
+          <button onClick={onClose} className="text-[#6b7280] hover:text-white">{icons.x}</button>
         </div>
 
         {isOwnerUser && (
@@ -7964,25 +7995,25 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           </div>
         )}
 
-        <div className="text-center mb-4 pb-4 border-b border-gray-700">
+        <div className="text-center mb-4 pb-4 border-b border-[#d1d5db]">
           <h3 className="font-bold text-lg">{COMPANY_INFO.name}</h3>
-          <p className="text-sm text-gray-400">{COMPANY_INFO.address}</p>
-          <p className="text-sm text-gray-400">Tel: {COMPANY_INFO.phone}</p>
-          <p className="text-sm text-gray-400">{COMPANY_INFO.emails.info}</p>
+          <p className="text-sm text-[#6b7280]">{COMPANY_INFO.address}</p>
+          <p className="text-sm text-[#6b7280]">Tel: {COMPANY_INFO.phone}</p>
+          <p className="text-sm text-[#6b7280]">{COMPANY_INFO.emails.info}</p>
         </div>
 
         <h3 className="text-center font-bold text-lg mb-4">CHARTERING INFORMATION - OPTION {charter.code}</h3>
 
-        <div className="bg-gray-700 p-4 rounded-lg mb-4 space-y-2 border border-gray-600">
-          <div className="flex justify-between"><span className="text-gray-300">YACHT:</span><span className="font-bold">{boat.name || boat.id}</span></div>
-          <div className="flex justify-between"><span className="text-gray-300">FROM:</span><span className="font-bold">{charter.startDate ? charter.startDate.split('-').reverse().join('/') : ''}{charter.startTime && ` @ ${charter.startTime}`}</span></div>
-          <div className="flex justify-between"><span className="text-gray-300">TO:</span><span className="font-bold">{charter.endDate ? charter.endDate.split('-').reverse().join('/') : ''}{charter.endTime && ` @ ${charter.endTime}`}</span></div>
-          <div className="flex justify-between"><span className="text-gray-300">DEPARTURE:</span><span className="font-bold">{charter.departure || 'ALIMOS MARINA'}</span></div>
-          <div className="flex justify-between"><span className="text-gray-300">ARRIVAL:</span><span className="font-bold">{charter.arrival || 'ALIMOS MARINA'}</span></div>
+        <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 space-y-2 border border-[#d1d5db]">
+          <div className="flex justify-between"><span className="text-[#374151]">YACHT:</span><span className="font-bold">{boat.name || boat.id}</span></div>
+          <div className="flex justify-between"><span className="text-[#374151]">FROM:</span><span className="font-bold">{charter.startDate ? charter.startDate.split('-').reverse().join('/') : ''}{charter.startTime && ` @ ${charter.startTime}`}</span></div>
+          <div className="flex justify-between"><span className="text-[#374151]">TO:</span><span className="font-bold">{charter.endDate ? charter.endDate.split('-').reverse().join('/') : ''}{charter.endTime && ` @ ${charter.endTime}`}</span></div>
+          <div className="flex justify-between"><span className="text-[#374151]">DEPARTURE:</span><span className="font-bold">{charter.departure || 'ALIMOS MARINA'}</span></div>
+          <div className="flex justify-between"><span className="text-[#374151]">ARRIVAL:</span><span className="font-bold">{charter.arrival || 'ALIMOS MARINA'}</span></div>
           {/* Status badge for Draft bookings */}
           {charter.status === 'Draft' && (
-            <div className="flex justify-between items-center pt-2 border-t border-gray-600">
-              <span className="text-gray-300">STATUS:</span>
+            <div className="flex justify-between items-center pt-2 border-t border-[#d1d5db]">
+              <span className="text-[#374151]">STATUS:</span>
               <span className="px-3 py-1 bg-blue-500/30 text-blue-400 rounded-lg text-sm font-bold border border-blue-500/50">
                 📝 DRAFT - Από Check-in
               </span>
@@ -7990,17 +8021,17 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           )}
           {/* Show skipper info if available */}
           {(charter.skipperFirstName || charter.skipperLastName) && (
-            <div className="pt-2 border-t border-gray-600">
-              <div className="flex justify-between"><span className="text-gray-300">SKIPPER:</span><span className="font-bold">{charter.skipperFirstName} {charter.skipperLastName}</span></div>
-              {charter.skipperEmail && <div className="flex justify-between"><span className="text-gray-300">EMAIL:</span><span className="text-sm">{charter.skipperEmail}</span></div>}
-              {charter.skipperPhone && <div className="flex justify-between"><span className="text-gray-300">PHONE:</span><span className="text-sm">{charter.skipperPhone}</span></div>}
+            <div className="pt-2 border-t border-[#d1d5db]">
+              <div className="flex justify-between"><span className="text-[#374151]">SKIPPER:</span><span className="font-bold">{charter.skipperFirstName} {charter.skipperLastName}</span></div>
+              {charter.skipperEmail && <div className="flex justify-between"><span className="text-[#374151]">EMAIL:</span><span className="text-sm">{charter.skipperEmail}</span></div>}
+              {charter.skipperPhone && <div className="flex justify-between"><span className="text-[#374151]">PHONE:</span><span className="text-sm">{charter.skipperPhone}</span></div>}
             </div>
           )}
         </div>
 
         {/* EXTRAS section */}
         {charter.extras && charter.extras.length > 0 && (
-          <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+          <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
             <h4 className="font-bold text-lg mb-3">EXTRAS:</h4>
             <div className="space-y-1">
               {charter.extras.map((extra: string, idx: number) => (
@@ -8015,9 +8046,9 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
 
         {/* NOTES section */}
         {charter.notes && charter.notes.trim() && (
-          <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+          <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
             <h4 className="font-bold text-lg mb-3 text-blue-400">ΣΗΜΕΙΩΣΕΙΣ:</h4>
-            <p className="text-gray-300 whitespace-pre-wrap">{charter.notes}</p>
+            <p className="text-[#374151] whitespace-pre-wrap">{charter.notes}</p>
           </div>
         )}
 
@@ -8028,13 +8059,13 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
               <div className="flex justify-between text-green-400"><span>Charter Fee (Income):</span><span className="font-bold">{charter.amount?.toFixed(2)}€</span></div>
               <div className="flex justify-between text-red-400"><span>Commission (Expense):</span><span className="font-bold">-{charter.commission?.toFixed(2)}€</span></div>
               <div className="flex justify-between text-red-400"><span>VAT on Commission (24%):</span><span className="font-bold">-{charter.vat_on_commission?.toFixed(2)}€</span></div>
-              <hr className="border-gray-600" />
-              <div className="flex justify-between text-xl font-bold"><span>NET INCOME:</span><span className="text-teal-400">{netIncome.toFixed(2)}€</span></div>
+              <hr className="border-[#d1d5db]" />
+              <div className="flex justify-between text-xl font-bold"><span>NET INCOME:</span><span className="text-[#1e40af]">{netIncome.toFixed(2)}€</span></div>
             </div>
           </>
         )}
 
-        <p className="text-center text-gray-400 text-sm mb-4">Please advise regarding the acceptance of the charter.<br/>Thank you,</p>
+        <p className="text-center text-[#6b7280] text-sm mb-4">Please advise regarding the acceptance of the charter.<br/>Thank you,</p>
 
         {/* ADMIN: Option → Show waiting message */}
         {!isOwnerUser && (charter.status === 'Option' || charter.status === 'option' || charter.status === 'OPTION' || charter.status === 'Pending' || charter.status === 'pending') && (
@@ -8129,7 +8160,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           {icons.download} <span className="ml-2">📥 Download PDF (Professional)</span>
         </button>
 
-        <button onClick={handleDownloadSpecimen} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-gray-600">
+        <button onClick={handleDownloadSpecimen} className="w-full bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-[#d1d5db]">
           {icons.download} <span className="ml-2">Download Specimen</span>
         </button>
 
@@ -8144,18 +8175,18 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
         </button>
 
         {canEditCharters && canViewFinancials && (
-          <div className="bg-gray-900 p-4 rounded-lg mb-4 border border-gray-700">
+          <div className="bg-[#f3f4f6] p-4 rounded-lg mb-4 border border-[#d1d5db]">
             <h3 className="text-xl font-bold text-yellow-400 mb-3">Διαχείριση Πληρωμών ({payments.length} καταχωρήσεις)</h3>
             <div className="space-y-2 text-base mb-4">
-              <div className="flex justify-between"><span className="text-gray-300">Σύνολο Πληρωμένο:</span><span className="font-bold text-green-400">{totalPaid.toFixed(2)}€</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">Υπόλοιπο:</span><span className="font-bold text-red-400">{balance.toFixed(2)}€</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">Σύνολο Πληρωμένο:</span><span className="font-bold text-green-400">{totalPaid.toFixed(2)}€</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">Υπόλοιπο:</span><span className="font-bold text-red-400">{balance.toFixed(2)}€</span></div>
             </div>
             {payments.length === 0 && (
               <div className="text-gray-500 text-sm mb-3 text-center italic">Δεν υπάρχουν καταχωρημένες πληρωμές</div>
             )}
             <div className="space-y-2 mb-3">
               {payments.map((p, index) => (
-                <div key={index} className="flex justify-between items-center bg-gray-700 p-2 rounded border border-gray-600">
+                <div key={index} className="flex justify-between items-center bg-[#f9fafb] p-2 rounded border border-[#d1d5db]">
                   <span className="text-sm">{new Date(p.date + 'T00:00:00').toLocaleDateString('en-GB')}</span>
                   <span className="text-sm font-semibold">{p.amount.toFixed(2)}€</span>
                   <button onClick={() => removePayment(index)} className="text-red-500 hover:text-red-400">{icons.x}</button>
@@ -8163,8 +8194,8 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
               ))}
             </div>
             <div className="flex space-x-2 mb-3">
-              <input type="date" value={newPayDate} onChange={(e) => { console.log('📅 Date changed:', e.target.value); setNewPayDate(e.target.value); }} className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
-              <input type="number" step="0.01" value={newPayAmount} onChange={(e) => { console.log('💵 Amount changed:', e.target.value); setNewPayAmount(e.target.value); }} placeholder="Ποσό" className="w-1/2 px-2 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
+              <input type="date" value={newPayDate} onChange={(e) => { console.log('📅 Date changed:', e.target.value); setNewPayDate(e.target.value); }} className="w-1/2 px-2 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="number" step="0.01" value={newPayAmount} onChange={(e) => { console.log('💵 Amount changed:', e.target.value); setNewPayAmount(e.target.value); }} placeholder="Ποσό" className="w-1/2 px-2 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
             </div>
             <button
               type="button"
@@ -8198,7 +8229,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
             >
               Προσθήκη Πληρωμής (TEST)
             </button>
-            <button type="button" onClick={savePayments} disabled={isProcessing} className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white font-bold py-3 px-4 rounded-lg">
+            <button type="button" onClick={savePayments} disabled={isProcessing} className="w-full bg-[#1e40af] hover:bg-blue-800 disabled:bg-blue-300 text-white font-bold py-3 px-4 rounded-lg">
               {isProcessing ? '⏳ Αποθήκευση...' : 'Αποθήκευση Πληρωμών'}
             </button>
           </div>
@@ -8269,8 +8300,8 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
   // 🔥 FIX 3: Null check AFTER all hooks
   if (!boat) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
-        <div className="text-teal-400 text-xl">Loading...</div>
+      <div className="flex flex-col h-full bg-[#f3f4f6] items-center justify-center">
+        <div className="text-[#1e40af] text-xl">Loading...</div>
       </div>
     );
   }
@@ -8369,9 +8400,9 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
   const netResult = totalIncome - totalExpenses;
 
   if (loading) return (
-    <div className="flex flex-col h-screen w-screen bg-gray-900 fixed inset-0 z-50">
-      <div className="bg-gray-800 p-2 flex items-center justify-between border-b border-gray-700">
-        <button onClick={() => navigate('boatDashboard')} className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg">{icons.chevronLeft}</button>
+    <div className="flex flex-col h-screen w-screen bg-[#f3f4f6] fixed inset-0 z-50">
+      <div className="bg-white p-2 flex items-center justify-between border-b border-[#d1d5db]">
+        <button onClick={() => navigate('boatDashboard')} className="text-[#1e40af] p-2 hover:bg-[#f9fafb] rounded-lg">{icons.chevronLeft}</button>
         <h1 className="text-lg font-bold text-white">Οικονομικά - {boat.id}</h1>
         <div className="w-10"></div>
       </div>
@@ -8380,9 +8411,9 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
   );
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-gray-900 fixed inset-0 z-50">
-      <div className="bg-gray-800 p-2 flex items-center justify-between border-b border-gray-700">
-        <button onClick={() => navigate('boatDashboard')} className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg">{icons.chevronLeft}</button>
+    <div className="flex flex-col h-screen w-screen bg-[#f3f4f6] fixed inset-0 z-50">
+      <div className="bg-white p-2 flex items-center justify-between border-b border-[#d1d5db]">
+        <button onClick={() => navigate('boatDashboard')} className="text-[#1e40af] p-2 hover:bg-[#f9fafb] rounded-lg">{icons.chevronLeft}</button>
         <h1 className="text-lg font-bold text-white">Οικονομικά - {boat.id}</h1>
         <div className="w-10"></div>
       </div>
@@ -8393,7 +8424,7 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2 p-2 bg-gray-800 border-b border-gray-700">
+      <div className="grid grid-cols-3 gap-2 p-2 bg-white border-b border-[#d1d5db]">
         <div className="bg-gradient-to-br from-green-700 to-green-800 p-3 rounded-lg text-center">
           <div className="text-xs text-green-200">ΕΣΟΔΑ</div>
           <div className="text-lg font-bold text-white">{totalIncome.toFixed(0)}€</div>
@@ -8402,21 +8433,21 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
           <div className="text-xs text-red-200">ΕΞΟΔΑ</div>
           <div className="text-lg font-bold text-white">{totalExpenses.toFixed(0)}€</div>
         </div>
-        <div className="bg-gradient-to-br from-gray-700 to-gray-800 p-3 rounded-lg text-center">
-          <div className="text-xs text-gray-300">ΚΑΘΑΡΟ</div>
+        <div className="bg-gradient-to-br from-gray-100 to-gray-200 p-3 rounded-lg text-center">
+          <div className="text-xs text-[#374151]">ΚΑΘΑΡΟ</div>
           <div className={`text-lg font-bold ${netResult >= 0 ? 'text-green-400' : 'text-red-400'}`}>{netResult.toFixed(0)}€</div>
         </div>
       </div>
       
       <div className="flex-grow p-3 overflow-y-auto">
         <div className="mb-6">
-           <h3 className="text-xl font-semibold mb-3 text-teal-400">Έξοδα Σκάφους (Τιμολόγια)</h3>
+           <h3 className="text-xl font-semibold mb-3 text-[#1e40af]">Έξοδα Σκάφους (Τιμολόγια)</h3>
            <InvoiceSection boatId={boat.id} canEditFinancials={canEditFinancials} showMessage={showMessage} invoices={invoices} setInvoices={setInvoices} isOwnerUser={isOwnerUser} />
         </div>
 
         {!isOwnerUser && canEditFinancials && (
           <div>
-            <h3 className="text-xl font-semibold mb-3 text-teal-400">Πληρωμές Ναύλων</h3>
+            <h3 className="text-xl font-semibold mb-3 text-[#1e40af]">Πληρωμές Ναύλων</h3>
             <div className="space-y-2">
               {charters.length > 0 ? charters.map((charter) => {
                 const totalPaid = (charter.payments || []).reduce((sum, p) => sum + p.amount, 0);
@@ -8424,12 +8455,12 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
                 const paymentInfo = getPaymentStatusInfo(charter.paymentStatus);
                 
                 return (
-                  <button key={charter.id} onClick={() => { setSelectedCategory('ΝΑΥΛΑ'); setPage('details'); }} className="w-full text-left bg-gray-800 p-4 rounded-lg hover:bg-gray-700 border border-gray-700 hover:border-teal-500 transition-all relative">
+                  <button key={charter.id} onClick={() => { setSelectedCategory('ΝΑΥΛΑ'); setPage('details'); }} className="w-full text-left bg-white p-4 rounded-lg hover:bg-[#f9fafb] border border-[#d1d5db] hover:border-[#1e40af] transition-all relative">
                     {paymentInfo.showLight && (
                       <div className={`absolute top-2 right-2 w-4 h-4 bg-red-500 rounded-full shadow-lg shadow-red-500/50 ${paymentInfo.lightBlink ? 'animate-pulse' : ''}`}></div>
                     )}
                     <div className="flex justify-between items-center mb-1">
-                      <h4 className="font-bold text-gray-200">{charter.code}</h4>
+                      <h4 className="font-bold text-[#374151]">{charter.code}</h4>
                       <span className="font-bold text-green-400">{charter.amount?.toFixed(0)}€</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
@@ -8439,7 +8470,7 @@ function FinancialsPage({ boat, navigate, setPage, setSelectedCategory, showMess
                   </button>
                 )
               }) : (
-                 <div className="bg-gray-800 p-6 rounded-lg text-center border border-gray-700"><p className="text-gray-400">Δεν υπάρχουν ναύλοι.</p></div>
+                 <div className="bg-white p-6 rounded-lg text-center border border-[#d1d5db]"><p className="text-[#6b7280]">Δεν υπάρχουν ναύλοι.</p></div>
               )}
             </div>
           </div>
@@ -8584,23 +8615,23 @@ function InvoiceSection({ boatId, canEditFinancials, showMessage, invoices, setI
     <div>
       {canEditFinancials && (
         <div className="mb-4">
-          <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center justify-center w-full bg-gray-800 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 border border-gray-700">
+          <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center justify-center w-full bg-white hover:bg-[#f9fafb] text-white font-bold py-3 px-4 rounded-lg transition duration-200 border border-[#d1d5db]">
             {icons.plus} <span className="ml-2">{showAddForm ? 'Ακύρωση' : 'Προσθήκη Νέου Εξόδου'}</span>
           </button>
           
           {showAddForm && (
-            <div className="mt-4 p-4 bg-gray-800 rounded-lg space-y-3 border border-gray-700">
+            <div className="mt-4 p-4 bg-white rounded-lg space-y-3 border border-[#d1d5db]">
               {/* 🔥 FIX 30: Added autoComplete="off" to fix Chrome typing issue */}
-              <input type="text" name="code" value={newInvoice.code} onChange={handleFormChange} placeholder="Κωδικός (π.χ. TIM-001)" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
-              <input type="date" name="date" value={newInvoice.date} onChange={handleFormChange} className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
-              <input type="text" name="description" value={newInvoice.description} onChange={handleFormChange} placeholder="Περιγραφή (π.χ. Αναλώσιμα)" className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
-              <input type="number" step="0.01" name="amount" value={newInvoice.amount} onChange={handleFormChange} placeholder="Ποσό (€)" className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-teal-500 focus:outline-none" />
+              <input type="text" name="code" value={newInvoice.code} onChange={handleFormChange} placeholder="Κωδικός (π.χ. TIM-001)" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="date" name="date" value={newInvoice.date} onChange={handleFormChange} className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="text" name="description" value={newInvoice.description} onChange={handleFormChange} placeholder="Περιγραφή (π.χ. Αναλώσιμα)" className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="number" step="0.01" name="amount" value={newInvoice.amount} onChange={handleFormChange} placeholder="Ποσό (€)" className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Ανέβασμα Αρχείου (PDF/Image)</label>
-                <input type="file" ref={fileInputRef} accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} className="w-full px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600" />
+                <label className="block text-sm font-medium text-[#374151] mb-2">Ανέβασμα Αρχείου (PDF/Image)</label>
+                <input type="file" ref={fileInputRef} accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db]" />
                 {newInvoice.fileName && <p className="text-sm text-green-400 mt-2">✓ {newInvoice.fileName}</p>}
               </div>
-              <button onClick={handleAddInvoice} className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg">Αποθήκευση Εξόδου</button>
+              <button onClick={handleAddInvoice} className="w-full bg-[#1e40af] hover:bg-blue-800 text-white font-bold py-3 px-4 rounded-lg">Αποθήκευση Εξόδου</button>
             </div>
           )}
         </div>
@@ -8608,20 +8639,20 @@ function InvoiceSection({ boatId, canEditFinancials, showMessage, invoices, setI
 
       <div className="space-y-3">
         {invoices.length === 0 ? (
-          <div className="bg-gray-800 p-6 rounded-lg text-center border border-gray-700"><div className="text-5xl mb-3">📄</div><p className="text-gray-400">Δεν υπάρχουν τιμολόγια</p></div>
+          <div className="bg-white p-6 rounded-lg text-center border border-[#d1d5db]"><div className="text-5xl mb-3">📄</div><p className="text-[#6b7280]">Δεν υπάρχουν τιμολόγια</p></div>
         ) : (
           invoices.map((invoice) => (
-            <div key={invoice.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+            <div key={invoice.id} className="bg-white p-4 rounded-lg border border-[#d1d5db]">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-lg font-bold text-teal-400">{invoice.code}</h3>
-                  <p className="text-sm text-gray-300">{invoice.description}</p>
-                  <p className="text-sm text-gray-400">{invoice.date ? new Date(invoice.date).toLocaleDateString('en-GB') : ''}</p>
+                  <h3 className="text-lg font-bold text-[#1e40af]">{invoice.code}</h3>
+                  <p className="text-sm text-[#374151]">{invoice.description}</p>
+                  <p className="text-sm text-[#6b7280]">{invoice.date ? new Date(invoice.date).toLocaleDateString('en-GB') : ''}</p>
                   {invoice.fileName && <p className="text-xs text-gray-500 mt-1">📎 {invoice.fileName}</p>}
                 </div>
                 <span className="text-xl font-bold text-red-400">{invoice.amount?.toFixed(2)}€</span>
               </div>
-              <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-700">
+              <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-[#d1d5db]">
                 {invoice.fileData && (
                   <button onClick={() => handleDownloadInvoice(invoice)} className="text-blue-400 hover:text-blue-300 p-1 flex items-center gap-1 hover:bg-blue-900 rounded transition-colors">
                     {icons.download} <span className="text-sm">Download</span>
@@ -8657,8 +8688,8 @@ function MessagesPage({ boat, currentUser, navigate, showMessage }) {
   // 🔥 FIX 3: Null check AFTER all hooks
   if (!boat) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
-        <div className="text-teal-400 text-xl">Loading...</div>
+      <div className="flex flex-col h-full bg-[#f3f4f6] items-center justify-center">
+        <div className="text-[#1e40af] text-xl">Loading...</div>
       </div>
     );
   }
@@ -8698,25 +8729,25 @@ function MessagesPage({ boat, currentUser, navigate, showMessage }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-[#f3f4f6]">
       <Header title={`Συνομιλία - ${boat.id}`} onBack={() => navigate('boatDashboard')} />
       
       <div className="flex-grow p-4 overflow-y-auto space-y-4 pb-20">
         {messages.length === 0 && (
-          <div className="text-center p-8"><div className="text-6xl mb-4">💬</div><p className="text-gray-400">Δεν υπάρχουν μηνύματα.</p><p className="text-sm text-gray-500 mt-2">Γράψτε την παρατήρησή σας.</p></div>
+          <div className="text-center p-8"><div className="text-6xl mb-4">💬</div><p className="text-[#6b7280]">Δεν υπάρχουν μηνύματα.</p><p className="text-sm text-gray-500 mt-2">Γράψτε την παρατήρησή σας.</p></div>
         )}
 
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.isFromAdmin ? 'justify-end' : 'justify-start'}`}>
-            <div className={`p-3 rounded-lg max-w-xs relative group ${msg.isFromAdmin ? 'bg-teal-700' : 'bg-gray-700'} border ${msg.isFromAdmin ? 'border-teal-600' : 'border-gray-600'}`}>
+            <div className={`p-3 rounded-lg max-w-xs relative group ${msg.isFromAdmin ? 'bg-[#1e40af]' : 'bg-[#f9fafb]'} border ${msg.isFromAdmin ? 'border-[#1e40af]' : 'border-[#d1d5db]'}`}>
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-xs font-bold">{msg.senderName}</p>
-                {msg.senderRole && <span className="text-xs px-1.5 py-0.5 bg-gray-900 rounded">{msg.senderRole}</span>}
+                {msg.senderRole && <span className="text-xs px-1.5 py-0.5 bg-[#f3f4f6] rounded">{msg.senderRole}</span>}
               </div>
               <p className="text-base">{msg.text}</p>
-              <p className="text-xs text-gray-400 mt-1">{new Date(msg.createdAt).toLocaleString('el-GR')}</p>
+              <p className="text-xs text-[#6b7280] mt-1">{new Date(msg.createdAt).toLocaleString('el-GR')}</p>
               {authService.isAdmin() && (
-                <button onClick={() => handleDeleteMessage(msg.id)} className="absolute -top-2 -right-2 text-red-500 bg-gray-900 rounded-full p-0.5 opacity-0 group-hover:opacity-100 hover:bg-red-900 transition-all">{icons.x}</button>
+                <button onClick={() => handleDeleteMessage(msg.id)} className="absolute -top-2 -right-2 text-red-500 bg-[#f3f4f6] rounded-full p-0.5 opacity-0 group-hover:opacity-100 hover:bg-red-900 transition-all">{icons.x}</button>
               )}
             </div>
           </div>
@@ -8724,9 +8755,9 @@ function MessagesPage({ boat, currentUser, navigate, showMessage }) {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSendMessage} className="flex p-2 bg-gray-800 border-t border-gray-700 sticky bottom-[56px] z-10">
-        <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Γράψτε την παρατήρησή σας..." className="flex-grow px-3 py-2 bg-gray-700 text-white rounded-l-lg border border-gray-600 focus:outline-none focus:border-teal-500" />
-        <button type="submit" className="bg-teal-600 hover:bg-teal-700 text-white p-3 rounded-r-lg transition-colors">{icons.send}</button>
+      <form onSubmit={handleSendMessage} className="flex p-2 bg-white border-t border-[#d1d5db] sticky bottom-[56px] z-10">
+        <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Γράψτε την παρατήρησή σας..." className="flex-grow px-3 py-2 bg-[#f9fafb] text-white rounded-l-lg border border-[#d1d5db] focus:outline-none focus:border-[#1e40af]" />
+        <button type="submit" className="bg-[#1e40af] hover:bg-blue-800 text-white p-3 rounded-r-lg transition-colors">{icons.send}</button>
       </form>
       
       <BottomNav activePage={'messages'} onNavigate={navigate} />
@@ -8743,8 +8774,8 @@ function EmailPage({ boat, navigate }) {
   // 🔥 FIX 3: Null check AFTER all hooks
   if (!boat) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center">
-        <div className="text-teal-400 text-xl">Loading...</div>
+      <div className="flex flex-col h-full bg-[#f3f4f6] items-center justify-center">
+        <div className="text-[#1e40af] text-xl">Loading...</div>
       </div>
     );
   }
@@ -8758,25 +8789,25 @@ function EmailPage({ boat, navigate }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <div className="flex flex-col h-full bg-[#f3f4f6]">
       <Header title="Αποστολή E-mail" onBack={() => navigate('boatDashboard')} />
       
       <div className="flex-grow p-4 overflow-y-auto pb-20 space-y-4">
         <div>
-          <label htmlFor="subject" className="block text-sm font-medium text-gray-300 mb-2">Θέμα</label>
-          <input type="text" id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="π.χ. Πρόβλημα με το WC" className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-teal-500 focus:outline-none" />
+          <label htmlFor="subject" className="block text-sm font-medium text-[#374151] mb-2">Θέμα</label>
+          <input type="text" id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="π.χ. Πρόβλημα με το WC" className="w-full px-4 py-3 bg-white text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
         </div>
         
         <div>
-          <label htmlFor="body" className="block text-sm font-medium text-gray-300 mb-2">Μήνυμα</label>
-          <textarea id="body" rows={10} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Περιγράψτε το αίτημά σας..." className="w-full px-4 py-3 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-teal-500 focus:outline-none" />
+          <label htmlFor="body" className="block text-sm font-medium text-[#374151] mb-2">Μήνυμα</label>
+          <textarea id="body" rows={10} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Περιγράψτε το αίτημά σας..." className="w-full px-4 py-3 bg-white text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
         </div>
         
-        <button onClick={handleSendEmail} className="w-full flex items-center justify-center bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-colors">
+        <button onClick={handleSendEmail} className="w-full flex items-center justify-center bg-[#1e40af] hover:bg-blue-800 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-colors">
           <span className="mr-2">Άνοιγμα E-mail Client</span> {icons.send}
         </button>
         
-        <div className="text-center text-gray-400 text-sm p-4 bg-gray-800 rounded-lg border border-gray-700">
+        <div className="text-center text-[#6b7280] text-sm p-4 bg-white rounded-lg border border-[#d1d5db]">
           <p>Πατώντας "Αποστολή", θα ανοίξει η προεπιλεγμένη εφαρμογή email.</p>
         </div>
       </div>
@@ -9016,7 +9047,7 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
                              {/* Οικονομικά μόνο αν δεν είναι TECHNICAL */}
                              {canViewFinancials && (
                                <>
-                                 <p className="text-teal-300 text-sm">{booking.amount?.toFixed(0)}€</p>
+                                 <p className="text-[#1e40af] text-sm">{booking.amount?.toFixed(0)}€</p>
                                  <p className={`text-xs font-semibold ${paymentInfo?.color}`}>{paymentInfo?.text}</p>
                                </>
                              )}
@@ -9037,38 +9068,38 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
       {/* Charter Detail Popup for all users (Technical users see limited info) */}
       {selectedBooking && selectedBoatForPopup && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => { setSelectedBooking(null); setSelectedBoatForPopup(null); }}>
-          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-white" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-white" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Charter Details</h3>
-              <button onClick={() => { setSelectedBooking(null); setSelectedBoatForPopup(null); }} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+              <button onClick={() => { setSelectedBooking(null); setSelectedBoatForPopup(null); }} className="text-[#6b7280] hover:text-white text-2xl">&times;</button>
             </div>
 
-            <div className="bg-gray-700 p-4 rounded-lg mb-4 space-y-2 border border-gray-600">
-              <div className="flex justify-between"><span className="text-gray-300">CODE:</span><span className="font-bold">{selectedBooking.code}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">YACHT:</span><span className="font-bold">{selectedBoatForPopup.name || selectedBoatForPopup.id}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">FROM:</span><span className="font-bold">{selectedBooking.startTime && `${selectedBooking.startTime} - `}{selectedBooking.startDate ? new Date(selectedBooking.startDate).toLocaleDateString('en-GB') : ''}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">TO:</span><span className="font-bold">{selectedBooking.endTime && `${selectedBooking.endTime} - `}{selectedBooking.endDate ? new Date(selectedBooking.endDate).toLocaleDateString('en-GB') : ''}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">DEPARTURE:</span><span className="font-bold">{selectedBooking.departure || 'ALIMOS MARINA'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">ARRIVAL:</span><span className="font-bold">{selectedBooking.arrival || 'ALIMOS MARINA'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-300">STATUS:</span><span className="font-bold">{selectedBooking.status?.toUpperCase()}</span></div>
+            <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 space-y-2 border border-[#d1d5db]">
+              <div className="flex justify-between"><span className="text-[#374151]">CODE:</span><span className="font-bold">{selectedBooking.code}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">YACHT:</span><span className="font-bold">{selectedBoatForPopup.name || selectedBoatForPopup.id}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">FROM:</span><span className="font-bold">{selectedBooking.startTime && `${selectedBooking.startTime} - `}{selectedBooking.startDate ? new Date(selectedBooking.startDate).toLocaleDateString('en-GB') : ''}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">TO:</span><span className="font-bold">{selectedBooking.endTime && `${selectedBooking.endTime} - `}{selectedBooking.endDate ? new Date(selectedBooking.endDate).toLocaleDateString('en-GB') : ''}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">DEPARTURE:</span><span className="font-bold">{selectedBooking.departure || 'ALIMOS MARINA'}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">ARRIVAL:</span><span className="font-bold">{selectedBooking.arrival || 'ALIMOS MARINA'}</span></div>
+              <div className="flex justify-between"><span className="text-[#374151]">STATUS:</span><span className="font-bold">{selectedBooking.status?.toUpperCase()}</span></div>
             </div>
 
             {/* Skipper info */}
             {(selectedBooking.skipperFirstName || selectedBooking.skipperLastName) && (
-              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+              <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
                 <h4 className="font-bold text-lg mb-2">SKIPPER:</h4>
                 <div className="space-y-1 text-sm">
-                  <div className="flex justify-between"><span className="text-gray-300">Name:</span><span className="font-bold">{selectedBooking.skipperFirstName} {selectedBooking.skipperLastName}</span></div>
-                  {selectedBooking.skipperEmail && <div className="flex justify-between"><span className="text-gray-300">Email:</span><span>{selectedBooking.skipperEmail}</span></div>}
-                  {selectedBooking.skipperPhone && <div className="flex justify-between"><span className="text-gray-300">Phone:</span><span>{selectedBooking.skipperPhone}</span></div>}
-                  {selectedBooking.skipperAddress && <div className="flex justify-between"><span className="text-gray-300">Address:</span><span>{selectedBooking.skipperAddress}</span></div>}
+                  <div className="flex justify-between"><span className="text-[#374151]">Name:</span><span className="font-bold">{selectedBooking.skipperFirstName} {selectedBooking.skipperLastName}</span></div>
+                  {selectedBooking.skipperEmail && <div className="flex justify-between"><span className="text-[#374151]">Email:</span><span>{selectedBooking.skipperEmail}</span></div>}
+                  {selectedBooking.skipperPhone && <div className="flex justify-between"><span className="text-[#374151]">Phone:</span><span>{selectedBooking.skipperPhone}</span></div>}
+                  {selectedBooking.skipperAddress && <div className="flex justify-between"><span className="text-[#374151]">Address:</span><span>{selectedBooking.skipperAddress}</span></div>}
                 </div>
               </div>
             )}
 
             {/* EXTRAS section */}
             {selectedBooking.extras && selectedBooking.extras.length > 0 && (
-              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+              <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
                 <h4 className="font-bold text-lg mb-2">EXTRAS:</h4>
                 <div className="space-y-1">
                   {selectedBooking.extras.map((extra: string, idx: number) => (
@@ -9083,22 +9114,22 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
 
             {/* NOTES section */}
             {selectedBooking.notes && selectedBooking.notes.trim() && (
-              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+              <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
                 <h4 className="font-bold text-lg mb-2 text-blue-400">ΣΗΜΕΙΩΣΕΙΣ:</h4>
-                <p className="text-gray-300 whitespace-pre-wrap">{selectedBooking.notes}</p>
+                <p className="text-[#374151] whitespace-pre-wrap">{selectedBooking.notes}</p>
               </div>
             )}
 
             {/* Financial info - only for non-technical users */}
             {canViewFinancials && (
-              <div className="bg-gray-700 p-4 rounded-lg mb-4 border border-gray-600">
+              <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 border border-[#d1d5db]">
                 <h4 className="font-bold text-lg mb-2">FINANCIAL TERMS:</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between text-green-400"><span>Charter Fee:</span><span className="font-bold">{selectedBooking.amount?.toFixed(2)}€</span></div>
                   <div className="flex justify-between text-red-400"><span>Commission:</span><span className="font-bold">-{selectedBooking.commission?.toFixed(2)}€</span></div>
                   <div className="flex justify-between text-red-400"><span>VAT (24%):</span><span className="font-bold">-{selectedBooking.vat_on_commission?.toFixed(2)}€</span></div>
-                  <hr className="border-gray-600" />
-                  <div className="flex justify-between text-xl font-bold"><span>NET INCOME:</span><span className="text-teal-400">{((selectedBooking.amount || 0) - (selectedBooking.commission || 0) - (selectedBooking.vat_on_commission || 0)).toFixed(2)}€</span></div>
+                  <hr className="border-[#d1d5db]" />
+                  <div className="flex justify-between text-xl font-bold"><span>NET INCOME:</span><span className="text-[#1e40af]">{((selectedBooking.amount || 0) - (selectedBooking.commission || 0) - (selectedBooking.vat_on_commission || 0)).toFixed(2)}€</span></div>
                 </div>
               </div>
             )}

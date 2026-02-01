@@ -156,57 +156,65 @@ export default function OwnerDashboard() {
   const totalInvoices = Object.values(boatData).reduce((sum, data) => sum + data.invoices.length, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900">
-      
+    <div className="min-h-screen bg-[#f3f4f6]">
+
       {/* Header */}
-      <header className="bg-slate-800 shadow-lg sticky top-0 z-50 border-b-2 border-teal-500">
+      <header className="bg-[#1e40af] shadow-lg sticky top-0 z-50 border-b border-[#d1d5db]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-4">
+              {/* Home button - styled with house icon */}
               <button
                 onClick={() => navigate('/')}
-                className="text-3xl hover:scale-110 transition-transform"
+                className="bg-[#1e40af] hover:bg-blue-700 border border-blue-400 rounded-lg px-3 py-2 transition-colors flex flex-col items-center min-w-[60px]"
+                title={language === 'en' ? 'Home' : 'Αρχική'}
               >
-                🏠
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span className="text-[10px] text-white mt-1 font-medium">
+                  {language === 'en' ? 'Home' : 'Αρχική'}
+                </span>
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-white">
                   {language === 'en' ? 'Owner Portal' : 'Πύλη Ιδιοκτήτη'}
                 </h1>
-                <p className="text-sm text-teal-300">
+                <p className="text-sm text-blue-200">
                   {language === 'en' ? 'Your Fleet' : 'Ο Στόλος σας'}
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-teal-500 text-white rounded-lg font-semibold">
+              <div className="px-4 py-2 bg-blue-700 text-white rounded-lg font-semibold">
                 🔑 {ownerCode}
               </div>
-              <InstallButton className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded-lg font-semibold text-white transition-colors" />
+              <InstallButton className="px-4 py-2 bg-[#059669] hover:bg-emerald-600 rounded-lg font-semibold text-white transition-colors" />
               <button
                 onClick={() => setShowUserGuide(true)}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-semibold text-white transition-colors"
+                className="px-4 py-2 bg-[#f97316] hover:bg-orange-600 rounded-lg font-semibold text-white transition-colors"
               >
                 📖 {language === 'en' ? 'Guide' : 'Οδηγίες'}
               </button>
               <button
                 onClick={() => navigate('/owner-profile', { state: { ownerCode } })}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold text-white transition-colors"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-white transition-colors"
               >
                 👤 {language === 'en' ? 'Profile' : 'Προφίλ'}
               </button>
               <button
                 onClick={() => setLanguage(language === 'en' ? 'gr' : 'en')}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold text-white transition-colors"
+                className="px-4 py-2 bg-[#6b7280] hover:bg-gray-600 rounded-lg font-semibold text-white transition-colors"
               >
                 {language === 'en' ? '🇬🇷 GR' : '🇬🇧 EN'}
               </button>
               {/* Auto-refresh indicator */}
-              <div className="flex items-center gap-2 text-xs text-teal-200">
+              <div className="flex items-center gap-2 text-xs text-blue-200">
                 <span>{lastUpdated.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' })}</span>
                 {isRefreshing && (
-                  <span className="px-2 py-0.5 bg-teal-700 text-teal-100 rounded-full animate-pulse">
+                  <span className="px-2 py-0.5 bg-blue-700 text-blue-100 rounded-full animate-pulse">
                     {language === 'en' ? 'Updating...' : 'Ανανέωση...'}
                   </span>
                 )}
@@ -218,23 +226,23 @@ export default function OwnerDashboard() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
-        
+
         {/* Welcome Section */}
         <div className="mb-8 text-center">
           <div className="text-6xl mb-4">⚓</div>
-          <h2 className="text-3xl font-bold text-white mb-2">
+          <h2 className="text-3xl font-bold text-[#374151] mb-2">
             {language === 'en' ? 'Welcome to Your Fleet!' : 'Καλώς ήρθατε στον Στόλο σας!'}
           </h2>
-          <p className="text-lg text-teal-300">
-            {language === 'en' 
-              ? `You have ${ownerBoats.length} vessel${ownerBoats.length > 1 ? 's' : ''} in your fleet` 
+          <p className="text-lg text-[#6b7280]">
+            {language === 'en'
+              ? `You have ${ownerBoats.length} vessel${ownerBoats.length > 1 ? 's' : ''} in your fleet`
               : `Έχετε ${ownerBoats.length} σκάφ${ownerBoats.length > 1 ? 'η' : 'ος'} στον στόλο σας`}
           </p>
         </div>
 
-        {/* 🔥 NEW: Notifications Summary */}
+        {/* Notifications Summary */}
         {(totalPendingCharters > 0 || totalInvoices > 0) && (
-          <div className="mb-6 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl p-4 shadow-lg">
+          <div className="mb-6 bg-[#f97316] rounded-xl p-4 shadow-md">
             <div className="flex items-center justify-center gap-6 text-white">
               {totalPendingCharters > 0 && (
                 <div className="flex items-center gap-2">
@@ -261,7 +269,7 @@ export default function OwnerDashboard() {
           <div className="mb-6">
             <button
               onClick={handleSummaryClick}
-              className="w-full bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all duration-200 hover:scale-[1.02] flex items-center justify-center gap-3"
+              className="w-full bg-[#1e40af] hover:bg-blue-800 text-white font-bold py-4 px-6 rounded-xl shadow-md transition-all duration-200 hover:scale-[1.02] flex items-center justify-center gap-3"
             >
               <span className="text-2xl">📊</span>
               <span className="text-lg">
@@ -277,12 +285,12 @@ export default function OwnerDashboard() {
             const data = boatData[boat.id] || { pendingCharters: [], invoices: [] };
             const hasPending = data.pendingCharters.length > 0;
             const hasInvoices = data.invoices.length > 0;
-            
+
             return (
               <button
                 key={boat.id}
                 onClick={() => handleBoatClick(boat.id)}
-                className={`bg-slate-800 hover:bg-slate-700 rounded-xl p-4 shadow-lg transition-all duration-300 border-2 ${hasPending ? 'border-orange-500 animate-pulse' : 'border-teal-500/30 hover:border-teal-500'} hover:shadow-2xl hover:-translate-y-2 hover:scale-105 text-left transform-gpu`}
+                className={`bg-white hover:bg-gray-50 rounded-xl p-4 shadow-md transition-all duration-300 border ${hasPending ? 'border-[#f97316] animate-pulse' : 'border-[#d1d5db] hover:border-[#1e40af]'} hover:shadow-xl hover:-translate-y-2 hover:scale-105 text-left transform-gpu`}
                 style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
               >
                 {/* Boat Emoji & Name */}
@@ -291,28 +299,28 @@ export default function OwnerDashboard() {
                     {boat.type === 'Catamaran' ? '⛵' : '🛥️'}
                   </div>
                   <div className="text-right">
-                    <h3 className="text-xl font-bold text-white">
+                    <h3 className="text-xl font-bold text-[#1e40af]">
                       {boat.name || boat.id}
                     </h3>
-                    <p className="text-xs text-gray-400">{boat.id}</p>
+                    <p className="text-xs text-[#6b7280]">{boat.id}</p>
                   </div>
                 </div>
-                
+
                 {/* Boat Details */}
                 <div className="space-y-1 mb-3">
-                  <p className="text-sm text-teal-300 font-medium">
+                  <p className="text-sm text-[#374151] font-medium">
                     {boat.model}
                   </p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-[#6b7280]">
                     {boat.type}
                   </p>
                 </div>
-                
-                {/* 🔥 NEW: Pending Charters & Invoices */}
+
+                {/* Pending Charters & Invoices */}
                 {(hasPending || hasInvoices) && (
-                  <div className="mb-3 p-2 bg-slate-900 rounded-lg space-y-2">
+                  <div className="mb-3 p-2 bg-[#f9fafb] rounded-lg space-y-2 border border-[#d1d5db]">
                     {hasPending && (
-                      <div className="flex items-center gap-2 text-orange-400">
+                      <div className="flex items-center gap-2 text-[#f97316]">
                         <span>⚠️</span>
                         <span className="text-sm font-semibold">
                           {data.pendingCharters.length} {language === 'en' ? 'Pending Charter' : 'Εκκρεμής Ναύλος'}
@@ -321,18 +329,18 @@ export default function OwnerDashboard() {
                       </div>
                     )}
                     {data.pendingCharters.slice(0, 2).map((charter: any) => (
-                      <div key={charter.id} className="text-xs text-orange-300 pl-6">
+                      <div key={charter.id} className="text-xs text-[#6b7280] pl-6">
                         📋 {charter.code} ({charter.startDate})
                       </div>
                     ))}
                     {data.pendingCharters.length > 2 && (
-                      <div className="text-xs text-orange-300 pl-6">
+                      <div className="text-xs text-[#6b7280] pl-6">
                         +{data.pendingCharters.length - 2} {language === 'en' ? 'more' : 'ακόμα'}...
                       </div>
                     )}
-                    
+
                     {hasInvoices && (
-                      <div className="flex items-center gap-2 text-blue-400">
+                      <div className="flex items-center gap-2 text-[#1e40af]">
                         <span>📄</span>
                         <span className="text-sm font-semibold">
                           {data.invoices.length} {language === 'en' ? 'Invoice' : 'Τιμολόγιο'}
@@ -341,21 +349,21 @@ export default function OwnerDashboard() {
                       </div>
                     )}
                     {data.invoices.slice(0, 2).map((invoice: any) => (
-                      <div key={invoice.id} className="text-xs text-blue-300 pl-6">
+                      <div key={invoice.id} className="text-xs text-[#6b7280] pl-6">
                         💰 {invoice.code} - {invoice.amount?.toFixed(2)}€
                       </div>
                     ))}
                     {data.invoices.length > 2 && (
-                      <div className="text-xs text-blue-300 pl-6">
+                      <div className="text-xs text-[#6b7280] pl-6">
                         +{data.invoices.length - 2} {language === 'en' ? 'more' : 'ακόμα'}...
                       </div>
                     )}
                   </div>
                 )}
-                
+
                 {/* View Details Button */}
-                <div className="pt-3 border-t border-teal-500/30">
-                  <div className="text-center text-teal-400 text-sm font-semibold">
+                <div className="pt-3 border-t border-[#d1d5db]">
+                  <div className="text-center text-[#1e40af] text-sm font-semibold">
                     {language === 'en' ? '👉 View Details' : '👉 Λεπτομέρειες'}
                   </div>
                 </div>
@@ -365,19 +373,19 @@ export default function OwnerDashboard() {
         </div>
 
         {/* Info Box */}
-        <div className="mt-8 bg-slate-800 border-2 border-teal-500 rounded-xl p-6">
+        <div className="mt-8 bg-white border border-[#1e40af] rounded-xl p-6 shadow-md">
           <div className="text-center">
             <div className="text-3xl mb-3">ℹ️</div>
-            <h3 className="text-xl font-bold text-white mb-2">
+            <h3 className="text-xl font-bold text-[#1e40af] mb-2">
               {language === 'en' ? 'Owner Access' : 'Πρόσβαση Ιδιοκτήτη'}
             </h3>
-            <p className="text-teal-300 text-sm">
-              {language === 'en' 
-                ? 'Click on any vessel to view details, accept charters, and send messages' 
+            <p className="text-[#6b7280] text-sm">
+              {language === 'en'
+                ? 'Click on any vessel to view details, accept charters, and send messages'
                 : 'Πατήστε σε οποιοδήποτε σκάφος για προβολή λεπτομερειών, αποδοχή ναύλων και αποστολή μηνυμάτων'}
             </p>
             {ownerBoats.length > 1 && (
-              <p className="text-yellow-300 text-sm mt-2">
+              <p className="text-[#f97316] text-sm mt-2 font-medium">
                 {language === 'en'
                   ? '📊 Use "Fleet Summary" to see all boats data in one place'
                   : '📊 Χρησιμοποιήστε "Συγκεντρωτικά" για όλα τα δεδομένα των σκαφών'}

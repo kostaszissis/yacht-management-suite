@@ -335,16 +335,16 @@ export default function AdminPanel() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-[#f3f4f6] to-[#f3f4f6]">
       
       {/* Header */}
-      <header className="bg-slate-800 shadow-lg sticky top-0 z-50 border-b-2 border-red-500">
+      <header className="bg-white shadow-lg sticky top-0 z-50 border-b border-[#d1d5db]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <div className="text-4xl">🔐</div>
               <div>
-                <h1 className="text-2xl font-bold text-white">
+                <h1 className="text-2xl font-bold text-[#374151]">
                   {language === 'en' ? 'Admin Panel' : 'Πίνακας Διαχειριστή'}
                 </h1>
                 <p className="text-sm text-red-300">
@@ -354,30 +354,30 @@ export default function AdminPanel() {
             </div>
             
             <div className="flex items-center gap-3">
-              <div className="px-4 py-2 bg-red-500 text-white rounded-lg font-semibold">
+              <div className="px-4 py-2 bg-red-500 text-[#374151] rounded-lg font-semibold">
                 👑 ADMIN2025
               </div>
               <button
                 onClick={() => navigate('/technical-manager')}
-                className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-lg font-semibold text-white transition-all shadow-lg"
+                className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 rounded-lg font-semibold text-[#374151] transition-all shadow-lg"
               >
                 💬 {language === 'en' ? 'Technical Support' : 'Τεχνική Υποστήριξη'}
               </button>
               <button
                 onClick={() => setShowUserGuide(true)}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-semibold text-white transition-colors"
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg font-semibold text-[#374151] transition-colors"
               >
                 📖 {language === 'en' ? 'Guide' : 'Οδηγίες'}
               </button>
               <button
                 onClick={() => setLanguage(language === 'en' ? 'el' : 'en')}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold text-white transition-colors"
+                className="px-4 py-2 bg-[#f9fafb] hover:bg-slate-600 rounded-lg font-semibold text-[#374151] transition-colors"
               >
                 {language === 'en' ? '🇬🇷 GR' : '🇬🇧 EN'}
               </button>
               <button
                 onClick={() => navigate('/')}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold text-white transition-colors"
+                className="px-4 py-2 bg-[#f9fafb] hover:bg-slate-600 rounded-lg font-semibold text-[#374151] transition-colors"
               >
                 🏠 {language === 'en' ? 'Home' : 'Αρχική'}
               </button>
@@ -393,8 +393,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('employees')}
             className={`flex-1 py-4 px-6 rounded-lg font-bold text-lg transition-all ${
               activeTab === 'employees'
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-slate-800 text-gray-400 hover:bg-slate-700'
+                ? 'bg-blue-600 text-[#374151] shadow-lg'
+                : 'bg-white text-[#6b7280] hover:bg-[#f9fafb]'
             }`}
           >
             👥 {language === 'en' ? 'Employees' : 'Υπάλληλοι'}
@@ -403,8 +403,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('owners')}
             className={`flex-1 py-4 px-6 rounded-lg font-bold text-lg transition-all ${
               activeTab === 'owners'
-                ? 'bg-green-600 text-white shadow-lg'
-                : 'bg-slate-800 text-gray-400 hover:bg-slate-700'
+                ? 'bg-green-600 text-[#374151] shadow-lg'
+                : 'bg-white text-[#6b7280] hover:bg-[#f9fafb]'
             }`}
           >
             ⚓ {language === 'en' ? 'Owners' : 'Ιδιοκτήτες'}
@@ -413,8 +413,8 @@ export default function AdminPanel() {
             onClick={() => setActiveTab('logs')}
             className={`flex-1 py-4 px-6 rounded-lg font-bold text-lg transition-all ${
               activeTab === 'logs'
-                ? 'bg-purple-600 text-white shadow-lg'
-                : 'bg-slate-800 text-gray-400 hover:bg-slate-700'
+                ? 'bg-purple-600 text-[#374151] shadow-lg'
+                : 'bg-white text-[#6b7280] hover:bg-[#f9fafb]'
             }`}
           >
             📊 {language === 'en' ? 'Activity Logs' : 'Ιστορικό'}
@@ -425,25 +425,25 @@ export default function AdminPanel() {
         {activeTab === 'employees' && (
           <div>
             <div className="mb-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-[#374151]">
                 {language === 'en' ? 'Employee Codes' : 'Κωδικοί Υπαλλήλων'}
               </h2>
               <button
                 onClick={() => setShowAddEmployee(!showAddEmployee)}
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-all"
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-[#374151] rounded-lg font-bold transition-all"
               >
                 {showAddEmployee ? '❌ Cancel' : '➕ Add Employee'}
               </button>
             </div>
 
             {showAddEmployee && (
-              <div className="mb-6 bg-slate-800 p-6 rounded-lg border-2 border-green-500">
-                <h3 className="text-xl font-bold text-white mb-4">
+              <div className="mb-6 bg-white p-6 rounded-lg border-2 border-green-500">
+                <h3 className="text-xl font-bold text-[#374151] mb-4">
                   {language === 'en' ? 'New Employee' : 'Νέος Υπάλληλος'}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
+                    <label className="block text-sm font-semibold text-[#374151] mb-2">
                       {language === 'en' ? 'Code' : 'Κωδικός'}
                     </label>
                     <input
@@ -451,11 +451,11 @@ export default function AdminPanel() {
                       value={newEmployee.code}
                       onChange={(e) => setNewEmployee({ ...newEmployee, code: e.target.value })}
                       placeholder="TEC004!NAME"
-                      className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-green-500 focus:outline-none"
+                      className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-green-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
+                    <label className="block text-sm font-semibold text-[#374151] mb-2">
                       {language === 'en' ? 'Name' : 'Όνομα'}
                     </label>
                     <input
@@ -463,17 +463,17 @@ export default function AdminPanel() {
                       value={newEmployee.name}
                       onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
                       placeholder="John Doe"
-                      className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-green-500 focus:outline-none"
+                      className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-green-500 focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-300 mb-2">
+                    <label className="block text-sm font-semibold text-[#374151] mb-2">
                       {language === 'en' ? 'Role' : 'Ρόλος'}
                     </label>
                     <select
                       value={newEmployee.role}
                       onChange={(e) => setNewEmployee({ ...newEmployee, role: e.target.value as any })}
-                      className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-green-500 focus:outline-none"
+                      className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-green-500 focus:outline-none"
                     >
                       <option value="TECHNICAL">Technical Manager</option>
                       <option value="BOOKING">Booking Manager</option>
@@ -484,7 +484,7 @@ export default function AdminPanel() {
                 </div>
                 <button
                   onClick={handleAddEmployee}
-                  className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-all"
+                  className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-[#374151] rounded-lg font-bold transition-all"
                 >
                   ✅ {language === 'en' ? 'Add Employee' : 'Προσθήκη Υπαλλήλου'}
                 </button>
@@ -495,31 +495,31 @@ export default function AdminPanel() {
               {employees.map((emp) => (
                 <div
                   key={emp.code}
-                  className={`bg-slate-800 p-4 rounded-lg border-2 ${
-                    emp.enabled ? 'border-slate-700' : 'border-red-500 opacity-50'
+                  className={`bg-white p-4 rounded-lg border-2 ${
+                    emp.enabled ? 'border-[#d1d5db]' : 'border-red-500 opacity-50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="text-2xl font-bold text-white">{emp.code}</span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${getRoleBadgeColor(emp.role)}`}>
+                        <span className="text-2xl font-bold text-[#374151]">{emp.code}</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold text-[#374151] ${getRoleBadgeColor(emp.role)}`}>
                           {emp.role}
                         </span>
                         {!emp.enabled && (
-                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-white">
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-500 text-[#374151]">
                             DISABLED
                           </span>
                         )}
                       </div>
-                      <div className="text-lg text-gray-300 mb-2">👤 {emp.name}</div>
+                      <div className="text-lg text-[#374151] mb-2">👤 {emp.name}</div>
                       <div className="flex flex-wrap gap-2 text-xs">
-                        {emp.canEdit && <span className="px-2 py-1 bg-blue-700 text-white rounded">✏️ Edit</span>}
-                        {emp.canDelete && <span className="px-2 py-1 bg-red-700 text-white rounded">🗑️ Delete</span>}
-                        {emp.canDoCheckInOut && <span className="px-2 py-1 bg-green-700 text-white rounded">✅ Check-in/out</span>}
-                        {emp.canManageTasks && <span className="px-2 py-1 bg-yellow-700 text-white rounded">🔧 Tasks</span>}
-                        {emp.canViewFinancials && <span className="px-2 py-1 bg-purple-700 text-white rounded">💰 Financials</span>}
-                        {emp.canManageCodes && <span className="px-2 py-1 bg-red-700 text-white rounded">🔐 Manage Codes</span>}
+                        {emp.canEdit && <span className="px-2 py-1 bg-blue-700 text-[#374151] rounded">✏️ Edit</span>}
+                        {emp.canDelete && <span className="px-2 py-1 bg-red-700 text-[#374151] rounded">🗑️ Delete</span>}
+                        {emp.canDoCheckInOut && <span className="px-2 py-1 bg-green-700 text-[#374151] rounded">✅ Check-in/out</span>}
+                        {emp.canManageTasks && <span className="px-2 py-1 bg-yellow-700 text-[#374151] rounded">🔧 Tasks</span>}
+                        {emp.canViewFinancials && <span className="px-2 py-1 bg-purple-700 text-[#374151] rounded">💰 Financials</span>}
+                        {emp.canManageCodes && <span className="px-2 py-1 bg-red-700 text-[#374151] rounded">🔐 Manage Codes</span>}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -527,15 +527,15 @@ export default function AdminPanel() {
                         onClick={() => handleToggleEmployee(emp.code)}
                         className={`px-4 py-2 rounded-lg font-bold transition-all ${
                           emp.enabled
-                            ? 'bg-orange-600 hover:bg-orange-700 text-white'
-                            : 'bg-green-600 hover:bg-green-700 text-white'
+                            ? 'bg-orange-600 hover:bg-orange-700 text-[#374151]'
+                            : 'bg-green-600 hover:bg-green-700 text-[#374151]'
                         }`}
                       >
                         {emp.enabled ? '🔒 Disable' : '🔓 Enable'}
                       </button>
                       <button
                         onClick={() => handleDeleteEmployee(emp.code)}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all"
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-[#374151] rounded-lg font-bold transition-all"
                       >
                         🗑️
                       </button>
@@ -551,12 +551,12 @@ export default function AdminPanel() {
         {activeTab === 'owners' && (
           <div>
             <div className="mb-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-[#374151]">
                 {language === 'en' ? 'Owner Codes' : 'Κωδικοί Ιδιοκτητών'}
               </h2>
               <button
                 onClick={() => setShowAddOwner(!showAddOwner)}
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-all"
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-[#374151] rounded-lg font-bold transition-all"
               >
                 {showAddOwner ? '❌ Cancel' : '➕ Add Owner'}
               </button>
@@ -564,14 +564,14 @@ export default function AdminPanel() {
 
             {/* 🔥 FIX 38: Add Owner form with owner details */}
             {showAddOwner && (
-              <div className="mb-6 bg-slate-800 p-6 rounded-lg border-2 border-green-500">
-                <h3 className="text-xl font-bold text-white mb-4">
+              <div className="mb-6 bg-white p-6 rounded-lg border-2 border-green-500">
+                <h3 className="text-xl font-bold text-[#374151] mb-4">
                   {language === 'en' ? 'New Owner' : 'Νέος Ιδιοκτήτης'}
                 </h3>
 
                 {/* Owner Code */}
                 <div className="mb-4">
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold text-[#374151] mb-2">
                     {language === 'en' ? 'Owner Code *' : 'Κωδικός Ιδιοκτήτη *'}
                   </label>
                   <input
@@ -579,13 +579,13 @@ export default function AdminPanel() {
                     value={newOwner.code}
                     onChange={(e) => setNewOwner({ ...newOwner, code: e.target.value })}
                     placeholder="D2025"
-                    className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-green-500 focus:outline-none"
+                    className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-green-500 focus:outline-none"
                   />
                 </div>
 
                 {/* Select Boats */}
                 <div className="mb-4">
-                  <label className="block text-sm font-semibold text-gray-300 mb-2">
+                  <label className="block text-sm font-semibold text-[#374151] mb-2">
                     {language === 'en' ? 'Select Boats *' : 'Επιλογή Σκαφών *'}
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -595,8 +595,8 @@ export default function AdminPanel() {
                         onClick={() => toggleBoatSelection(boat.id)}
                         className={`p-3 rounded-lg font-semibold transition-all ${
                           newOwner.boatIds.includes(boat.id)
-                            ? 'bg-green-600 text-white'
-                            : 'bg-slate-700 text-gray-400 hover:bg-slate-600'
+                            ? 'bg-green-600 text-[#374151]'
+                            : 'bg-[#f9fafb] text-[#6b7280] hover:bg-slate-600'
                         }`}
                       >
                         {boat.name || boat.id}
@@ -614,7 +614,7 @@ export default function AdminPanel() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Owner Name */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                      <label className="block text-sm font-semibold text-[#374151] mb-2">
                         {language === 'en' ? 'Full Name' : 'Ονοματεπώνυμο'}
                       </label>
                       <input
@@ -622,7 +622,7 @@ export default function AdminPanel() {
                         value={newOwner.ownerName}
                         onChange={(e) => setNewOwner({ ...newOwner, ownerName: e.target.value })}
                         placeholder={language === 'en' ? 'John Doe' : 'Γιάννης Παπαδόπουλος'}
-                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                        className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-cyan-500 focus:outline-none"
                       />
                     </div>
 
@@ -636,7 +636,7 @@ export default function AdminPanel() {
                         value={newOwner.ownerEmail}
                         onChange={(e) => setNewOwner({ ...newOwner, ownerEmail: e.target.value })}
                         placeholder="owner@example.com"
-                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border-2 border-cyan-600 focus:border-cyan-400 focus:outline-none"
+                        className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border-2 border-cyan-600 focus:border-cyan-400 focus:outline-none"
                       />
                       <p className="text-xs text-cyan-400 mt-1">
                         {language === 'en' ? 'For charter notifications' : 'Για ειδοποιήσεις ναύλων'}
@@ -645,7 +645,7 @@ export default function AdminPanel() {
 
                     {/* Owner Company */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                      <label className="block text-sm font-semibold text-[#374151] mb-2">
                         {language === 'en' ? 'Company Name' : 'Εταιρεία'}
                       </label>
                       <input
@@ -653,13 +653,13 @@ export default function AdminPanel() {
                         value={newOwner.ownerCompany}
                         onChange={(e) => setNewOwner({ ...newOwner, ownerCompany: e.target.value })}
                         placeholder={language === 'en' ? 'Company Ltd' : 'Εταιρεία ΕΠΕ'}
-                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                        className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-cyan-500 focus:outline-none"
                       />
                     </div>
 
                     {/* Owner Tax ID */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                      <label className="block text-sm font-semibold text-[#374151] mb-2">
                         {language === 'en' ? 'Tax ID (AFM)' : 'ΑΦΜ'}
                       </label>
                       <input
@@ -667,13 +667,13 @@ export default function AdminPanel() {
                         value={newOwner.ownerTaxId}
                         onChange={(e) => setNewOwner({ ...newOwner, ownerTaxId: e.target.value })}
                         placeholder="123456789"
-                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                        className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-cyan-500 focus:outline-none"
                       />
                     </div>
 
                     {/* Owner Phone */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                      <label className="block text-sm font-semibold text-[#374151] mb-2">
                         {language === 'en' ? 'Phone Number' : 'Τηλέφωνο'}
                       </label>
                       <input
@@ -681,13 +681,13 @@ export default function AdminPanel() {
                         value={newOwner.ownerPhone}
                         onChange={(e) => setNewOwner({ ...newOwner, ownerPhone: e.target.value })}
                         placeholder="+30 697 1234567"
-                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                        className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-cyan-500 focus:outline-none"
                       />
                     </div>
 
                     {/* Owner Address */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-300 mb-2">
+                      <label className="block text-sm font-semibold text-[#374151] mb-2">
                         {language === 'en' ? 'Address' : 'Διεύθυνση'}
                       </label>
                       <input
@@ -695,7 +695,7 @@ export default function AdminPanel() {
                         value={newOwner.ownerAddress}
                         onChange={(e) => setNewOwner({ ...newOwner, ownerAddress: e.target.value })}
                         placeholder={language === 'en' ? 'Street, City, ZIP' : 'Οδός, Πόλη, ΤΚ'}
-                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-cyan-500 focus:outline-none"
+                        className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-cyan-500 focus:outline-none"
                       />
                     </div>
                   </div>
@@ -703,7 +703,7 @@ export default function AdminPanel() {
 
                 <button
                   onClick={handleAddOwner}
-                  className="w-full mt-6 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-all"
+                  className="w-full mt-6 px-6 py-3 bg-green-600 hover:bg-green-700 text-[#374151] rounded-lg font-bold transition-all"
                 >
                   ✅ {language === 'en' ? 'Add Owner' : 'Προσθήκη Ιδιοκτήτη'}
                 </button>
@@ -715,18 +715,18 @@ export default function AdminPanel() {
               {owners.map((owner) => (
                 <div
                   key={owner.code}
-                  className="bg-slate-800 p-4 rounded-lg border-2 border-slate-700"
+                  className="bg-white p-4 rounded-lg border-2 border-[#d1d5db]"
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <span className="text-2xl font-bold text-white">{owner.code}</span>
-                      <span className="ml-3 px-3 py-1 rounded-full text-xs font-bold bg-green-600 text-white">
+                      <span className="text-2xl font-bold text-[#374151]">{owner.code}</span>
+                      <span className="ml-3 px-3 py-1 rounded-full text-xs font-bold bg-green-600 text-[#374151]">
                         OWNER
                       </span>
                     </div>
                     <button
                       onClick={() => handleDeleteOwner(owner.code)}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all"
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-[#374151] rounded-lg font-bold transition-all"
                     >
                       🗑️ Delete
                     </button>
@@ -734,42 +734,42 @@ export default function AdminPanel() {
 
                   {/* Owner Details Display */}
                   {(owner.ownerName || owner.ownerEmail || owner.ownerCompany) && (
-                    <div className="mb-3 p-3 bg-slate-700/50 rounded-lg border border-cyan-500/30">
+                    <div className="mb-3 p-3 bg-[#f9fafb]/50 rounded-lg border border-cyan-500/30">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                         {owner.ownerName && (
                           <div>
-                            <span className="text-gray-400">👤 </span>
-                            <span className="text-white">{owner.ownerName}</span>
+                            <span className="text-[#6b7280]">👤 </span>
+                            <span className="text-[#374151]">{owner.ownerName}</span>
                           </div>
                         )}
                         {owner.ownerEmail && (
                           <div>
-                            <span className="text-gray-400">📧 </span>
+                            <span className="text-[#6b7280]">📧 </span>
                             <span className="text-cyan-400">{owner.ownerEmail}</span>
                           </div>
                         )}
                         {owner.ownerCompany && (
                           <div>
-                            <span className="text-gray-400">🏢 </span>
-                            <span className="text-white">{owner.ownerCompany}</span>
+                            <span className="text-[#6b7280]">🏢 </span>
+                            <span className="text-[#374151]">{owner.ownerCompany}</span>
                           </div>
                         )}
                         {owner.ownerPhone && (
                           <div>
-                            <span className="text-gray-400">📞 </span>
-                            <span className="text-white">{owner.ownerPhone}</span>
+                            <span className="text-[#6b7280]">📞 </span>
+                            <span className="text-[#374151]">{owner.ownerPhone}</span>
                           </div>
                         )}
                         {owner.ownerTaxId && (
                           <div>
-                            <span className="text-gray-400">🆔 </span>
-                            <span className="text-white">{owner.ownerTaxId}</span>
+                            <span className="text-[#6b7280]">🆔 </span>
+                            <span className="text-[#374151]">{owner.ownerTaxId}</span>
                           </div>
                         )}
                         {owner.ownerAddress && (
                           <div>
-                            <span className="text-gray-400">📍 </span>
-                            <span className="text-white">{owner.ownerAddress}</span>
+                            <span className="text-[#6b7280]">📍 </span>
+                            <span className="text-[#374151]">{owner.ownerAddress}</span>
                           </div>
                         )}
                       </div>
@@ -777,7 +777,7 @@ export default function AdminPanel() {
                   )}
 
                   <div>
-                    <div className="text-sm font-semibold text-gray-300 mb-2">
+                    <div className="text-sm font-semibold text-[#374151] mb-2">
                       {language === 'en' ? 'Boats:' : 'Σκάφη:'}
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -786,7 +786,7 @@ export default function AdminPanel() {
                         return (
                           <span
                             key={boatId}
-                            className="px-3 py-1 bg-blue-700 text-white rounded-lg text-sm font-semibold"
+                            className="px-3 py-1 bg-blue-700 text-[#374151] rounded-lg text-sm font-semibold"
                           >
                             ⚓ {boat?.name || boatId}
                           </span>
@@ -798,9 +798,9 @@ export default function AdminPanel() {
               ))}
 
               {owners.length === 0 && (
-                <div className="bg-slate-800 p-8 rounded-lg text-center">
+                <div className="bg-white p-8 rounded-lg text-center">
                   <div className="text-5xl mb-3">⚓</div>
-                  <p className="text-gray-400">
+                  <p className="text-[#6b7280]">
                     {language === 'en' 
                       ? 'No owner codes yet. Click "Add Owner" to create one.' 
                       : 'Δεν υπάρχουν κωδικοί ιδιοκτητών. Πατήστε "Προσθήκη Ιδιοκτήτη".'}
@@ -815,14 +815,14 @@ export default function AdminPanel() {
         {activeTab === 'logs' && (
           <div>
             <div className="mb-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className="text-2xl font-bold text-[#374151]">
                 {language === 'en' ? 'Activity Logs' : 'Ιστορικό Ενεργειών'}
               </h2>
               <div className="flex gap-3">
                 <select
                   value={filterRole}
                   onChange={(e) => setFilterRole(e.target.value)}
-                  className="px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-purple-500 focus:outline-none"
+                  className="px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-purple-500 focus:outline-none"
                 >
                   <option value="all">All Roles</option>
                   <option value="ADMIN">Admin</option>
@@ -832,7 +832,7 @@ export default function AdminPanel() {
                 </select>
                 <button
                   onClick={handleClearLogs}
-                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all"
+                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-[#374151] rounded-lg font-bold transition-all"
                 >
                   🗑️ Clear Logs
                 </button>
@@ -841,9 +841,9 @@ export default function AdminPanel() {
 
             <div className="space-y-2">
               {filteredLogs.length === 0 ? (
-                <div className="bg-slate-800 p-8 rounded-lg text-center">
+                <div className="bg-white p-8 rounded-lg text-center">
                   <div className="text-5xl mb-3">📊</div>
-                  <p className="text-gray-400">
+                  <p className="text-[#6b7280]">
                     {language === 'en' ? 'No activity logs yet.' : 'Δεν υπάρχουν logs ακόμα.'}
                   </p>
                 </div>
@@ -853,21 +853,21 @@ export default function AdminPanel() {
                   return (
                     <div
                       key={log.id}
-                      className="bg-slate-800 p-4 rounded-lg border border-slate-700"
+                      className="bg-white p-4 rounded-lg border border-[#d1d5db]"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{getActionIcon(log.action)}</span>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-white">{log.employeeName}</span>
+                              <span className="font-bold text-[#374151]">{log.employeeName}</span>
                               {employee && (
-                                <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${getRoleBadgeColor(employee.role)}`}>
+                                <span className={`px-2 py-0.5 rounded text-xs font-bold text-[#374151] ${getRoleBadgeColor(employee.role)}`}>
                                   {employee.role}
                                 </span>
                               )}
                             </div>
-                            <div className="text-sm text-gray-400">
+                            <div className="text-sm text-[#6b7280]">
                               {log.action.replace(/_/g, ' ')}
                               {log.bookingCode && ` - Booking: ${log.bookingCode}`}
                               {log.vesselId && ` - Vessel: ${log.vesselId}`}
@@ -877,7 +877,7 @@ export default function AdminPanel() {
                             )}
                           </div>
                         </div>
-                        <div className="text-sm text-gray-400">
+                        <div className="text-sm text-[#6b7280]">
                           {new Date(log.timestamp).toLocaleString(language === 'en' ? 'en-GB' : 'el-GR')}
                         </div>
                       </div>

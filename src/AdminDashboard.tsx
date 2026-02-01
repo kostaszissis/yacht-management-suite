@@ -39,26 +39,29 @@ function Header({ title, onBack, onHome = null }) {
   const user = authService.getCurrentUser();
 
   return (
-    <div className="bg-gray-800 p-4 shadow-md flex items-center justify-between border-b border-gray-700">
-      {/* LEFT: Home emoji - logout AND navigate to HomePage */}
+    <div className="bg-[#1e40af] p-4 shadow-md flex items-center justify-between border-b border-[#d1d5db]">
+      {/* LEFT: Home button - styled with house icon */}
       {onHome && (
         <button
           onClick={onHome}
-          className="p-2 hover:bg-gray-700 rounded-lg transition-colors flex flex-col items-center"
-          title="Αποσύνδεση & Επιστροφή στην Αρχική"
+          className="bg-[#1e40af] hover:bg-blue-700 border border-blue-400 rounded-lg px-3 py-2 transition-colors flex flex-col items-center min-w-[60px]"
+          title="Αρχική"
         >
-          <span className="text-2xl">🏠</span>
-          <span className="text-[10px] text-red-400 mt-0.5">Home</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span className="text-[10px] text-white mt-1 font-medium">Αρχική</span>
         </button>
       )}
-      {!onHome && <div className="w-12"></div>}
+      {!onHome && <div className="w-16"></div>}
 
       <div className="flex-grow text-center">
-        <h1 className="text-xl font-bold text-gray-100 truncate px-2">{title}</h1>
+        <h1 className="text-xl font-bold text-white truncate px-2">{title}</h1>
         {user && (
           <div className="flex items-center justify-center gap-2 mt-1">
             {user.role === 'OWNER' ? icons.eye : icons.shield}
-            <span className="text-xs text-teal-400 font-semibold">
+            <span className="text-xs text-blue-200 font-semibold">
               {user.role === 'OWNER' ? `${user.name} (View Only)` : user.name}
             </span>
           </div>
@@ -69,7 +72,7 @@ function Header({ title, onBack, onHome = null }) {
       {onBack && (
         <button
           onClick={onBack}
-          className="text-teal-400 p-2 hover:bg-gray-700 rounded-lg transition-colors flex flex-col items-center"
+          className="text-white p-2 hover:bg-blue-700 rounded-lg transition-colors flex flex-col items-center"
           title="Πίσω (παραμένετε συνδεδεμένοι)"
         >
           {icons.returnArrow}

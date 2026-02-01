@@ -1030,13 +1030,13 @@ export default function HomePage() {
       {/* Fleet Modal */}
       {showFleetModal && (
         <div style={styles.modal}>
-          <div style={{ ...styles.modalContent, background: 'linear-gradient(135deg, #1e293b, #334155)', border: '2px solid #14b8a6' }}>
+          <div style={{ ...styles.modalContent, background: 'white', border: '2px solid #1e40af' }}>
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
               <div style={{ fontSize: '60px', marginBottom: '16px' }}>⚓</div>
-              <h3 style={{ fontSize: '22px', fontWeight: 700, color: 'white', marginBottom: '8px' }}>
+              <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#1e40af', marginBottom: '8px' }}>
                 Fleet Management
               </h3>
-              <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>
+              <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
                 {language === 'en' ? 'Enter your access code' : 'Εισάγετε τον κωδικό πρόσβασης'}
               </p>
             </div>
@@ -1046,20 +1046,20 @@ export default function HomePage() {
                 value={fleetCode}
                 onChange={(e) => setFleetCode(e.target.value)}
                 placeholder={language === 'en' ? 'Access Code' : 'Κωδικός Πρόσβασης'}
-                style={{ ...styles.searchInput, width: '100%', marginBottom: '16px', background: '#475569', border: '2px solid #64748b', color: 'white' }}
+                style={{ ...styles.searchInput, width: '100%', marginBottom: '16px', background: '#f9fafb', border: '2px solid #d1d5db', color: '#374151' }}
                 autoFocus
               />
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button
                   type="button"
                   onClick={() => { setShowFleetModal(false); setFleetCode(''); }}
-                  style={{ flex: 1, padding: '14px', background: '#475569', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer', color: 'white' }}
+                  style={{ flex: 1, padding: '14px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '12px', fontWeight: 600, cursor: 'pointer', color: '#374151' }}
                 >
                   {language === 'en' ? 'Cancel' : 'Ακύρωση'}
                 </button>
                 <button
                   type="submit"
-                  style={{ flex: 1, padding: '14px', background: 'linear-gradient(135deg, #14b8a6, #0d9488)', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer', color: 'white' }}
+                  style={{ flex: 1, padding: '14px', background: '#1e40af', border: 'none', borderRadius: '12px', fontWeight: 600, cursor: 'pointer', color: 'white' }}
                 >
                   {language === 'en' ? 'Login' : 'Είσοδος'}
                 </button>
