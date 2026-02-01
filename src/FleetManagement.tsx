@@ -1523,7 +1523,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
           <div className="text-6xl mb-4">🔒</div>
           <h2 className="text-2xl font-bold text-red-400 mb-4">Access Denied</h2>
           <p className="text-[#374151] mb-6">You don't have permission to add boats.</p>
-          <button onClick={onClose} className="px-6 py-3 bg-[#f9fafb] hover:bg-gray-100 text-white font-bold rounded-lg">
+          <button onClick={onClose} className="px-6 py-3 bg-[#f9fafb] hover:bg-gray-100 text-[#374151] font-bold rounded-lg">
             Close
           </button>
         </div>
@@ -1594,7 +1594,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
               value={newBoat.id}
               onChange={(e) => setNewBoat({ ...newBoat, id: e.target.value.toUpperCase() })}
               placeholder="π.χ. APOLLO"
-              className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+              className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
             />
             <p className="text-xs text-[#6b7280] mt-1">Μοναδικός κωδικός για σύνδεση</p>
           </div>
@@ -1608,7 +1608,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
               value={newBoat.name}
               onChange={(e) => setNewBoat({ ...newBoat, name: e.target.value })}
               placeholder="π.χ. Bavaria 50-APOLLO"
-              className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+              className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
             />
           </div>
 
@@ -1619,7 +1619,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
             <select
               value={newBoat.type}
               onChange={(e) => setNewBoat({ ...newBoat, type: e.target.value })}
-              className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+              className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
             >
               <option value="Catamaran">Catamaran</option>
               <option value="Monohull">Monohull</option>
@@ -1635,7 +1635,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
               value={newBoat.model}
               onChange={(e) => setNewBoat({ ...newBoat, model: e.target.value })}
               placeholder="π.χ. Bavaria 50"
-              className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+              className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
             />
           </div>
 
@@ -1651,7 +1651,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
               <select
                 value={newBoat.ownerCode}
                 onChange={(e) => handleOwnerCodeChange(e.target.value)}
-                className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+                className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
               >
                 <option value="">-- Επιλέξτε ή εισάγετε νέο --</option>
                 {existingOwners.map(owner => (
@@ -1673,7 +1673,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerName}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerName: e.target.value })}
                   placeholder="Ονοματεπώνυμο"
-                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
@@ -1686,7 +1686,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerEmail}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerEmail: e.target.value })}
                   placeholder="owner@email.com"
-                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border-2 border-[#1e40af] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border-2 border-[#1e40af] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
@@ -1699,7 +1699,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerCompany}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerCompany: e.target.value })}
                   placeholder="Εταιρεία ΕΠΕ"
-                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
@@ -1712,7 +1712,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerTaxId}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerTaxId: e.target.value })}
                   placeholder="123456789"
-                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
@@ -1725,7 +1725,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerPhone}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerPhone: e.target.value })}
                   placeholder="+30 697 1234567"
-                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
 
@@ -1738,7 +1738,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
                   value={newBoat.ownerAddress}
                   onChange={(e) => setNewBoat({ ...newBoat, ownerAddress: e.target.value })}
                   placeholder="Οδός, Πόλη, ΤΚ"
-                  className="w-full px-4 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
+                  className="w-full px-4 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af]"
                 />
               </div>
             </div>
@@ -1748,7 +1748,7 @@ function AddBoatModal({ onClose, onBoatAdded }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 bg-[#f9fafb] hover:bg-gray-100 text-white font-bold rounded-lg transition duration-200"
+              className="flex-1 px-4 py-3 bg-[#f9fafb] hover:bg-gray-100 text-[#374151] font-bold rounded-lg transition duration-200"
             >
               Ακύρωση
             </button>
@@ -1936,7 +1936,7 @@ function EmployeeManagementModal({ onClose }) {
                   value={newEmployee.name}
                   onChange={(e) => setNewEmployee(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="π.χ. Γιάννης"
-                  className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
 
@@ -1945,7 +1945,7 @@ function EmployeeManagementModal({ onClose }) {
                 <select
                   value={newEmployee.role}
                   onChange={(e) => handleRoleChange(e.target.value)}
-                  className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="TECHNICAL">🔧 TECHNICAL - Τεχνικός</option>
                   <option value="BOOKING">📅 BOOKING - Κρατήσεις</option>
@@ -2048,7 +2048,7 @@ function EmployeeManagementModal({ onClose }) {
         <div className="p-4 border-t border-[#d1d5db]">
           <button
             onClick={onClose}
-            className="w-full bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-3 px-4 rounded-lg"
+            className="w-full bg-[#f9fafb] hover:bg-gray-100 text-[#374151] font-bold py-3 px-4 rounded-lg"
           >
             Κλείσιμο
           </button>
@@ -2581,7 +2581,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
               </button>
               <button
                 onClick={onClose}
-                className="w-full bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-3 px-4 rounded-lg"
+                className="w-full bg-[#f9fafb] hover:bg-gray-100 text-[#374151] font-bold py-3 px-4 rounded-lg"
               >
                 Ακύρωση
               </button>
@@ -2621,7 +2621,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
                   value={adminCode}
                   onChange={(e) => setAdminCode(e.target.value)}
                   placeholder="Εισάγετε τον κωδικό ADMIN"
-                  className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-red-500 text-center text-lg"
+                  className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-red-500 text-center text-lg"
                 />
               </div>
 
@@ -2641,7 +2641,7 @@ function DataManagementModal({ onClose, boats, onDataCleared }) {
               </button>
               <button
                 onClick={() => { setStep(1); setError(''); setAdminCode(''); }}
-                className="w-full bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-3 px-4 rounded-lg"
+                className="w-full bg-[#f9fafb] hover:bg-gray-100 text-[#374151] font-bold py-3 px-4 rounded-lg"
               >
                 ← Πίσω
               </button>
@@ -2784,7 +2784,7 @@ function ActivityLogModal({ onClose }) {
             <span className="text-xs text-gray-500">{filteredLogs.length} εγγραφές</span>
             <button
               onClick={onClose}
-              className="bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-2 px-6 rounded-lg"
+              className="bg-[#f9fafb] hover:bg-gray-100 text-[#374151] font-bold py-2 px-6 rounded-lg"
             >
               Κλείσιμο
             </button>
@@ -2859,7 +2859,7 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
         </h2>
         <button 
           onClick={onClose} 
-          className="bg-[#f9fafb] hover:bg-gray-100 text-white px-4 py-2 rounded-lg font-bold"
+          className="bg-[#f9fafb] hover:bg-gray-100 text-[#374151] px-4 py-2 rounded-lg font-bold"
         >
           ✕ Κλείσιμο
         </button>
@@ -2899,7 +2899,7 @@ function FinancialsSummaryModal({ onClose, financialsData, boats }) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="🔍 Αναζήτηση..."
-              className="w-full px-2 py-1 bg-[#f9fafb] text-white rounded border border-[#d1d5db] focus:outline-none focus:ring-1 focus:ring-[#1e40af] text-xs"
+              className="w-full px-2 py-1 bg-[#f9fafb] text-[#374151] rounded border border-[#d1d5db] focus:outline-none focus:ring-1 focus:ring-[#1e40af] text-xs"
             />
           </div>
           <div className="p-2 border-b border-[#d1d5db] bg-white">
@@ -3258,7 +3258,7 @@ function FleetBookingSheetOwner({ boatIds, allBoatsData }) {
       case 'Expired':
       case 'expired':
       case 'EXPIRED':
-        return { bg: 'bg-[#f9fafb]', text: 'text-white', status: 'text-[#374151]' };
+        return { bg: 'bg-[#f9fafb]', text: 'text-[#374151]', status: 'text-[#374151]' };
       default:
         // 🔥 FALLBACK: Any unknown status defaults to YELLOW (pending)
         return { bg: 'bg-yellow-400', text: 'text-black', status: 'text-black' };
@@ -3498,7 +3498,7 @@ function FleetSummaryPage({ boatIds, ownerCode, navigate, showMessage }) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="🔍 Αναζήτηση σκάφους (όνομα, τύπος, μοντέλο...)"
-              className="w-full px-4 py-2 bg-white text-white rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af] text-sm"
+              className="w-full px-4 py-2 bg-white text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-[#1e40af] text-sm"
             />
             {searchTerm && (
               <button
@@ -4051,7 +4051,7 @@ function BookingSheetPage({ boat, navigate, showMessage }) {
       {/* Charter Detail Popup */}
       {selectedBookingForPopup && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setSelectedBookingForPopup(null)}>
-          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-white" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-[#374151]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Charter Details</h3>
               <button onClick={() => setSelectedBookingForPopup(null)} className="text-[#6b7280] hover:text-white text-2xl">&times;</button>
@@ -4531,7 +4531,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
                 <button onClick={() => saveBoatDetails(boatDetails)} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg">
                   <span>💾</span><span>Αποθήκευση Στοιχείων</span>
                 </button>
-                <button onClick={handleAddField} className="w-full bg-white hover:bg-[#f9fafb] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-[#d1d5db]">
+                <button onClick={handleAddField} className="w-full bg-white hover:bg-[#f9fafb] text-[#374151] font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-[#d1d5db]">
                   <span>➕</span><span>Προσθήκη Νέου Πεδίου</span>
                 </button>
               </div>
@@ -4554,7 +4554,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
                     value={value}
                     onChange={(e) => handleDetailChange(field, e.target.value)}
                     disabled={!canEdit}
-                    className={`w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60 cursor-not-allowed' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                    className={`w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60 cursor-not-allowed' : 'focus:border-[#1e40af] focus:outline-none'}`}
                     placeholder={canEdit ? 'Εισάγετε τιμή...' : 'Δεν υπάρχει τιμή'}
                   />
                 </div>
@@ -4567,15 +4567,15 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
           <div>
             {canEdit && (
               <div className="mb-4">
-                <button onClick={() => setShowAddDoc(!showAddDoc)} className="w-full bg-white hover:bg-[#f9fafb] text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-[#d1d5db]">
+                <button onClick={() => setShowAddDoc(!showAddDoc)} className="w-full bg-white hover:bg-[#f9fafb] text-[#374151] font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-[#d1d5db]">
                   {icons.plus}
                   <span>{showAddDoc ? 'Ακύρωση' : 'Προσθήκη Εγγράφου'}</span>
                 </button>
 
                 {showAddDoc && (
                   <div className="mt-4 p-4 bg-white rounded-lg space-y-3 border border-[#d1d5db]">
-                    <input type="text" value={newDocTitle} onChange={(e) => setNewDocTitle(e.target.value)} placeholder="Τίτλος εγγράφου (π.χ. Boarding Pass)" className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
-                    <input type="file" ref={fileInputRef} accept=".pdf,.doc,.docx" onChange={handleFileUpload} className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db]" />
+                    <input type="text" value={newDocTitle} onChange={(e) => setNewDocTitle(e.target.value)} placeholder="Τίτλος εγγράφου (π.χ. Boarding Pass)" className="w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+                    <input type="file" ref={fileInputRef} accept=".pdf,.doc,.docx" onChange={handleFileUpload} className="w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db]" />
                     <p className="text-xs text-[#6b7280]">Υποστηριζόμενα: PDF, Word (.doc, .docx)</p>
                   </div>
                 )}
@@ -4988,7 +4988,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                   value={ownerDetails['Όνομα'] || ''}
                   onChange={(e) => handleChange('Όνομα', e.target.value)}
                   disabled={!canEdit}
-                  className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                  className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                   placeholder="Όνομα"
                 />
               </div>
@@ -5000,7 +5000,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                   value={ownerDetails['Επώνυμο'] || ''}
                   onChange={(e) => handleChange('Επώνυμο', e.target.value)}
                   disabled={!canEdit}
-                  className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                  className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                   placeholder="Επώνυμο"
                 />
               </div>
@@ -5014,7 +5014,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                 value={ownerDetails['Email Ιδιοκτήτη'] || ''}
                 onChange={(e) => handleChange('Email Ιδιοκτήτη', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border-2 border-[#1e40af] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border-2 border-[#1e40af] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="owner@email.com"
               />
               <p className="text-xs text-[#1e40af] mt-1">Για αποστολή ειδοποιήσεων ναύλων</p>
@@ -5028,7 +5028,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                 value={ownerDetails['Email Εταιρείας'] || ''}
                 onChange={(e) => handleChange('Email Εταιρείας', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="company@email.com"
               />
             </div>
@@ -5041,7 +5041,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                 value={ownerDetails['Εταιρεία'] || ''}
                 onChange={(e) => handleChange('Εταιρεία', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="Εταιρεία ΕΠΕ"
               />
             </div>
@@ -5054,7 +5054,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                 value={ownerDetails['ΑΦΜ'] || ''}
                 onChange={(e) => handleChange('ΑΦΜ', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="123456789"
               />
             </div>
@@ -5067,7 +5067,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                 value={ownerDetails['Τηλέφωνο Ιδιοκτήτη'] || ''}
                 onChange={(e) => handleChange('Τηλέφωνο Ιδιοκτήτη', e.target.value)}
                 disabled={!canEdit}
-                className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="+30 697 1234567"
               />
             </div>
@@ -5084,7 +5084,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                   value={ownerDetails['Οδός'] || ''}
                   onChange={(e) => handleChange('Οδός', e.target.value)}
                   disabled={!canEdit}
-                  className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                  className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                   placeholder="π.χ. Λεωφόρος Αλεξάνδρας"
                 />
               </div>
@@ -5099,7 +5099,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                     value={ownerDetails['Αριθμός'] || ''}
                     onChange={(e) => handleChange('Αριθμός', e.target.value)}
                     disabled={!canEdit}
-                    className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                    className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                     placeholder="π.χ. 123"
                   />
                 </div>
@@ -5112,7 +5112,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                     value={ownerDetails['Τ.Κ.'] || ''}
                     onChange={(e) => handleChange('Τ.Κ.', e.target.value)}
                     disabled={!canEdit}
-                    className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                    className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                     placeholder="π.χ. 11523"
                   />
                 </div>
@@ -5126,7 +5126,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                   value={ownerDetails['Πόλη'] || ''}
                   onChange={(e) => handleChange('Πόλη', e.target.value)}
                   disabled={!canEdit}
-                  className={`w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                  className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                   placeholder="π.χ. Αθήνα"
                 />
               </div>
@@ -5155,7 +5155,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                         value={value || ''}
                         onChange={(e) => handleChange(field, e.target.value)}
                         disabled={!canEdit}
-                        className={`w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                        className={`w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                         placeholder="Εισάγετε τιμή..."
                       />
                     </div>
@@ -5182,7 +5182,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                   type="text"
                   value={newFieldName}
                   onChange={(e) => setNewFieldName(e.target.value)}
-                  className="w-full px-4 py-3 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none mb-3"
+                  className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none mb-3"
                   placeholder="Όνομα πεδίου (π.χ. ΙΒΑΝ, Σημειώσεις)"
                   autoFocus
                 />
@@ -5320,7 +5320,7 @@ function MediaPage({ items, boatId, showMessage }) {
       )}
       {canEdit && (
          <div className="mb-4">
-            <button className="flex items-center justify-center w-full bg-white hover:bg-[#f9fafb] text-white font-bold py-3 px-4 rounded-lg transition duration-200 opacity-50 cursor-not-allowed border border-[#d1d5db]">
+            <button className="flex items-center justify-center w-full bg-white hover:bg-[#f9fafb] text-[#374151] font-bold py-3 px-4 rounded-lg transition duration-200 opacity-50 cursor-not-allowed border border-[#d1d5db]">
               {icons.upload} <span className="ml-2">(Σύντομα) Ανέβασμα Media</span>
             </button>
          </div>
@@ -7083,7 +7083,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
             } else {
               setShowAddForm(true);
             }
-          }} className={`flex items-center justify-center w-full ${editingCharter ? 'bg-blue-800 hover:bg-blue-700 border-blue-600' : 'bg-white hover:bg-[#f9fafb] border-[#d1d5db]'} text-white font-bold py-3 px-4 rounded-lg transition duration-200 border`}>
+          }} className={`flex items-center justify-center w-full ${editingCharter ? 'bg-blue-800 hover:bg-blue-700 border-blue-600 text-white' : 'bg-white hover:bg-[#f9fafb] border-[#d1d5db] text-[#374151]'} font-bold py-3 px-4 rounded-lg transition duration-200 border`}>
             {editingCharter ? icons.edit : icons.plus} <span className="ml-2">{showAddForm ? 'Ακύρωση' : 'Προσθήκη Νέου Ναύλου'}</span>
           </button>
           
@@ -8160,7 +8160,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           {icons.download} <span className="ml-2">📥 Download PDF (Professional)</span>
         </button>
 
-        <button onClick={handleDownloadSpecimen} className="w-full bg-[#f9fafb] hover:bg-gray-100 text-white font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-[#d1d5db]">
+        <button onClick={handleDownloadSpecimen} className="w-full bg-[#f9fafb] hover:bg-gray-100 text-[#374151] font-bold py-3 px-4 rounded-lg mb-3 flex items-center justify-center border border-[#d1d5db]">
           {icons.download} <span className="ml-2">Download Specimen</span>
         </button>
 
@@ -8194,8 +8194,8 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
               ))}
             </div>
             <div className="flex space-x-2 mb-3">
-              <input type="date" value={newPayDate} onChange={(e) => { console.log('📅 Date changed:', e.target.value); setNewPayDate(e.target.value); }} className="w-1/2 px-2 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
-              <input type="number" step="0.01" value={newPayAmount} onChange={(e) => { console.log('💵 Amount changed:', e.target.value); setNewPayAmount(e.target.value); }} placeholder="Ποσό" className="w-1/2 px-2 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="date" value={newPayDate} onChange={(e) => { console.log('📅 Date changed:', e.target.value); setNewPayDate(e.target.value); }} className="w-1/2 px-2 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="number" step="0.01" value={newPayAmount} onChange={(e) => { console.log('💵 Amount changed:', e.target.value); setNewPayAmount(e.target.value); }} placeholder="Ποσό" className="w-1/2 px-2 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
             </div>
             <button
               type="button"
@@ -8615,20 +8615,20 @@ function InvoiceSection({ boatId, canEditFinancials, showMessage, invoices, setI
     <div>
       {canEditFinancials && (
         <div className="mb-4">
-          <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center justify-center w-full bg-white hover:bg-[#f9fafb] text-white font-bold py-3 px-4 rounded-lg transition duration-200 border border-[#d1d5db]">
+          <button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center justify-center w-full bg-white hover:bg-[#f9fafb] text-[#374151] font-bold py-3 px-4 rounded-lg transition duration-200 border border-[#d1d5db]">
             {icons.plus} <span className="ml-2">{showAddForm ? 'Ακύρωση' : 'Προσθήκη Νέου Εξόδου'}</span>
           </button>
           
           {showAddForm && (
             <div className="mt-4 p-4 bg-white rounded-lg space-y-3 border border-[#d1d5db]">
               {/* 🔥 FIX 30: Added autoComplete="off" to fix Chrome typing issue */}
-              <input type="text" name="code" value={newInvoice.code} onChange={handleFormChange} placeholder="Κωδικός (π.χ. TIM-001)" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
-              <input type="date" name="date" value={newInvoice.date} onChange={handleFormChange} className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
-              <input type="text" name="description" value={newInvoice.description} onChange={handleFormChange} placeholder="Περιγραφή (π.χ. Αναλώσιμα)" className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
-              <input type="number" step="0.01" name="amount" value={newInvoice.amount} onChange={handleFormChange} placeholder="Ποσό (€)" className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="text" name="code" value={newInvoice.code} onChange={handleFormChange} placeholder="Κωδικός (π.χ. TIM-001)" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} className="w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="date" name="date" value={newInvoice.date} onChange={handleFormChange} className="w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="text" name="description" value={newInvoice.description} onChange={handleFormChange} placeholder="Περιγραφή (π.χ. Αναλώσιμα)" className="w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+              <input type="number" step="0.01" name="amount" value={newInvoice.amount} onChange={handleFormChange} placeholder="Ποσό (€)" className="w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
               <div>
                 <label className="block text-sm font-medium text-[#374151] mb-2">Ανέβασμα Αρχείου (PDF/Image)</label>
-                <input type="file" ref={fileInputRef} accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} className="w-full px-3 py-2 bg-[#f9fafb] text-white rounded-lg border border-[#d1d5db]" />
+                <input type="file" ref={fileInputRef} accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileUpload} className="w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db]" />
                 {newInvoice.fileName && <p className="text-sm text-green-400 mt-2">✓ {newInvoice.fileName}</p>}
               </div>
               <button onClick={handleAddInvoice} className="w-full bg-[#1e40af] hover:bg-blue-800 text-white font-bold py-3 px-4 rounded-lg">Αποθήκευση Εξόδου</button>
@@ -8756,7 +8756,7 @@ function MessagesPage({ boat, currentUser, navigate, showMessage }) {
       </div>
 
       <form onSubmit={handleSendMessage} className="flex p-2 bg-white border-t border-[#d1d5db] sticky bottom-[56px] z-10">
-        <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Γράψτε την παρατήρησή σας..." className="flex-grow px-3 py-2 bg-[#f9fafb] text-white rounded-l-lg border border-[#d1d5db] focus:outline-none focus:border-[#1e40af]" />
+        <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Γράψτε την παρατήρησή σας..." className="flex-grow px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-l-lg border border-[#d1d5db] focus:outline-none focus:border-[#1e40af]" />
         <button type="submit" className="bg-[#1e40af] hover:bg-blue-800 text-white p-3 rounded-r-lg transition-colors">{icons.send}</button>
       </form>
       
@@ -8795,12 +8795,12 @@ function EmailPage({ boat, navigate }) {
       <div className="flex-grow p-4 overflow-y-auto pb-20 space-y-4">
         <div>
           <label htmlFor="subject" className="block text-sm font-medium text-[#374151] mb-2">Θέμα</label>
-          <input type="text" id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="π.χ. Πρόβλημα με το WC" className="w-full px-4 py-3 bg-white text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+          <input type="text" id="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="π.χ. Πρόβλημα με το WC" className="w-full px-4 py-3 bg-white text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
         </div>
         
         <div>
           <label htmlFor="body" className="block text-sm font-medium text-[#374151] mb-2">Μήνυμα</label>
-          <textarea id="body" rows={10} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Περιγράψτε το αίτημά σας..." className="w-full px-4 py-3 bg-white text-white rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
+          <textarea id="body" rows={10} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Περιγράψτε το αίτημά σας..." className="w-full px-4 py-3 bg-white text-[#374151] rounded-lg border border-[#d1d5db] focus:border-[#1e40af] focus:outline-none" />
         </div>
         
         <button onClick={handleSendEmail} className="w-full flex items-center justify-center bg-[#1e40af] hover:bg-blue-800 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-colors">
@@ -9068,7 +9068,7 @@ function FleetBookingPlanPage({ navigate, showMessage }) {
       {/* Charter Detail Popup for all users (Technical users see limited info) */}
       {selectedBooking && selectedBoatForPopup && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => { setSelectedBooking(null); setSelectedBoatForPopup(null); }}>
-          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-white" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto text-[#374151]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold">Charter Details</h3>
               <button onClick={() => { setSelectedBooking(null); setSelectedBoatForPopup(null); }} className="text-[#6b7280] hover:text-white text-2xl">&times;</button>
