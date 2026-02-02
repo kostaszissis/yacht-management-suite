@@ -1882,12 +1882,6 @@ export default function AdminDashboard({
                       📋 ΣΥΓΚΕΝΤΡΩΤΙΚΑ
                     </button>
                     <button
-                      onClick={() => setShowCharterArchive(true)}
-                      className="w-full h-10 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-lg text-white text-sm font-bold transition-colors shadow-md"
-                    >
-                      📁 ΑΡΧΕΙΟ ΝΑΥΛΩΝ
-                    </button>
-                    <button
                       onClick={() => alert('ΤΙΜΟΛΟΓΙΑ - Coming soon!')}
                       className="w-full h-10 bg-green-600 hover:bg-green-700 rounded-lg text-white text-sm font-bold transition-colors"
                     >
