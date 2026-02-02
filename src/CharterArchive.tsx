@@ -40,6 +40,46 @@ const formatMoney = (amount: number | string): string => {
   return '€' + num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 };
 
+// API helper functions
+const API_BASE = '/api/charter-archive.php';
+
+const loadAllArchives = async (): Promise<{[key: string]: any}> => {
+  try {
+    const response = await fetch(API_BASE);
+    const result = await response.json();
+    return result.success ? (result.data || {}) : {};
+  } catch (e) {
+    console.error('Error loading archives:', e);
+    return {};
+  }
+};
+
+const loadArchive = async (bookingNumber: string): Promise<any> => {
+  try {
+    const response = await fetch(`${API_BASE}?booking_number=${encodeURIComponent(bookingNumber)}`);
+    const result = await response.json();
+    return result.success ? result.data : null;
+  } catch (e) {
+    console.error('Error loading archive:', e);
+    return null;
+  }
+};
+
+const saveArchiveToAPI = async (bookingNumber: string, archiveData: any): Promise<boolean> => {
+  try {
+    const response = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_number: bookingNumber, archive_data: archiveData })
+    });
+    const result = await response.json();
+    return result.success;
+  } catch (e) {
+    console.error('Error saving archive:', e);
+    return false;
+  }
+};
+
 const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
   // Navigation state
   const [level, setLevel] = useState<'vessels' | 'charters' | 'detail'>('vessels');
@@ -57,10 +97,13 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
   // Charters per vessel (loaded separately from API)
   const [vesselCharters, setVesselCharters] = useState<{[vesselId: string]: any[]}>({});
 
+  // All archives data (loaded from API)
+  const [allArchives, setAllArchives] = useState<{[key: string]: any}>({});
+
   // Year filter state (default to current year)
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
 
-  // Load vessels on mount
+  // Load vessels and archives on mount
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -79,6 +122,10 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
           }
         }
         setVesselCharters(chartersMap);
+
+        // Load all archives from API
+        const archives = await loadAllArchives();
+        setAllArchives(archives);
       } catch (error) {
         console.error('Error loading vessels:', error);
         setVessels([]);
@@ -88,20 +135,22 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
     loadData();
   }, []);
 
-  // Load archive data when charter is selected
+  // Load archive data when charter is selected (from API)
   useEffect(() => {
-    if (selectedCharter) {
-      const charterCode = selectedCharter.code || selectedCharter.bookingNumber || selectedCharter.id;
-      const saved = localStorage.getItem(`charter_archive_${charterCode}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setArchiveData(parsed);
-        setCustomFields(parsed.customFields || []);
-      } else {
-        setArchiveData({});
-        setCustomFields([]);
+    const loadCharterArchive = async () => {
+      if (selectedCharter) {
+        const charterCode = selectedCharter.code || selectedCharter.bookingNumber || selectedCharter.id;
+        const data = await loadArchive(charterCode);
+        if (data) {
+          setArchiveData(data);
+          setCustomFields(data.customFields || []);
+        } else {
+          setArchiveData({});
+          setCustomFields([]);
+        }
       }
-    }
+    };
+    loadCharterArchive();
   }, [selectedCharter]);
 
   // Filter charters by selected year
@@ -132,12 +181,11 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
     });
   };
 
-  // Count documents for a charter (4 main documents)
+  // Count documents for a charter (4 main documents) - uses allArchives from API
   const getDocumentStatus = (charterCode: string): { complete: number; total: number } => {
     try {
-      const saved = localStorage.getItem(`charter_archive_${charterCode}`);
-      if (!saved) return { complete: 0, total: 4 };
-      const data = JSON.parse(saved);
+      const data = allArchives[charterCode];
+      if (!data) return { complete: 0, total: 4 };
       const docs = data.documents || {};
       let count = 0;
       if (docs.bookingConfirmation?.dataUrl) count++;
@@ -165,15 +213,22 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
     return { full, partial, none };
   };
 
-  // Save archive data
-  const saveArchiveData = () => {
+  // Save archive data to API
+  const saveArchiveData = async () => {
     if (!selectedCharter) return;
     const charterCode = selectedCharter.code || selectedCharter.bookingNumber || selectedCharter.id;
     const dataToSave = {
       ...archiveData,
       customFields
     };
-    localStorage.setItem(`charter_archive_${charterCode}`, JSON.stringify(dataToSave));
+    const success = await saveArchiveToAPI(charterCode, dataToSave);
+    if (success) {
+      // Update local allArchives state
+      setAllArchives(prev => ({ ...prev, [charterCode]: dataToSave }));
+      alert('Αποθηκεύτηκε!');
+    } else {
+      alert('Σφάλμα αποθήκευσης!');
+    }
   };
 
   // Update archive field
