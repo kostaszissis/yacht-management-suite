@@ -679,6 +679,7 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
                     { label: 'EMAIL', value: selectedCharter.chartererEmail || selectedCharter.skipperEmail || '-' },
                     { label: 'ΔΙΕΥΘΥΝΣΗ', value: selectedCharter.chartererAddress || selectedCharter.skipperAddress || '-' },
                     { label: 'SKIPPER', value: `${selectedCharter.skipperFirstName || ''} ${selectedCharter.skipperLastName || ''}`.trim() || '-' },
+                    ...(selectedCharter.broker ? [{ label: 'AGENT', value: selectedCharter.broker }] : []),
                     { label: 'ΠΟΣΟ ΝΑΥΛΟΥ', value: formatMoney(selectedCharter.amount || selectedCharter.price || 0) },
                     { label: 'ΠΡΟΜΗΘΕΙΑ', value: formatMoney(selectedCharter.commission || 0) },
                     { label: 'ΦΠΑ ΠΡΟΜΗΘΕΙΑΣ', value: formatMoney(selectedCharter.vat_on_commission || selectedCharter.vatOnCommission || 0) },
