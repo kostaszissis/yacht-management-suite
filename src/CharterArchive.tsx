@@ -15,13 +15,32 @@ interface ArchiveData {
   notes?: string;
   customFields?: { label: string; value: string }[];
   documents?: {
-    bookingConfirmation?: DocumentData | null;
-    charterAgreement?: DocumentData | null;
-    skipperLicense?: DocumentData | null;
-    crewList?: DocumentData | null;
+    bookingConfirmation?: DocumentData[];
+    charterAgreement?: DocumentData[];
+    skipperLicense?: DocumentData[];
+    crewList?: DocumentData[];
     other?: DocumentData[];
   };
 }
+
+// Helper to normalize document data (backward compatible - convert single object to array)
+const normalizeDocuments = (docs: any): any => {
+  if (!docs) return {};
+  const normalized: any = { ...docs };
+  const docTypes = ['bookingConfirmation', 'charterAgreement', 'skipperLicense', 'crewList'];
+  docTypes.forEach(type => {
+    if (normalized[type]) {
+      // If it's a single object (not array), convert to array
+      if (!Array.isArray(normalized[type])) {
+        normalized[type] = normalized[type].dataUrl ? [normalized[type]] : [];
+      }
+    } else {
+      normalized[type] = [];
+    }
+  });
+  if (!normalized.other) normalized.other = [];
+  return normalized;
+};
 
 // Format date for display
 const formatDate = (dateStr: string): string => {
@@ -142,10 +161,15 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
         const charterCode = selectedCharter.code || selectedCharter.bookingNumber || selectedCharter.id;
         const data = await loadArchive(charterCode);
         if (data) {
-          setArchiveData(data);
+          // Normalize documents to arrays (backward compatible)
+          const normalizedData = {
+            ...data,
+            documents: normalizeDocuments(data.documents)
+          };
+          setArchiveData(normalizedData);
           setCustomFields(data.customFields || []);
         } else {
-          setArchiveData({});
+          setArchiveData({ documents: normalizeDocuments({}) });
           setCustomFields([]);
         }
       }
@@ -186,12 +210,13 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
     try {
       const data = allArchives[charterCode];
       if (!data) return { complete: 0, total: 4 };
-      const docs = data.documents || {};
+      const docs = normalizeDocuments(data.documents);
       let count = 0;
-      if (docs.bookingConfirmation?.dataUrl) count++;
-      if (docs.charterAgreement?.dataUrl) count++;
-      if (docs.skipperLicense?.dataUrl) count++;
-      if (docs.crewList?.dataUrl) count++;
+      // Check if each array has at least 1 document
+      if (docs.bookingConfirmation?.length > 0) count++;
+      if (docs.charterAgreement?.length > 0) count++;
+      if (docs.skipperLicense?.length > 0) count++;
+      if (docs.crewList?.length > 0) count++;
       return { complete: count, total: 4 };
     } catch {
       return { complete: 0, total: 4 };
@@ -236,10 +261,14 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
     setArchiveData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Handle document upload
+  // Handle document upload (appends to array for all document types)
   const handleDocumentUpload = (docType: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset input value immediately to prevent double upload
+    const inputElement = e.target;
+    inputElement.value = '';
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -254,14 +283,16 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
 
       setArchiveData(prev => {
         const updated = { ...prev };
-        if (!updated.documents) updated.documents = {};
+        if (!updated.documents) updated.documents = normalizeDocuments({});
 
-        if (docType === 'other') {
-          if (!updated.documents.other) updated.documents.other = [];
-          updated.documents.other = [...updated.documents.other, newDoc];
-        } else {
-          (updated.documents as any)[docType] = newDoc;
-        }
+        // All document types are now arrays - append to array
+        const currentDocs = (updated.documents as any)[docType] || [];
+
+        // Check for duplicate (same name and dataUrl) to prevent double upload from StrictMode
+        const isDuplicate = currentDocs.some((f: DocumentData) => f.name === newDoc.name && f.dataUrl === newDoc.dataUrl);
+        if (isDuplicate) return prev;
+
+        (updated.documents as any)[docType] = [...currentDocs, newDoc];
 
         return updated;
       });
@@ -269,14 +300,10 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
     reader.readAsDataURL(file);
   };
 
-  // View document
-  const viewDocument = (docType: string, index?: number) => {
-    let doc: DocumentData | undefined;
-    if (docType === 'other' && index !== undefined) {
-      doc = archiveData.documents?.other?.[index];
-    } else {
-      doc = (archiveData.documents as any)?.[docType];
-    }
+  // View document (all types are now arrays)
+  const viewDocument = (docType: string, index: number) => {
+    const docs = (archiveData.documents as any)?.[docType] || [];
+    const doc = docs[index];
     if (doc?.dataUrl) {
       const newWindow = window.open();
       if (newWindow) {
@@ -289,19 +316,14 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
     }
   };
 
-  // Delete document
-  const deleteDocument = (docType: string, index?: number) => {
+  // Delete document (all types are now arrays)
+  const deleteDocument = (docType: string, index: number) => {
     setArchiveData(prev => {
       const updated = { ...prev };
       if (!updated.documents) return updated;
 
-      if (docType === 'other' && index !== undefined) {
-        if (updated.documents.other) {
-          updated.documents.other = updated.documents.other.filter((_, i) => i !== index);
-        }
-      } else {
-        (updated.documents as any)[docType] = null;
-      }
+      const docs = (updated.documents as any)[docType] || [];
+      (updated.documents as any)[docType] = docs.filter((_: any, i: number) => i !== index);
 
       return updated;
     });
@@ -374,57 +396,62 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
     return charter?.code || charter?.bookingNumber || charter?.id || 'N/A';
   };
 
-  // Render document upload slot
+  // Render document upload slot (now supports multiple files)
   const renderDocumentSlot = (
     docType: 'bookingConfirmation' | 'charterAgreement' | 'skipperLicense' | 'crewList',
     title: string,
     subtitle: string
   ) => {
-    const doc = archiveData.documents?.[docType];
-    const isUploaded = !!doc?.dataUrl;
+    const docs = archiveData.documents?.[docType] || [];
+    const hasDocuments = docs.length > 0;
 
     return (
-      <div className="bg-[#f9fafb] border border-[#d1d5db] rounded-lg p-4 mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{isUploaded ? '✅' : '❌'}</span>
-          <div>
-            <p className="text-[#374151] font-semibold text-base">{title}</p>
-            <p className="text-[#6b7280] text-xs">{subtitle}</p>
-            {isUploaded && doc && (
-              <p className="text-[#6b7280] text-xs mt-1">
-                📄 {doc.name} • Ανέβηκε: {doc.uploadDate}
-              </p>
-            )}
+      <div className="bg-[#f9fafb] border border-[#d1d5db] rounded-lg p-4 mb-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{hasDocuments ? '✅' : '❌'}</span>
+            <div>
+              <p className="text-[#374151] font-semibold text-base">{title}</p>
+              <p className="text-[#6b7280] text-xs">{subtitle}</p>
+            </div>
           </div>
+          <label className="bg-[#1e40af] text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-blue-700 transition flex items-center gap-1">
+            📤 Ανέβασμα
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/jpg,.pdf"
+              className="hidden"
+              onChange={(e) => handleDocumentUpload(docType, e)}
+            />
+          </label>
         </div>
-        <div className="flex gap-2">
-          {!isUploaded ? (
-            <label className="bg-[#1e40af] text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer hover:bg-blue-700 transition flex items-center gap-1">
-              📤 Ανέβασμα
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/jpg,.pdf"
-                className="hidden"
-                onChange={(e) => handleDocumentUpload(docType, e)}
-              />
-            </label>
-          ) : (
-            <>
-              <button
-                onClick={() => viewDocument(docType)}
-                className="bg-[#059669] text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition"
-              >
-                👁 Προβολή
-              </button>
-              <button
-                onClick={() => deleteDocument(docType)}
-                className="bg-[#dc2626] text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition"
-              >
-                🗑 Διαγραφή
-              </button>
-            </>
-          )}
-        </div>
+        {hasDocuments && (
+          <div className="space-y-2">
+            {docs.map((doc, idx) => (
+              <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-lg border border-[#e5e7eb]">
+                <div className="flex items-center gap-2">
+                  <span>📎</span>
+                  <span className="text-[#374151] text-sm">{doc.name}</span>
+                  <span className="text-[#6b7280] text-xs">({doc.uploadDate})</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => viewDocument(docType, idx)}
+                    className="bg-[#059669] text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition"
+                  >
+                    👁
+                  </button>
+                  <button
+                    onClick={() => deleteDocument(docType, idx)}
+                    className="bg-[#dc2626] text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition"
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -689,7 +716,10 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
                         multiple
                         className="hidden"
                         onChange={(e) => {
-                          Array.from(e.target.files || []).forEach(file => {
+                          const files = Array.from(e.target.files || []);
+                          // Reset input value immediately to prevent double upload
+                          e.target.value = '';
+                          files.forEach(file => {
                             const reader = new FileReader();
                             reader.onload = (event) => {
                               const dataUrl = event.target?.result as string;
@@ -699,6 +729,9 @@ const CharterArchive: React.FC<CharterArchiveProps> = ({ onClose }) => {
                                 const updated = { ...prev };
                                 if (!updated.documents) updated.documents = {};
                                 if (!updated.documents.other) updated.documents.other = [];
+                                // Check for duplicate (React StrictMode fix)
+                                const isDuplicate = updated.documents.other.some((f: DocumentData) => f.name === newDoc.name && f.dataUrl === newDoc.dataUrl);
+                                if (isDuplicate) return prev;
                                 updated.documents.other = [...updated.documents.other, newDoc];
                                 return updated;
                               });
