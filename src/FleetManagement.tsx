@@ -8027,6 +8027,10 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
               {charter.skipperPhone && <div className="flex justify-between"><span className="text-[#374151]">PHONE:</span><span className="text-sm">{charter.skipperPhone}</span></div>}
             </div>
           )}
+          {/* Show broker info if available */}
+          {charter.broker && (
+            <div className="flex justify-between pt-2 border-t border-[#d1d5db]"><span className="text-[#374151]">BROKER:</span><span className="font-bold">{charter.broker}</span></div>
+          )}
         </div>
 
         {/* EXTRAS section */}
