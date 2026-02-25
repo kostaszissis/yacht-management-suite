@@ -152,6 +152,37 @@ try {
                 exit();
             }
 
+            // Check for date overlap on same vessel
+            $vesselName = $bookingData['vesselName'] ?? '';
+            $startDate = $bookingData['startDate'] ?? '';
+            $endDate = $bookingData['endDate'] ?? '';
+
+            if (!empty($vesselName) && !empty($startDate) && !empty($endDate)) {
+                $overlapStmt = $pdo->prepare("
+                    SELECT booking_number
+                    FROM bookings
+                    WHERE booking_data->>'vesselName' = :vesselName
+                    AND (
+                        (booking_data->>'startDate' <= :endDate AND booking_data->>'endDate' >= :startDate)
+                    )
+                ");
+                $overlapStmt->execute([
+                    'vesselName' => $vesselName,
+                    'startDate' => $startDate,
+                    'endDate' => $endDate
+                ]);
+
+                $existingBooking = $overlapStmt->fetch();
+                if ($existingBooking) {
+                    http_response_code(409);
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Overlap: Υπάρχει ήδη ναύλο για ' . $vesselName . ' στις ' . $startDate . ' - ' . $endDate . ' (' . $existingBooking['booking_number'] . ')'
+                    ]);
+                    exit();
+                }
+            }
+
             $stmt = $pdo->prepare("INSERT INTO bookings (booking_number, booking_data) VALUES (:booking_number, :booking_data)");
             $stmt->execute([
                 'booking_number' => $bookingNumber,

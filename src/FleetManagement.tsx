@@ -443,10 +443,11 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
     const templateBuffer = await response.arrayBuffer();
     console.log('📄 Template loaded, size:', templateBuffer.byteLength, 'bytes');
 
-    // Calculate financial values
-    const charterAmount = charter.amount || 0;
-    const vatAmount = charterAmount * 0.12; // 12% VAT on charter
-    const totalWithVat = charterAmount + vatAmount;
+    // Calculate financial values - amount entered is GROSS (includes 12% VAT)
+    const grossAmount = charter.amount || 0;
+    const charterAmount = grossAmount / 1.12; // NET = gross / 1.12
+    const vatAmount = grossAmount - charterAmount; // VAT = gross - NET
+    const totalWithVat = grossAmount; // Total = gross (amount entered by user)
 
     // Prepare data for auto-fill - matches template placeholders
     const data = {

@@ -398,9 +398,11 @@ export default function CharterAgreementPage() {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
 
-    const charterAmount = parseFloat(bookingData.charterAmount || 0);
-    const charterVat = parseFloat(bookingData.charterVat || 0);
-    const totalAmount = parseFloat(bookingData.totalAmount || 0);
+    // Amount entered is GROSS (includes 12% VAT)
+    const grossAmount = parseFloat(bookingData.charterAmount || 0);
+    const charterAmount = grossAmount / 1.12; // NET = gross / 1.12
+    const charterVat = grossAmount - charterAmount; // VAT = gross - NET
+    const totalAmount = grossAmount; // Total = gross
     const deposit = parseFloat(bookingData.deposit || 0);
 
     doc.text(`Charter Amount (NET):`, 20, y);
@@ -819,33 +821,33 @@ export default function CharterAgreementPage() {
                 </h3>
 
                 <div className="space-y-3">
-                  {/* Charter Amount (NET) */}
+                  {/* Charter Amount (NET) - amount entered is GROSS, NET = gross / 1.12 */}
                   <div className="flex justify-between items-center pb-2 border-b border-gray-600">
                     <span className="text-blue-300 font-semibold">
                       {language === 'en' ? 'Charter Amount (NET):' : 'Ποσό Ναύλου (ΚΑΘΑΡΟ):'}
                     </span>
                     <span className="text-blue-300 font-bold text-lg">
-                      {parseFloat(bookingData.charterAmount).toFixed(2)}€
+                      {(parseFloat(bookingData.charterAmount) / 1.12).toFixed(2)}€
                     </span>
                   </div>
 
-                  {/* VAT on Charter (12%) */}
+                  {/* VAT on Charter (12%) - VAT = gross - NET */}
                   <div className="flex justify-between items-center pb-2 border-b border-gray-600">
                     <span className="text-blue-300 font-medium">
                       {language === 'en' ? 'VAT (12%):' : 'ΦΠΑ (12%):'}
                     </span>
                     <span className="text-blue-300 font-bold">
-                      +{parseFloat(bookingData.charterVat).toFixed(2)}€
+                      +{(parseFloat(bookingData.charterAmount) - parseFloat(bookingData.charterAmount) / 1.12).toFixed(2)}€
                     </span>
                   </div>
 
-                  {/* Total Amount */}
+                  {/* Total Amount - Total = gross (the amount entered by user) */}
                   <div className="flex justify-between items-center pt-2 pb-2 border-b-2 border-teal-500">
                     <span className="text-teal-300 font-bold text-lg">
                       {language === 'en' ? 'TOTAL (with VAT):' : 'ΣΥΝΟΛΟ (με ΦΠΑ):'}
                     </span>
                     <span className="text-teal-300 font-bold text-2xl">
-                      {parseFloat(bookingData.totalAmount).toFixed(2)}€
+                      {parseFloat(bookingData.charterAmount).toFixed(2)}€
                     </span>
                   </div>
 

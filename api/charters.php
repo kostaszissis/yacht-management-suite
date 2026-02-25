@@ -117,7 +117,7 @@ try {
                     charter_amount, commission_percent, commission_amount, vat_on_commission,
                     skipper_first_name, skipper_last_name, skipper_address,
                     skipper_email, skipper_phone,
-                    payments, notes, created_by
+                    payments, notes, created_by, broker
                 ) VALUES (
                     :charter_code, :vessel_id, :vessel_name, :owner_code,
                     :start_date, :end_date, :departure_port, :arrival_port,
@@ -125,7 +125,7 @@ try {
                     :charter_amount, :commission_percent, :commission_amount, :vat_on_commission,
                     :skipper_first_name, :skipper_last_name, :skipper_address,
                     :skipper_email, :skipper_phone,
-                    :payments, :notes, :created_by
+                    :payments, :notes, :created_by, :broker
                 )
             ");
 
@@ -152,7 +152,8 @@ try {
                 'skipper_phone' => $input['skipperPhone'] ?? $input['skipper_phone'] ?? null,
                 'payments' => json_encode($input['payments'] ?? []),
                 'notes' => $input['notes'] ?? null,
-                'created_by' => $input['createdBy'] ?? $input['created_by'] ?? null
+                'created_by' => $input['createdBy'] ?? $input['created_by'] ?? null,
+                'broker' => $input['broker'] ?? ''
             ]);
 
             successResponse([
@@ -183,7 +184,7 @@ try {
                         charter_amount, commission_percent, commission_amount, vat_on_commission,
                         skipper_first_name, skipper_last_name, skipper_address,
                         skipper_email, skipper_phone,
-                        payments, notes, created_by
+                        payments, notes, created_by, broker
                     ) VALUES (
                         :charter_code, :vessel_id, :vessel_name, :owner_code,
                         :start_date, :end_date, :departure_port, :arrival_port,
@@ -191,7 +192,7 @@ try {
                         :charter_amount, :commission_percent, :commission_amount, :vat_on_commission,
                         :skipper_first_name, :skipper_last_name, :skipper_address,
                         :skipper_email, :skipper_phone,
-                        :payments, :notes, :created_by
+                        :payments, :notes, :created_by, :broker
                     )
                 ");
 
@@ -218,7 +219,8 @@ try {
                     'skipper_phone' => $input['skipperPhone'] ?? $input['skipper_phone'] ?? null,
                     'payments' => json_encode($input['payments'] ?? []),
                     'notes' => $input['notes'] ?? null,
-                    'created_by' => $input['createdBy'] ?? $input['created_by'] ?? null
+                    'created_by' => $input['createdBy'] ?? $input['created_by'] ?? null,
+                    'broker' => $input['broker'] ?? ''
                 ]);
             } else {
                 // Update existing charter
@@ -244,7 +246,8 @@ try {
                         skipper_email = COALESCE(:skipper_email, skipper_email),
                         skipper_phone = COALESCE(:skipper_phone, skipper_phone),
                         payments = COALESCE(:payments, payments),
-                        notes = COALESCE(:notes, notes)
+                        notes = COALESCE(:notes, notes),
+                        broker = COALESCE(:broker, broker)
                     WHERE charter_code = :charter_code
                 ");
 
@@ -270,7 +273,8 @@ try {
                     'skipper_email' => $input['skipperEmail'] ?? $input['skipper_email'] ?? null,
                     'skipper_phone' => $input['skipperPhone'] ?? $input['skipper_phone'] ?? null,
                     'payments' => isset($input['payments']) ? json_encode($input['payments']) : null,
-                    'notes' => $input['notes'] ?? null
+                    'notes' => $input['notes'] ?? null,
+                    'broker' => $input['broker'] ?? null
                 ]);
             }
 
