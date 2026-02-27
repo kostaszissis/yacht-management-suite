@@ -4677,6 +4677,8 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
     'Email Εταιρείας': '',
     'Εταιρεία': '',
     'ΑΦΜ': '',
+    'Αριθμ. Ταυτότητας / Διαβατηρίου': '',
+    'Αρμόδια ΔΟΥ': '',
     'Τηλέφωνο Ιδιοκτήτη': '',
     'Οδός': '',
     'Αριθμός': '',
@@ -4688,9 +4690,12 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
   const [newFieldName, setNewFieldName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [idPassportFile, setIdPassportFile] = useState<{name: string; dataUrl: string} | null>(null);
+  const [isUploadingIdFile, setIsUploadingIdFile] = useState(false);
+  const idPassportFileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Fixed fields that cannot be deleted
-  const FIXED_FIELDS = ['Όνομα', 'Επώνυμο', 'Email Ιδιοκτήτη', 'Email Εταιρείας', 'Εταιρεία', 'ΑΦΜ', 'Τηλέφωνο Ιδιοκτήτη', 'Οδός', 'Αριθμός', 'Πόλη', 'Τ.Κ.'];
+  const FIXED_FIELDS = ['Όνομα', 'Επώνυμο', 'Email Ιδιοκτήτη', 'Email Εταιρείας', 'Εταιρεία', 'ΑΦΜ', 'Αριθμ. Ταυτότητας / Διαβατηρίου', 'Αρμόδια ΔΟΥ', 'Τηλέφωνο Ιδιοκτήτη', 'Οδός', 'Αριθμός', 'Πόλη', 'Τ.Κ.'];
 
   const canEdit = authService.canManageFleet();
 
@@ -4743,6 +4748,8 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
             'Email Εταιρείας': ownerData.company_email || '',
             'Εταιρεία': ownerData.company_name || '',
             'ΑΦΜ': ownerData.vat_number || '',
+            'Αριθμ. Ταυτότητας / Διαβατηρίου': ownerData.id_passport_number || '',
+            'Αρμόδια ΔΟΥ': ownerData.tax_office || '',
             'Τηλέφωνο Ιδιοκτήτη': ownerData.phone || '',
             'Οδός': ownerData.street || '',
             'Αριθμός': ownerData.street_number || '',
@@ -4766,6 +4773,10 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
           }
           console.log('✅ Mapped owner details:', loadedDetails);
           setOwnerDetails(loadedDetails);
+          // Load ID/passport file if it exists
+          if (ownerData.id_passport_file) {
+            setIdPassportFile({ name: ownerData.id_passport_file_name || 'ID/Passport', dataUrl: ownerData.id_passport_file });
+          }
           console.log('✅ Loaded owner details from API for vessel:', vesselName);
           setIsLoading(false);
           return;
@@ -4789,6 +4800,8 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
           'Email Εταιρείας': ownerFromAuth.ownerCompanyEmail || '',
           'Εταιρεία': ownerFromAuth.ownerCompany || '',
           'ΑΦΜ': ownerFromAuth.ownerTaxId || '',
+          'Αριθμ. Ταυτότητας / Διαβατηρίου': ownerFromAuth.ownerIdPassportNumber || '',
+          'Αρμόδια ΔΟΥ': ownerFromAuth.ownerTaxOffice || '',
           'Τηλέφωνο Ιδιοκτήτη': ownerFromAuth.ownerPhone || '',
           'Οδός': ownerFromAuth.ownerStreet || '',
           'Αριθμός': ownerFromAuth.ownerNumber || '',
@@ -4870,6 +4883,10 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
       company_email: ownerDetails['Email Εταιρείας'] || '',
       company_name: ownerDetails['Εταιρεία'] || '',
       vat_number: ownerDetails['ΑΦΜ'] || '',
+      id_passport_number: ownerDetails['Αριθμ. Ταυτότητας / Διαβατηρίου'] || '',
+      id_passport_file: idPassportFile?.dataUrl || null,
+      id_passport_file_name: idPassportFile?.name || null,
+      tax_office: ownerDetails['Αρμόδια ΔΟΥ'] || '',
       phone: ownerDetails['Τηλέφωνο Ιδιοκτήτη'] || '',
       street: ownerDetails['Οδός'] || '',
       street_number: ownerDetails['Αριθμός'] || '',
@@ -4902,6 +4919,8 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
             ownerCompanyEmail: ownerDetails['Email Εταιρείας'],
             ownerCompany: ownerDetails['Εταιρεία'],
             ownerTaxId: ownerDetails['ΑΦΜ'],
+            ownerIdPassportNumber: ownerDetails['Αριθμ. Ταυτότητας / Διαβατηρίου'],
+            ownerTaxOffice: ownerDetails['Αρμόδια ΔΟΥ'],
             ownerPhone: ownerDetails['Τηλέφωνο Ιδιοκτήτη'],
             ownerStreet: ownerDetails['Οδός'],
             ownerNumber: ownerDetails['Αριθμός'],
@@ -4931,6 +4950,8 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
             ownerCompanyEmail: ownerDetails['Email Εταιρείας'],
             ownerCompany: ownerDetails['Εταιρεία'],
             ownerTaxId: ownerDetails['ΑΦΜ'],
+            ownerIdPassportNumber: ownerDetails['Αριθμ. Ταυτότητας / Διαβατηρίου'],
+            ownerTaxOffice: ownerDetails['Αρμόδια ΔΟΥ'],
             ownerPhone: ownerDetails['Τηλέφωνο Ιδιοκτήτη'],
             ownerStreet: ownerDetails['Οδός'],
             ownerNumber: ownerDetails['Αριθμός'],
@@ -4953,6 +4974,78 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
   const handleChange = (field, value) => {
     if (!canEdit) return;
     setOwnerDetails(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Handle ID/Passport file upload
+  const handleIdPassportFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canEdit) {
+      showMessage('❌ Δεν έχετε δικαίωμα επεξεργασίας', 'error');
+      return;
+    }
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    setIsUploadingIdFile(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      const vesselName = boat.name || boat.id;
+
+      try {
+        const response = await fetch('https://yachtmanagementsuite.com/api/vessel-owners.php?action=upload_id_file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vessel_name: vesselName,
+            file_name: file.name,
+            file_type: file.type,
+            file_data: dataUrl
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setIdPassportFile({ name: file.name, dataUrl: result.file_path || dataUrl });
+          showMessage('✅ Αρχείο ταυτότητας/διαβατηρίου ανέβηκε!', 'success');
+        } else {
+          // Fallback: store in localStorage
+          setIdPassportFile({ name: file.name, dataUrl });
+          showMessage('✅ Αρχείο αποθηκεύτηκε τοπικά', 'success');
+        }
+      } catch (err) {
+        // Fallback: store in localStorage
+        setIdPassportFile({ name: file.name, dataUrl });
+        showMessage('✅ Αρχείο αποθηκεύτηκε τοπικά', 'success');
+      }
+      setIsUploadingIdFile(false);
+    };
+    reader.onerror = () => {
+      showMessage('❌ Σφάλμα ανάγνωσης αρχείου', 'error');
+      setIsUploadingIdFile(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // View ID/Passport file
+  const handleViewIdPassportFile = () => {
+    if (!idPassportFile?.dataUrl) return;
+    const newWindow = window.open();
+    if (newWindow) {
+      if (idPassportFile.dataUrl.startsWith('data:application/pdf') || idPassportFile.name.endsWith('.pdf')) {
+        newWindow.document.write(`<iframe src="${idPassportFile.dataUrl}" width="100%" height="100%" style="border:none;"></iframe>`);
+      } else {
+        newWindow.document.write(`<img src="${idPassportFile.dataUrl}" style="max-width:100%;"/>`);
+      }
+    }
+  };
+
+  // Remove ID/Passport file
+  const handleRemoveIdPassportFile = () => {
+    if (!canEdit) return;
+    if (window.confirm('Διαγραφή αρχείου ταυτότητας/διαβατηρίου;')) {
+      setIdPassportFile(null);
+    }
   };
 
   const handleAddField = () => {
@@ -5105,6 +5198,68 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
                 disabled={!canEdit}
                 className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
                 placeholder="123456789"
+              />
+            </div>
+
+            {/* ID / Passport Number + File Upload */}
+            <div>
+              <label className="block text-sm font-semibold text-[#374151] mb-2">Αριθμ. Ταυτότητας / Διαβατηρίου</label>
+              <input
+                type="text"
+                value={ownerDetails['Αριθμ. Ταυτότητας / Διαβατηρίου'] || ''}
+                onChange={(e) => handleChange('Αριθμ. Ταυτότητας / Διαβατηρίου', e.target.value)}
+                disabled={!canEdit}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                placeholder="π.χ. ΑΚ123456"
+              />
+              {/* File upload for scanned copy */}
+              <div className="mt-2">
+                {idPassportFile ? (
+                  <div className="flex items-center gap-2 bg-white p-2 rounded-lg border border-[#d1d5db]">
+                    <span className="text-green-600">📎</span>
+                    <span className="text-sm text-[#374151] flex-1 truncate">{idPassportFile.name}</span>
+                    <button
+                      onClick={handleViewIdPassportFile}
+                      className="bg-[#059669] text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition"
+                    >
+                      👁 Προβολή
+                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={handleRemoveIdPassportFile}
+                        className="bg-[#dc2626] text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition"
+                      >
+                        🗑
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <label className={`inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold transition ${canEdit ? 'bg-[#1e40af] text-white cursor-pointer hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
+                    {isUploadingIdFile ? '⏳ Ανέβασμα...' : '📤 Ανέβασμα αντιγράφου'}
+                    <input
+                      ref={idPassportFileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/jpg,.pdf"
+                      className="hidden"
+                      disabled={!canEdit || isUploadingIdFile}
+                      onChange={handleIdPassportFileUpload}
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-[#6b7280] mt-1">Σαρωμένο αντίγραφο ταυτότητας ή διαβατηρίου</p>
+              </div>
+            </div>
+
+            {/* Tax Office */}
+            <div>
+              <label className="block text-sm font-semibold text-[#374151] mb-2">Αρμόδια ΔΟΥ</label>
+              <input
+                type="text"
+                value={ownerDetails['Αρμόδια ΔΟΥ'] || ''}
+                onChange={(e) => handleChange('Αρμόδια ΔΟΥ', e.target.value)}
+                disabled={!canEdit}
+                className={`w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
+                placeholder="π.χ. Δ' Αθηνών"
               />
             </div>
 

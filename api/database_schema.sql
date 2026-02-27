@@ -175,6 +175,30 @@ CREATE TABLE IF NOT EXISTS vessels (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 9. VESSEL OWNERS TABLE (owner details per vessel)
+CREATE TABLE IF NOT EXISTS vessel_owners (
+    id SERIAL PRIMARY KEY,
+    vessel_name VARCHAR(200) UNIQUE NOT NULL,
+    owner_first_name VARCHAR(200),
+    owner_last_name VARCHAR(200),
+    owner_email VARCHAR(200),
+    company_email VARCHAR(200),
+    company_name VARCHAR(200),
+    vat_number VARCHAR(100),
+    id_passport_number VARCHAR(100),
+    id_passport_file TEXT,
+    id_passport_file_name VARCHAR(200),
+    tax_office VARCHAR(200),
+    phone VARCHAR(100),
+    street VARCHAR(200),
+    street_number VARCHAR(50),
+    city VARCHAR(200),
+    postal_code VARCHAR(50),
+    custom_fields JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- INDEXES for performance
 CREATE INDEX IF NOT EXISTS idx_bookings_booking_number ON bookings(booking_number);
 CREATE INDEX IF NOT EXISTS idx_page1_booking_number ON page1_booking_details(booking_number);

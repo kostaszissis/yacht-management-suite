@@ -35,6 +35,8 @@ export interface OwnerCode {
   ownerCompanyEmail?: string;
   ownerCompany?: string;
   ownerTaxId?: string;
+  ownerIdPassportNumber?: string;
+  ownerTaxOffice?: string;
   ownerPhone?: string;
   // Address fields (split into separate fields)
   ownerStreet?: string;
