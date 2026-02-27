@@ -485,8 +485,19 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
     const templateBuffer = await response.arrayBuffer();
     console.log('📄 Template loaded, size:', templateBuffer.byteLength, 'bytes');
 
-    // Fetch owner data for auto-fill
-    const ownerData = getOwnerByBoatId(boat?.id);
+    // Fetch owner data from API
+    let ownerApiData: any = null;
+    try {
+      const vesselName = boat?.name || '';
+      const ownerResponse = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(vesselName)}`);
+      if (ownerResponse.ok) {
+        const ownerResult = await ownerResponse.json();
+        ownerApiData = ownerResult?.data || ownerResult;
+        if (ownerApiData && !ownerApiData.vessel_name) ownerApiData = null;
+      }
+    } catch (e) {
+      console.log('Could not fetch owner data:', e);
+    }
 
     // Calculate financial values - amount entered is GROSS (includes 12% VAT)
     const grossAmount = charter.amount || 0;
@@ -506,15 +517,17 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       MONTH: (new Date().getMonth() + 1).toString(),
       YEAR: new Date().getFullYear().toString(),
 
-      // Owner Info - AUTO-FILL from owner data
-      OWNER_NAME: ownerData?.ownerCompany || ownerData?.ownerName || [ownerData?.ownerFirstName, ownerData?.ownerLastName].filter(Boolean).join(' ') || '',
-      OWNER_ADDRESS: ownerData?.ownerAddress || [ownerData?.ownerStreet, ownerData?.ownerNumber, ownerData?.ownerCity, ownerData?.ownerPostalCode].filter(Boolean).join(', ') || '',
-      OWNER_ID: '',
-      OWNER_PASSPORT: '',
-      OWNER_TAX: ownerData?.ownerTaxId || '',
-      OWNER_TAX_OFFICE: '',
-      OWNER_PHONE: ownerData?.ownerPhone || '',
-      OWNER_EMAIL: ownerData?.ownerEmail || ownerData?.ownerCompanyEmail || '',
+      // Owner Info - AUTO-FILL from API data
+      OWNER_NAME: ownerApiData?.owner_first_name && ownerApiData?.owner_last_name
+        ? ownerApiData.owner_first_name + ' ' + ownerApiData.owner_last_name
+        : ownerApiData?.company_name || '',
+      OWNER_ADDRESS: [ownerApiData?.street, ownerApiData?.street_number, ownerApiData?.postal_code, ownerApiData?.city].filter(Boolean).join(', ') || '',
+      OWNER_ID: ownerApiData?.id_passport_number || '',
+      OWNER_PASSPORT: ownerApiData?.id_passport_number || '',
+      OWNER_TAX: ownerApiData?.vat_number || '',
+      OWNER_TAX_OFFICE: ownerApiData?.tax_office || '',
+      OWNER_PHONE: ownerApiData?.phone || '',
+      OWNER_EMAIL: ownerApiData?.owner_email || ownerApiData?.company_email || '',
 
       // Broker Info (empty - to be filled manually)
       BROKER2_NAME: '',
