@@ -416,6 +416,48 @@ const generateSpecimenPdf = (charter, boatData, companyInfo = COMPANY_INFO) => {
   }
 };
 
+// Convert number to English words (for charter party document)
+const numberToWords = (num: number): string => {
+  if (num === 0) return 'Zero Euro';
+
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const convertGroup = (n: number): string => {
+    if (n === 0) return '';
+    if (n < 20) return ones[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+    return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' and ' + convertGroup(n % 100) : '');
+  };
+
+  const euros = Math.floor(Math.abs(num));
+  const cents = Math.round((Math.abs(num) - euros) * 100);
+
+  let result = '';
+  if (euros >= 1000000) {
+    result += convertGroup(Math.floor(euros / 1000000)) + ' Million ';
+    const remainder = euros % 1000000;
+    if (remainder >= 1000) {
+      result += convertGroup(Math.floor(remainder / 1000)) + ' Thousand ';
+      if (remainder % 1000) result += (remainder % 1000 < 100 ? 'and ' : '') + convertGroup(remainder % 1000);
+    } else if (remainder > 0) {
+      result += 'and ' + convertGroup(remainder);
+    }
+  } else if (euros >= 1000) {
+    result += convertGroup(Math.floor(euros / 1000)) + ' Thousand ';
+    if (euros % 1000) result += (euros % 1000 < 100 ? 'and ' : '') + convertGroup(euros % 1000);
+  } else {
+    result = convertGroup(euros);
+  }
+
+  result = result.trim() + ' Euro';
+  if (cents > 0) {
+    result += ' and ' + convertGroup(cents) + ' Cents';
+  }
+  return result;
+};
+
 // 🔥 FIX 23: Generate Charter Party DOCX with auto-fill
 const generateCharterParty = async (charter, boat, showMessage?) => {
   console.log('🚀 Charter Party button clicked!');
@@ -443,6 +485,9 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
     const templateBuffer = await response.arrayBuffer();
     console.log('📄 Template loaded, size:', templateBuffer.byteLength, 'bytes');
 
+    // Fetch owner data for auto-fill
+    const ownerData = getOwnerByBoatId(boat?.id);
+
     // Calculate financial values - amount entered is GROSS (includes 12% VAT)
     const grossAmount = charter.amount || 0;
     const charterAmount = grossAmount / 1.12; // NET = gross / 1.12
@@ -461,15 +506,15 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       MONTH: (new Date().getMonth() + 1).toString(),
       YEAR: new Date().getFullYear().toString(),
 
-      // Owner Info (empty - to be filled manually)
-      OWNER_NAME: '',
-      OWNER_ADDRESS: '',
+      // Owner Info - AUTO-FILL from owner data
+      OWNER_NAME: ownerData?.ownerCompany || ownerData?.ownerName || [ownerData?.ownerFirstName, ownerData?.ownerLastName].filter(Boolean).join(' ') || '',
+      OWNER_ADDRESS: ownerData?.ownerAddress || [ownerData?.ownerStreet, ownerData?.ownerNumber, ownerData?.ownerCity, ownerData?.ownerPostalCode].filter(Boolean).join(', ') || '',
       OWNER_ID: '',
       OWNER_PASSPORT: '',
-      OWNER_TAX: '',
+      OWNER_TAX: ownerData?.ownerTaxId || '',
       OWNER_TAX_OFFICE: '',
-      OWNER_PHONE: '',
-      OWNER_EMAIL: '',
+      OWNER_PHONE: ownerData?.ownerPhone || '',
+      OWNER_EMAIL: ownerData?.ownerEmail || ownerData?.ownerCompanyEmail || '',
 
       // Broker Info (empty - to be filled manually)
       BROKER2_NAME: '',
@@ -483,6 +528,8 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       CHARTERER_NAME: charter.skipperFirstName && charter.skipperLastName
         ? `${charter.skipperFirstName} ${charter.skipperLastName}`
         : charter.clientName || charter.charterer || '',
+      CHARTERER_FIRST_NAME: charter.chartererFirstName || charter.skipperFirstName || '',
+      CHARTERER_LAST_NAME: charter.chartererLastName || charter.skipperLastName || '',
       CHARTERER_ADDRESS: charter.skipperAddress || '',
       CHARTERER_ID: '',
       CHARTERER_PASSPORT: '',
@@ -501,6 +548,7 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       NET_CHARTER_FEE: charterAmount.toFixed(2),
       VAT_AMOUNT: vatAmount.toFixed(2),
       TOTAL_CHARTER_PRICE: totalWithVat.toFixed(2),
+      TOTAL_IN_WORDS: numberToWords(grossAmount),
       CHARTER_AMOUNT: charterAmount.toFixed(2),
 
       // Additional fields (empty - to be filled manually)
@@ -6064,6 +6112,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     hasForeignBroker: false,
     foreignBrokerPercent: '20',
     broker: '', // Broker / Agency name
+    showVat: false, // Show VAT breakdown in Charter Party document
     departure: 'ALIMOS MARINA', arrival: 'ALIMOS MARINA', status: 'Option',
     // Charterer fields
     chartererFirstName: '', chartererLastName: '', chartererAddress: '', chartererEmail: '', chartererPhone: '',
@@ -6674,6 +6723,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       hasForeignBroker: newCharter.hasForeignBroker,
       foreignBrokerPercent: parseFloat(newCharter.foreignBrokerPercent) || 20,
       broker: newCharter.broker || '', // Broker / Agency name
+      showVat: newCharter.showVat || false, // Show VAT breakdown in Charter Party
       foreignCommission: financials.foreignCommission || 0,
       commission: financials.greekCommission,
       vat_on_commission: financials.vatOnGreekCommission,
@@ -6934,6 +6984,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       hasForeignBroker: charter.hasForeignBroker || false,
       foreignBrokerPercent: charter.foreignBrokerPercent?.toString() || '20',
       broker: charter.broker || '', // Broker / Agency
+      showVat: charter.showVat || false,
       departure: charter.departure || 'ALIMOS MARINA',
       arrival: charter.arrival || 'ALIMOS MARINA',
       status: charter.status || 'Option',
@@ -7422,6 +7473,25 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       placeholder="0.00"
                       className="w-full px-3 py-3 bg-gray-600 text-white text-lg font-bold rounded-lg border-2 border-green-500 focus:border-green-400 focus:outline-none"
                     />
+                  </div>
+
+                  {/* Show VAT in Charter Party toggle */}
+                  <div className="mb-4">
+                    <label className="flex items-center gap-2 text-sm font-medium text-blue-400 mb-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newCharter.showVat}
+                        onChange={(e) => {
+                          setNewCharter(prev => ({
+                            ...prev,
+                            showVat: e.target.checked
+                          }));
+                        }}
+                        className="w-4 h-4 accent-blue-500"
+                      />
+                      Εμφάνιση ΦΠΑ στο Ναυλοσύμφωνο (Show VAT in Charter Party)
+                    </label>
+                    <p className="text-xs text-gray-400 ml-6">Αν επιλεγεί, εμφανίζεται ανάλυση ΦΠΑ 12% (ΚΑΘΑΡΟ + ΦΠΑ + ΣΥΝΟΛΟ)</p>
                   </div>
 
                   {/* Foreign Broker Section */}

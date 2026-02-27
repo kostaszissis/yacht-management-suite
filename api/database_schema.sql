@@ -147,6 +147,8 @@ CREATE TABLE IF NOT EXISTS charters (
     payments JSONB, -- Array of payment records
     notes TEXT,
     created_by VARCHAR(200),
+    broker VARCHAR(200),
+    show_vat BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
