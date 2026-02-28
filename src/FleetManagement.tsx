@@ -4265,7 +4265,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
                   'call_sign': 'CALL SIGN'
                 };
                 for (const [apiKey, uiKey] of Object.entries(fieldMap)) {
-                  if (!updated[uiKey] && cf[apiKey]) updated[uiKey] = cf[apiKey];
+                  if (cf[apiKey]) updated[uiKey] = cf[apiKey];
                 }
               } catch (e) { /* ignore parse errors */ }
             }
@@ -4323,18 +4323,76 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     }
   };
 
-  const saveBoatDetails = (newDetails) => {
+  const saveBoatDetails = async (newDetails) => {
     if (!canEdit) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
     }
-    
+
     try {
+      // Save to localStorage
       const key = `fleet_${boat.id}_details`;
       localStorage.setItem(key, JSON.stringify(newDetails));
       setBoatDetails(newDetails);
       authService.logActivity('update_boat_details', boat.id);
-      showMessage('✅ Τα στοιχεία αποθηκεύτηκαν!', 'success');
+
+      // Build custom fields for API
+      const ownerFields = new Set([
+        'Όνομα Ιδιοκτήτη', 'Email Ιδιοκτήτη', 'Εταιρεία', 'ΑΦΜ',
+        'Τηλέφωνο Ιδιοκτήτη', 'Διεύθυνση Ιδιοκτήτη'
+      ]);
+      const customFields: Record<string, string> = {};
+      const cfKeyMap: Record<string, string> = {
+        'Register No / Αριθμός Νηολογίου': 'register_no',
+        'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': 'professional_license',
+        'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': 'amepa',
+        'CALL SIGN': 'call_sign'
+      };
+      for (const [field, value] of Object.entries(newDetails)) {
+        if (ownerFields.has(field)) continue;
+        const apiKey = cfKeyMap[field] || field;
+        customFields[apiKey] = value as string;
+      }
+
+      // Fetch existing owner data to preserve it during upsert
+      let existing: any = {};
+      try {
+        const res = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(boat.name || '')}`);
+        if (res.ok) {
+          const raw = await res.json();
+          existing = raw?.data || raw || {};
+        }
+      } catch (e) { /* ignore fetch error, will send without existing data */ }
+
+      // Send full payload so the API upsert doesn't null out owner fields
+      const response = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vessel_name: boat.name || '',
+          owner_first_name: existing.owner_first_name || '',
+          owner_last_name: existing.owner_last_name || '',
+          owner_email: existing.owner_email || '',
+          company_email: existing.company_email || '',
+          company_name: existing.company_name || '',
+          vat_number: existing.vat_number || '',
+          id_passport_number: existing.id_passport_number || '',
+          tax_office: existing.tax_office || '',
+          phone: existing.phone || '',
+          street: existing.street || '',
+          street_number: existing.street_number || '',
+          city: existing.city || '',
+          postal_code: existing.postal_code || '',
+          custom_fields: JSON.stringify(customFields)
+        })
+      });
+
+      if (response.ok) {
+        showMessage('✅ Τα στοιχεία αποθηκεύτηκαν!', 'success');
+      } else {
+        console.error('Custom fields API error:', response.status);
+        showMessage('⚠️ Αποθηκεύτηκε τοπικά, σφάλμα API', 'error');
+      }
     } catch (e) {
       console.error('Error saving boat details:', e);
       showMessage('❌ Σφάλμα αποθήκευσης!', 'error');
@@ -4947,13 +5005,32 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
     setIsSaving(true);
     const vesselName = boat.name || boat.id;
 
-    // Collect custom fields (non-fixed fields)
-    const customFields = {};
+    // Collect custom fields (non-fixed fields) from owner page
+    const ownerCustomFields = {};
     Object.entries(ownerDetails).forEach(([key, value]) => {
       if (!FIXED_FIELDS.includes(key)) {
-        customFields[key] = value;
+        ownerCustomFields[key] = value;
       }
     });
+
+    // Fetch existing custom_fields from API to preserve boat-level fields (Register No, AMEPA, etc.)
+    let existingCf: any = {};
+    try {
+      const cfRes = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(vesselName)}`);
+      if (cfRes.ok) {
+        const cfRaw = await cfRes.json();
+        const cfData = cfRaw?.data || cfRaw;
+        if (cfData?.custom_fields) {
+          const parsed = typeof cfData.custom_fields === 'string' ? JSON.parse(cfData.custom_fields) : cfData.custom_fields;
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            existingCf = parsed;
+          }
+        }
+      }
+    } catch (e) { /* ignore, will use ownerCustomFields only */ }
+
+    // Merge: existing boat-level custom fields + any owner custom fields
+    const mergedCf = { ...existingCf, ...ownerCustomFields };
 
     // Prepare API payload
     const apiPayload = {
@@ -4973,7 +5050,7 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
       street_number: ownerDetails['Αριθμός'] || '',
       city: ownerDetails['Πόλη'] || '',
       postal_code: ownerDetails['Τ.Κ.'] || '',
-      custom_fields: Object.keys(customFields).length > 0 ? JSON.stringify(customFields) : null
+      custom_fields: JSON.stringify(mergedCf)
     };
 
     try {
