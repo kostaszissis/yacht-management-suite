@@ -4323,7 +4323,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     }
   };
 
-  const saveBoatDetails = (newDetails) => {
+  const saveBoatDetails = (newDetails, explicitCustomFields?) => {
     if (!canEdit) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
@@ -4352,6 +4352,11 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
         if (skipFields.has(field)) continue;
         const apiKey = cfKeyMap[field] || field;
         customFields[apiKey] = value;
+      }
+
+      // Merge explicit custom fields passed from the button (always overrides)
+      if (explicitCustomFields) {
+        Object.assign(customFields, explicitCustomFields);
       }
 
       // POST custom_fields to vessel-owners API
@@ -4703,7 +4708,12 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
           <div>
             {canEdit && (
               <div className="mb-4 space-y-2">
-                <button onClick={() => saveBoatDetails(boatDetails)} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg">
+                <button onClick={() => saveBoatDetails(boatDetails, {
+                  register_no: boatDetails['Register No / Αριθμός Νηολογίου'] || '',
+                  professional_license: boatDetails['Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο'] || '',
+                  amepa: boatDetails['Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)'] || '',
+                  call_sign: boatDetails['CALL SIGN'] || ''
+                })} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg">
                   <span>💾</span><span>Αποθήκευση Στοιχείων</span>
                 </button>
                 <button onClick={handleAddField} className="w-full bg-white hover:bg-[#f9fafb] text-[#374151] font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 border border-[#d1d5db]">
