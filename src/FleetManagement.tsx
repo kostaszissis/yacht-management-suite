@@ -315,7 +315,7 @@ const generateSpecimenPdf = (charter, boatData, companyInfo = COMPANY_INFO) => {
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text(`CHARTERING INFORMATION - OPTION ${charter.code}`, 105, 55, { align: 'center' });
+      doc.text(`CHARTERING INFORMATION - ${charter.status === 'Confirmed' ? 'RESERVATION' : 'OPTION'} ${charter.code}`, 105, 55, { align: 'center' });
       
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
@@ -566,17 +566,40 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       TOTAL_IN_WORDS: numberToWords(grossAmount),
       CHARTER_AMOUNT: charterAmount.toFixed(2),
 
-      // Additional fields - AUTO-FILL from charter data
+      // Additional fields - AUTO-FILL from charter data + owner custom_fields
       PROFESSIONAL_LICENSE: '',
       AMEPA: '',
+      CALL_SIGN: '',
       SECURITY_DEPOSIT: charter.securityDeposit || charter.deposit || '',
       DAMAGE_WAIVER: '',
       APA_AMOUNT: charter.apa || charter.apaAmount || '',
 
       // Reference
-      CHARTER_CODE: charter.code || '',
+      CHARTER_CODE: charter.charterCode || charter.code || charter.bookingCode || '',
       BOOKING_CODE: charter.code || ''
     };
+
+    // Fill template placeholders from owner custom_fields
+    if (ownerApiData?.custom_fields) {
+      try {
+        const cf = typeof ownerApiData.custom_fields === 'string'
+          ? JSON.parse(ownerApiData.custom_fields)
+          : ownerApiData.custom_fields;
+        const cfMap: Record<string, string> = {
+          'register_no': 'REGISTER_NUMBER',
+          'professional_license': 'PROFESSIONAL_LICENSE',
+          'amepa': 'AMEPA',
+          'call_sign': 'CALL_SIGN'
+        };
+        for (const [cfKey, placeholder] of Object.entries(cfMap)) {
+          if (cf[cfKey] && !data[placeholder]) {
+            data[placeholder] = cf[cfKey];
+          }
+        }
+      } catch (e) {
+        console.log('Error parsing owner custom_fields:', e);
+      }
+    }
 
     console.log('📋 Step 4: Auto-fill data prepared:', data);
 
@@ -4211,6 +4234,47 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     if (boat) {
       loadBoatDetails();
       loadDocumentsFromAPI();
+      // Auto-fill owner fields from API if empty
+      (async () => {
+        try {
+          const res = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(boat.name || '')}`);
+          if (!res.ok) return;
+          const raw = await res.json();
+          const od = raw?.data || raw;
+          if (!od || (!od.owner_first_name && !od.owner_email && !od.company_name)) return;
+          setBoatDetails(prev => {
+            const updated = { ...prev };
+            // Remove old Insurance fields if present
+            delete updated['Insurance Company'];
+            delete updated['Insurance Policy Number'];
+            // Owner fields from API
+            if (!updated['Όνομα Ιδιοκτήτη']) updated['Όνομα Ιδιοκτήτη'] = [od.owner_first_name, od.owner_last_name].filter(Boolean).join(' ');
+            if (!updated['Email Ιδιοκτήτη']) updated['Email Ιδιοκτήτη'] = od.owner_email || '';
+            if (!updated['Εταιρεία']) updated['Εταιρεία'] = od.company_name || '';
+            if (!updated['ΑΦΜ']) updated['ΑΦΜ'] = od.vat_number || '';
+            if (!updated['Τηλέφωνο Ιδιοκτήτη']) updated['Τηλέφωνο Ιδιοκτήτη'] = od.phone || '';
+            if (!updated['Διεύθυνση Ιδιοκτήτη']) updated['Διεύθυνση Ιδιοκτήτη'] = [od.street, od.street_number, od.postal_code, od.city].filter(Boolean).join(', ');
+            // Custom fields from API (new vessel fields)
+            if (od.custom_fields) {
+              try {
+                const cf = typeof od.custom_fields === 'string' ? JSON.parse(od.custom_fields) : od.custom_fields;
+                const fieldMap = {
+                  'register_no': 'Register No / Αριθμός Νηολογίου',
+                  'professional_license': 'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο',
+                  'amepa': 'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)',
+                  'call_sign': 'CALL SIGN'
+                };
+                for (const [apiKey, uiKey] of Object.entries(fieldMap)) {
+                  if (!updated[uiKey] && cf[apiKey]) updated[uiKey] = cf[apiKey];
+                }
+              } catch (e) { /* ignore parse errors */ }
+            }
+            return updated;
+          });
+        } catch (e) {
+          console.log('Owner auto-fill error:', e);
+        }
+      })();
     }
   }, [boat?.id]);
 
@@ -4240,15 +4304,17 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
           'Διεύθυνση Ιδιοκτήτη': '',
           'Flag': 'Greek',
           'Port of Registry': 'Piraeus',
+          'Register No / Αριθμός Νηολογίου': '',
+          'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': '',
+          'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': '',
+          'CALL SIGN': '',
           'Builder/Year': '',
           'LOA (Length)': '',
           'Beam (Width)': '',
           'Draft': '',
           'Engines': '',
           'Fuel Capacity': '',
-          'Water Capacity': '',
-          'Insurance Company': '',
-          'Insurance Policy Number': ''
+          'Water Capacity': ''
         };
         setBoatDetails(defaultDetails);
       }
@@ -8243,7 +8309,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
           <p className="text-sm text-[#6b7280]">{COMPANY_INFO.emails.info}</p>
         </div>
 
-        <h3 className="text-center font-bold text-lg mb-4">CHARTERING INFORMATION - OPTION {charter.code}</h3>
+        <h3 className="text-center font-bold text-lg mb-4">CHARTERING INFORMATION - {charter.status === 'Confirmed' ? 'RESERVATION' : 'OPTION'} {charter.code}</h3>
 
         <div className="bg-[#f9fafb] p-4 rounded-lg mb-4 space-y-2 border border-[#d1d5db]">
           <div className="flex justify-between"><span className="text-[#374151]">YACHT:</span><span className="font-bold">{boat.name || boat.id}</span></div>
@@ -8472,7 +8538,7 @@ function CharterDetailModal({ charter, boat, canViewFinancials, canEditCharters,
               }}
               style={{ backgroundColor: '#2563eb', color: 'white', padding: '12px 20px', cursor: 'pointer', width: '100%', borderRadius: '8px', fontWeight: 'bold', marginBottom: '12px', border: 'none' }}
             >
-              Προσθήκη Πληρωμής (TEST)
+              Προσθήκη Πληρωμής
             </button>
             <button type="button" onClick={savePayments} disabled={isProcessing} className="w-full bg-[#1e40af] hover:bg-blue-800 disabled:bg-blue-300 text-white font-bold py-3 px-4 rounded-lg">
               {isProcessing ? '⏳ Αποθήκευση...' : 'Αποθήκευση Πληρωμών'}
