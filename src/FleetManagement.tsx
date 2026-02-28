@@ -529,27 +529,29 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       OWNER_PHONE: ownerApiData?.phone || '',
       OWNER_EMAIL: ownerApiData?.owner_email || ownerApiData?.company_email || '',
 
-      // Broker Info (empty - to be filled manually)
-      BROKER2_NAME: '',
-      BROKER2_ADDRESS: '',
-      BROKER2_TAX: '',
-      BROKER2_TAX_OFFICE: '',
-      BROKER2_PHONE: '',
-      BROKER2_EMAIL: '',
+      // Broker Info - AUTO-FILL from charter data
+      BROKER2_NAME: charter.broker || '',
+      BROKER2_ADDRESS: charter.brokerAddress || '',
+      BROKER2_TAX: charter.brokerAfm || charter.brokerTax || '',
+      BROKER2_TAX_OFFICE: charter.brokerDoy || charter.brokerTaxOffice || '',
+      BROKER2_PHONE: charter.brokerPhone || '',
+      BROKER2_EMAIL: charter.brokerEmail || '',
 
       // Charterer Info - AUTO-FILL from charter data
-      CHARTERER_NAME: charter.skipperFirstName && charter.skipperLastName
-        ? `${charter.skipperFirstName} ${charter.skipperLastName}`
-        : charter.clientName || charter.charterer || '',
+      CHARTERER_NAME: charter.chartererFirstName && charter.chartererLastName
+        ? `${charter.chartererFirstName} ${charter.chartererLastName}`
+        : charter.skipperFirstName && charter.skipperLastName
+          ? `${charter.skipperFirstName} ${charter.skipperLastName}`
+          : charter.clientName || charter.charterer || '',
       CHARTERER_FIRST_NAME: charter.chartererFirstName || charter.skipperFirstName || '',
       CHARTERER_LAST_NAME: charter.chartererLastName || charter.skipperLastName || '',
-      CHARTERER_ADDRESS: charter.skipperAddress || '',
-      CHARTERER_ID: '',
-      CHARTERER_PASSPORT: '',
-      CHARTERER_TAX: '',
-      CHARTERER_TAX_OFFICE: '',
-      CHARTERER_PHONE: charter.skipperPhone || '',
-      CHARTERER_EMAIL: charter.skipperEmail || '',
+      CHARTERER_ADDRESS: charter.chartererAddress || charter.skipperAddress || '',
+      CHARTERER_ID: charter.chartererIdNumber || '',
+      CHARTERER_PASSPORT: charter.chartererPassport || '',
+      CHARTERER_TAX: charter.chartererTax || charter.chartererAfm || '',
+      CHARTERER_TAX_OFFICE: charter.chartererTaxOffice || charter.chartererDoy || '',
+      CHARTERER_PHONE: charter.chartererPhone || charter.skipperPhone || '',
+      CHARTERER_EMAIL: charter.chartererEmail || charter.skipperEmail || '',
 
       // Charter Dates - AUTO-FILL
       CHECKIN_DATE: charter.startDate || '',
@@ -564,12 +566,12 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       TOTAL_IN_WORDS: numberToWords(grossAmount),
       CHARTER_AMOUNT: charterAmount.toFixed(2),
 
-      // Additional fields (empty - to be filled manually)
+      // Additional fields - AUTO-FILL from charter data
       PROFESSIONAL_LICENSE: '',
       AMEPA: '',
-      SECURITY_DEPOSIT: '',
+      SECURITY_DEPOSIT: charter.securityDeposit || charter.deposit || '',
       DAMAGE_WAIVER: '',
-      APA_AMOUNT: '',
+      APA_AMOUNT: charter.apa || charter.apaAmount || '',
 
       // Reference
       CHARTER_CODE: charter.code || '',
