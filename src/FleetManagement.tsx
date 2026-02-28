@@ -4323,7 +4323,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     }
   };
 
-  const saveBoatDetails = async (newDetails) => {
+  const saveBoatDetails = (newDetails) => {
     if (!canEdit) {
       showMessage('❌ View Only - Δεν έχετε δικαίωμα επεξεργασίας', 'error');
       return;
@@ -4334,65 +4334,52 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
       const key = `fleet_${boat.id}_details`;
       localStorage.setItem(key, JSON.stringify(newDetails));
       setBoatDetails(newDetails);
-      authService.logActivity('update_boat_details', boat.id);
+      showMessage('✅ Τα στοιχεία αποθηκεύτηκαν!', 'success');
 
       // Build custom fields for API
-      const ownerFields = new Set([
+      const skipFields = new Set([
         'Όνομα Ιδιοκτήτη', 'Email Ιδιοκτήτη', 'Εταιρεία', 'ΑΦΜ',
         'Τηλέφωνο Ιδιοκτήτη', 'Διεύθυνση Ιδιοκτήτη'
       ]);
-      const customFields: Record<string, string> = {};
-      const cfKeyMap: Record<string, string> = {
+      const cfKeyMap = {
         'Register No / Αριθμός Νηολογίου': 'register_no',
         'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': 'professional_license',
         'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': 'amepa',
         'CALL SIGN': 'call_sign'
       };
+      const customFields = {};
       for (const [field, value] of Object.entries(newDetails)) {
-        if (ownerFields.has(field)) continue;
+        if (skipFields.has(field)) continue;
         const apiKey = cfKeyMap[field] || field;
-        customFields[apiKey] = value as string;
+        customFields[apiKey] = value;
       }
 
-      // Fetch existing owner data to preserve it during upsert
-      let existing: any = {};
-      try {
-        const res = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(boat.name || '')}`);
-        if (res.ok) {
-          const raw = await res.json();
-          existing = raw?.data || raw || {};
-        }
-      } catch (e) { /* ignore fetch error, will send without existing data */ }
+      // POST custom_fields to vessel-owners API
+      const vesselName = boat.name || '';
+      const payload = {
+        vessel_name: vesselName,
+        custom_fields: JSON.stringify(customFields)
+      };
+      console.log('📋 saveBoatDetails: POSTing to vessel-owners.php', payload);
 
-      // Send full payload so the API upsert doesn't null out owner fields
-      const response = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php`, {
+      fetch('https://yachtmanagementsuite.com/api/vessel-owners.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          vessel_name: boat.name || '',
-          owner_first_name: existing.owner_first_name || '',
-          owner_last_name: existing.owner_last_name || '',
-          owner_email: existing.owner_email || '',
-          company_email: existing.company_email || '',
-          company_name: existing.company_name || '',
-          vat_number: existing.vat_number || '',
-          id_passport_number: existing.id_passport_number || '',
-          tax_office: existing.tax_office || '',
-          phone: existing.phone || '',
-          street: existing.street || '',
-          street_number: existing.street_number || '',
-          city: existing.city || '',
-          postal_code: existing.postal_code || '',
-          custom_fields: JSON.stringify(customFields)
+        body: JSON.stringify(payload)
+      })
+        .then(res => {
+          console.log('📋 saveBoatDetails: API response status', res.status);
+          if (!res.ok) {
+            console.error('📋 saveBoatDetails: API error', res.status);
+          }
+          return res.json().catch(() => ({}));
         })
-      });
-
-      if (response.ok) {
-        showMessage('✅ Τα στοιχεία αποθηκεύτηκαν!', 'success');
-      } else {
-        console.error('Custom fields API error:', response.status);
-        showMessage('⚠️ Αποθηκεύτηκε τοπικά, σφάλμα API', 'error');
-      }
+        .then(data => {
+          console.log('📋 saveBoatDetails: API response data', data);
+        })
+        .catch(err => {
+          console.error('📋 saveBoatDetails: fetch error', err);
+        });
     } catch (e) {
       console.error('Error saving boat details:', e);
       showMessage('❌ Σφάλμα αποθήκευσης!', 'error');
