@@ -529,13 +529,13 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       OWNER_PHONE: ownerApiData?.phone || '',
       OWNER_EMAIL: ownerApiData?.owner_email || ownerApiData?.company_email || '',
 
-      // Broker Info - AUTO-FILL from charter data
-      BROKER2_NAME: charter.broker || '',
-      BROKER2_ADDRESS: charter.brokerAddress || '',
-      BROKER2_TAX: charter.brokerAfm || charter.brokerTax || '',
-      BROKER2_TAX_OFFICE: charter.brokerDoy || charter.brokerTaxOffice || '',
-      BROKER2_PHONE: charter.brokerPhone || '',
-      BROKER2_EMAIL: charter.brokerEmail || '',
+      // Broker Info - only fill when a foreign broker is selected
+      BROKER2_NAME: charter.hasForeignBroker && charter.broker?.trim() ? (charter.broker || '') : '',
+      BROKER2_ADDRESS: charter.hasForeignBroker && charter.broker?.trim() ? (charter.brokerAddress || '') : '',
+      BROKER2_TAX: charter.hasForeignBroker && charter.broker?.trim() ? (charter.brokerAfm || charter.brokerTax || '') : '',
+      BROKER2_TAX_OFFICE: charter.hasForeignBroker && charter.broker?.trim() ? (charter.brokerDoy || charter.brokerTaxOffice || '') : '',
+      BROKER2_PHONE: charter.hasForeignBroker && charter.broker?.trim() ? (charter.brokerPhone || '') : '',
+      BROKER2_EMAIL: charter.hasForeignBroker && charter.broker?.trim() ? (charter.brokerEmail || '') : '',
 
       // Charterer Info - AUTO-FILL from charter data
       CHARTERER_NAME: charter.chartererFirstName && charter.chartererLastName
