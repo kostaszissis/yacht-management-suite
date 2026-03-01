@@ -570,7 +570,7 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
       PROFESSIONAL_LICENSE: '',
       AMEPA: '',
       CALL_SIGN: '',
-      SECURITY_DEPOSIT: charter.securityDeposit || charter.deposit || '',
+      SECURITY_DEPOSIT: '',
       DAMAGE_WAIVER: '',
       APA_AMOUNT: charter.apa || charter.apaAmount || '',
 
@@ -589,12 +589,17 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
           'register_no': 'REGISTER_NUMBER',
           'professional_license': 'PROFESSIONAL_LICENSE',
           'amepa': 'AMEPA',
-          'call_sign': 'CALL_SIGN'
+          'call_sign': 'CALL_SIGN',
+          'security_deposit': 'SECURITY_DEPOSIT'
         };
         for (const [cfKey, placeholder] of Object.entries(cfMap)) {
           if (cf[cfKey] && !data[placeholder]) {
             data[placeholder] = cf[cfKey];
           }
+        }
+        // Fallback: if SECURITY_DEPOSIT still empty, try charter data
+        if (!data['SECURITY_DEPOSIT']) {
+          data['SECURITY_DEPOSIT'] = charter.securityDeposit || charter.deposit || '';
         }
       } catch (e) {
         console.log('Error parsing owner custom_fields:', e);
@@ -4262,7 +4267,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
                   'register_no': 'Register No / Αριθμός Νηολογίου',
                   'professional_license': 'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο',
                   'amepa': 'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)',
-                  'call_sign': 'CALL SIGN'
+                  'call_sign': 'CALL SIGN',
+                  'security_deposit': 'Security Deposit / Εγγύηση'
                 };
                 for (const [apiKey, uiKey] of Object.entries(fieldMap)) {
                   if (cf[apiKey]) updated[uiKey] = cf[apiKey];
@@ -4308,6 +4314,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
           'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': '',
           'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': '',
           'CALL SIGN': '',
+          'Security Deposit / Εγγύηση': '',
           'Builder/Year': '',
           'LOA (Length)': '',
           'Beam (Width)': '',
@@ -4345,7 +4352,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
         'Register No / Αριθμός Νηολογίου': 'register_no',
         'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': 'professional_license',
         'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': 'amepa',
-        'CALL SIGN': 'call_sign'
+        'CALL SIGN': 'call_sign',
+        'Security Deposit / Εγγύηση': 'security_deposit'
       };
       const customFields = {};
       for (const [field, value] of Object.entries(newDetails)) {
@@ -4712,7 +4720,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
                   register_no: boatDetails['Register No / Αριθμός Νηολογίου'] || '',
                   professional_license: boatDetails['Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο'] || '',
                   amepa: boatDetails['Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)'] || '',
-                  call_sign: boatDetails['CALL SIGN'] || ''
+                  call_sign: boatDetails['CALL SIGN'] || '',
+                  security_deposit: boatDetails['Security Deposit / Εγγύηση'] || ''
                 })} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg">
                   <span>💾</span><span>Αποθήκευση Στοιχείων</span>
                 </button>
