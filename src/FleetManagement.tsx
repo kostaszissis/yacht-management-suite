@@ -4297,32 +4297,33 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     try {
       const key = `fleet_${boat.id}_details`;
       const stored = localStorage.getItem(key);
+      const defaultDetails = {
+        'Όνομα Ιδιοκτήτη': '',
+        'Email Ιδιοκτήτη': '',
+        'Εταιρεία': '',
+        'ΑΦΜ': '',
+        'Τηλέφωνο Ιδιοκτήτη': '',
+        'Διεύθυνση Ιδιοκτήτη': '',
+        'Flag': 'Greek',
+        'Port of Registry': 'Piraeus',
+        'Register No / Αριθμός Νηολογίου': '',
+        'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': '',
+        'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': '',
+        'CALL SIGN': '',
+        'Security Deposit / Εγγύηση': '',
+        'Builder/Year': '',
+        'LOA (Length)': '',
+        'Beam (Width)': '',
+        'Draft': '',
+        'Engines': '',
+        'Fuel Capacity': '',
+        'Water Capacity': ''
+      };
       if (stored) {
-        setBoatDetails(JSON.parse(stored));
+        // Merge stored data with defaults so new fields always appear
+        const parsed = JSON.parse(stored);
+        setBoatDetails({ ...defaultDetails, ...parsed });
       } else {
-        // 🔥 FIX 37: Added all owner details fields
-        const defaultDetails = {
-          'Όνομα Ιδιοκτήτη': '',
-          'Email Ιδιοκτήτη': '',
-          'Εταιρεία': '',
-          'ΑΦΜ': '',
-          'Τηλέφωνο Ιδιοκτήτη': '',
-          'Διεύθυνση Ιδιοκτήτη': '',
-          'Flag': 'Greek',
-          'Port of Registry': 'Piraeus',
-          'Register No / Αριθμός Νηολογίου': '',
-          'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': '',
-          'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': '',
-          'CALL SIGN': '',
-          'Security Deposit / Εγγύηση': '',
-          'Builder/Year': '',
-          'LOA (Length)': '',
-          'Beam (Width)': '',
-          'Draft': '',
-          'Engines': '',
-          'Fuel Capacity': '',
-          'Water Capacity': ''
-        };
         setBoatDetails(defaultDetails);
       }
     } catch (e) {
