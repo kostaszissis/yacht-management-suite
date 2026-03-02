@@ -5501,37 +5501,6 @@ function OwnerDetailsPage({ boat, navigate, showMessage }) {
               </div>
             </div>
 
-            {/* Custom Fields */}
-            {customFields.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-[#1e40af]">
-                <h4 className="text-sm font-bold text-[#1e40af] mb-3">📝 Επιπλέον Πεδία</h4>
-                <div className="space-y-3">
-                  {customFields.map(([field, value]) => (
-                    <div key={field} className="bg-white p-3 rounded-lg border border-[#d1d5db]">
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-semibold text-[#374151]">{field}</label>
-                        {canEdit && (
-                          <button
-                            onClick={() => handleRemoveField(field)}
-                            className="text-red-400 hover:text-red-300 text-sm px-2 py-1"
-                          >
-                            🗑️ Διαγραφή
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        value={value || ''}
-                        onChange={(e) => handleChange(field, e.target.value)}
-                        disabled={!canEdit}
-                        className={`w-full px-3 py-2 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] ${!canEdit ? 'opacity-60' : 'focus:border-[#1e40af] focus:outline-none'}`}
-                        placeholder="Εισάγετε τιμή..."
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Add New Field Button */}
             {canEdit && !showAddField && (
