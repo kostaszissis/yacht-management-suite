@@ -4248,12 +4248,12 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
 
         // Merge API data with defaults
         const details = {
-          'Όνομα Ιδιοκτήτη': '',
-          'Email Ιδιοκτήτη': '',
-          'Εταιρεία': '',
-          'ΑΦΜ': '',
-          'Τηλέφωνο Ιδιοκτήτη': '',
-          'Διεύθυνση Ιδιοκτήτη': '',
+          'Όνομα Ιδιοκτήτη': (apiData.owner_first_name || '') + ' ' + (apiData.owner_last_name || ''),
+          'Email Ιδιοκτήτη': apiData.owner_email || '',
+          'Εταιρεία': apiData.company_name || '',
+          'ΑΦΜ': apiData.vat_number || '',
+          'Τηλέφωνο Ιδιοκτήτη': apiData.phone || '',
+          'Διεύθυνση Ιδιοκτήτη': (apiData.street || '') + ' ' + (apiData.street_number || ''),
           'Flag': customFields['Flag'] || 'Greek',
           'Port of Registry': customFields['Port of Registry'] || 'Piraeus',
           'Builder/Year': customFields['Builder/Year'] || '',
