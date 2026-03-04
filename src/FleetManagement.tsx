@@ -4235,95 +4235,65 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   const canView = true;
 
   const loadBoatDetails = async () => {
-    const defaultDetails = {
-      'Όνομα Ιδιοκτήτη': '',
-      'Email Ιδιοκτήτη': '',
-      'Εταιρεία': '',
-      'ΑΦΜ': '',
-      'Τηλέφωνο Ιδιοκτήτη': '',
-      'Διεύθυνση Ιδιοκτήτη': '',
-      'Flag': 'Greek',
-      'Port of Registry': 'Piraeus',
-      'Register No / Αριθμός Νηολογίου': '',
-      'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / Ε-μητρώο': '',
-      'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': '',
-      'CALL SIGN': '',
-      'Security Deposit / Εγγύηση': '',
-      'Builder/Year': '',
-      'LOA (Length)': '',
-      'Beam (Width)': '',
-      'Draft': '',
-      'Engines': '',
-      'Fuel Capacity': '',
-      'Water Capacity': ''
-    };
-
     try {
+      // Fetch from API
       const response = await fetch(`/api/vessel-owners.php?vessel_name=${encodeURIComponent(boat.name)}`);
-      if (response.ok) {
-        const result = await response.json();
-        // IMPORTANT: data is inside result.data, not result directly!
-        const apiData = result.data || result;
+      const result = await response.json();
 
-        const loaded = { ...defaultDetails };
+      if (result.success && result.data) {
+        const apiData = result.data;
+        const customFields = typeof apiData.custom_fields === 'string'
+          ? JSON.parse(apiData.custom_fields)
+          : (apiData.custom_fields || {});
 
-        // Owner fields from API
-        if (apiData.owner_first_name || apiData.owner_last_name) {
-          loaded['Όνομα Ιδιοκτήτη'] = [apiData.owner_first_name, apiData.owner_last_name].filter(Boolean).join(' ');
-        }
-        if (apiData.owner_email) loaded['Email Ιδιοκτήτη'] = apiData.owner_email;
-        if (apiData.company_name) loaded['Εταιρεία'] = apiData.company_name;
-        if (apiData.vat_number) loaded['ΑΦΜ'] = apiData.vat_number;
-        if (apiData.phone) loaded['Τηλέφωνο Ιδιοκτήτη'] = apiData.phone;
-        if (apiData.street || apiData.city) {
-          loaded['Διεύθυνση Ιδιοκτήτη'] = [apiData.street, apiData.street_number, apiData.postal_code, apiData.city].filter(Boolean).join(', ');
-        }
-
-        // Custom fields from API
-        if (apiData.custom_fields) {
-          const cf = typeof apiData.custom_fields === 'string' ? JSON.parse(apiData.custom_fields) : apiData.custom_fields;
-
-          const fieldMap = {
-            'register_no': 'Register No / Αριθμός Νηολογίου',
-            'professional_license': 'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / Ε-μητρώο',
-            'amepa': 'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)',
-            'call_sign': 'CALL SIGN',
-            'security_deposit': 'Security Deposit / Εγγύηση',
-            'Flag': 'Flag',
-            'Port of Registry': 'Port of Registry',
-            'Builder/Year': 'Builder/Year',
-            'LOA (Length)': 'LOA (Length)',
-            'Beam (Width)': 'Beam (Width)',
-            'Draft': 'Draft',
-            'Engines': 'Engines',
-            'Fuel Capacity': 'Fuel Capacity',
-            'Water Capacity': 'Water Capacity'
-          };
-
-          for (const [apiKey, uiKey] of Object.entries(fieldMap)) {
-            if (cf[apiKey]) loaded[uiKey] = cf[apiKey];
-          }
-        }
-
-        console.log('Loaded boat details from API');
-        setBoatDetails(loaded);
-        return;
-      }
-    } catch (e) {
-      console.warn('API failed, using localStorage:', e);
-    }
-
-    // Fallback to localStorage
-    try {
-      const key = `fleet_${boat.id}_details`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        setBoatDetails({ ...defaultDetails, ...JSON.parse(stored) });
+        // Merge API data with defaults
+        const details = {
+          'Όνομα Ιδιοκτήτη': '',
+          'Email Ιδιοκτήτη': '',
+          'Εταιρεία': '',
+          'ΑΦΜ': '',
+          'Τηλέφωνο Ιδιοκτήτη': '',
+          'Διεύθυνση Ιδιοκτήτη': '',
+          'Flag': customFields['Flag'] || 'Greek',
+          'Port of Registry': customFields['Port of Registry'] || 'Piraeus',
+          'Builder/Year': customFields['Builder/Year'] || '',
+          'LOA (Length)': customFields['LOA (Length)'] || '',
+          'Beam (Width)': customFields['Beam (Width)'] || '',
+          'Draft': customFields['Draft'] || '',
+          'Engines': customFields['Engines'] || '',
+          'Fuel Capacity': customFields['Fuel Capacity'] || '',
+          'Water Capacity': customFields['Water Capacity'] || '',
+          'Αριθμός Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': customFields['amepa'] || '',
+          'Call Sign': customFields['call_sign'] || '',
+          'Register No': customFields['register_no'] || '',
+          'Security Deposit': customFields['security_deposit'] || '',
+          'Professional License': customFields['professional_license'] || ''
+        };
+        setBoatDetails(details);
+        console.log('✅ Loaded boat details from API:', details);
       } else {
+        // Fallback to defaults
+        const defaultDetails = {
+          'Όνομα Ιδιοκτήτη': '',
+          'Email Ιδιοκτήτη': '',
+          'Εταιρεία': '',
+          'ΑΦΜ': '',
+          'Τηλέφωνο Ιδιοκτήτη': '',
+          'Διεύθυνση Ιδιοκτήτη': '',
+          'Flag': 'Greek',
+          'Port of Registry': 'Piraeus',
+          'Builder/Year': '',
+          'LOA (Length)': '',
+          'Beam (Width)': '',
+          'Draft': '',
+          'Engines': '',
+          'Fuel Capacity': '',
+          'Water Capacity': ''
+        };
         setBoatDetails(defaultDetails);
       }
     } catch (e) {
-      setBoatDetails(defaultDetails);
+      console.error('Error loading boat details:', e);
     }
   };
 
