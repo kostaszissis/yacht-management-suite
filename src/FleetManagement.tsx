@@ -4237,7 +4237,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   const loadVesselDetails = async () => {
     try {
       // Fetch from API
-      const response = await fetch(`/api/vessel-owners.php?vessel_name=${encodeURIComponent(boat.name)}`);
+      const response = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(boat.name)}`);
       const result = await response.json();
 
       if (result.success && result.data) {
@@ -4263,11 +4263,11 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
           'Engines': customFields['Engines'] || '',
           'Fuel Capacity': customFields['Fuel Capacity'] || '',
           'Water Capacity': customFields['Water Capacity'] || '',
-          'Αριθμός Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': customFields['amepa'] || '',
-          'Call Sign': customFields['call_sign'] || '',
-          'Register No': customFields['register_no'] || '',
-          'Security Deposit': customFields['security_deposit'] || '',
-          'Professional License': customFields['professional_license'] || ''
+          'Register No / Αριθμός Νηολογίου': customFields['register_no'] || '',
+          'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': customFields['professional_license'] || '',
+          'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': customFields['amepa'] || '',
+          'CALL SIGN': customFields['call_sign'] || '',
+          'Security Deposit / Εγγύηση': customFields['security_deposit'] || ''
         };
         setBoatDetails(details);
         console.log('✅ Loaded boat details from API:', details);
@@ -4288,12 +4288,40 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
           'Draft': '',
           'Engines': '',
           'Fuel Capacity': '',
-          'Water Capacity': ''
+          'Water Capacity': '',
+          'Register No / Αριθμός Νηολογίου': '',
+          'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': '',
+          'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': '',
+          'CALL SIGN': '',
+          'Security Deposit / Εγγύηση': ''
         };
         setBoatDetails(defaultDetails);
       }
     } catch (e) {
       console.error('Error loading boat details:', e);
+      // Fallback to defaults on error
+      setBoatDetails({
+        'Όνομα Ιδιοκτήτη': '',
+        'Email Ιδιοκτήτη': '',
+        'Εταιρεία': '',
+        'ΑΦΜ': '',
+        'Τηλέφωνο Ιδιοκτήτη': '',
+        'Διεύθυνση Ιδιοκτήτη': '',
+        'Flag': 'Greek',
+        'Port of Registry': 'Piraeus',
+        'Builder/Year': '',
+        'LOA (Length)': '',
+        'Beam (Width)': '',
+        'Draft': '',
+        'Engines': '',
+        'Fuel Capacity': '',
+        'Water Capacity': '',
+        'Register No / Αριθμός Νηολογίου': '',
+        'Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο': '',
+        'Μοναδικό Αριθμό Μητρώου Επαγγελματικού Πλοίου Αναψυχής (Α.Μ.Ε.Π.Α)': '',
+        'CALL SIGN': '',
+        'Security Deposit / Εγγύηση': ''
+      });
     }
   };
 
