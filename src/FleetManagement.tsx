@@ -4240,8 +4240,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
       const response = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(boat.name)}`);
       const result = await response.json();
 
-      if (result.success && result.data) {
-        const apiData = result.data;
+      if (result.success) {
+        const apiData = result.data || result;
         const customFields = typeof apiData.custom_fields === 'string'
           ? JSON.parse(apiData.custom_fields)
           : (apiData.custom_fields || {});
