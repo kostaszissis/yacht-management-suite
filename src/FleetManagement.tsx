@@ -4234,7 +4234,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   const canEdit = authService.canEdit() && !isOwnerUser;
   const canView = true;
 
-  const loadBoatDetails = async () => {
+  const loadVesselDetails = async () => {
     try {
       // Fetch from API
       const response = await fetch(`/api/vessel-owners.php?vessel_name=${encodeURIComponent(boat.name)}`);
@@ -4300,7 +4300,7 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   // 🔥 FIX 4: Use optional chaining in dependencies
   useEffect(() => {
     if (boat) {
-      loadBoatDetails();
+      loadVesselDetails();
       loadDocumentsFromAPI();
       // Auto-fill owner fields from API if empty
       (async () => {
