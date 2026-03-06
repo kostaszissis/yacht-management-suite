@@ -667,7 +667,7 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
     console.log('📄 Step 1: Fetching Crew List template...');
 
     // Load template from public folder
-    const templateUrl = '/templates/Crew-List.docx';
+    const templateUrl = '/templates/Crew-List.docx?v=2';
     console.log('📄 Template URL:', templateUrl);
 
     const response = await fetch(templateUrl);
