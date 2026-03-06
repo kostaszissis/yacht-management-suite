@@ -706,7 +706,8 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
       CREW_DOB: formatDate(member.dateOfBirth) || '',
       CREW_PASSPORT: member.passport || '',
       CREW_GENDER: member.gender || '',
-      CREW_NATIONALITY: member.nationality || ''
+      CREW_NATIONALITY: member.nationality || '',
+      CREW_EMAIL: member.email || ''
     }));
 
     // Pad array to have at least 10 rows (typical crew list has 10 empty rows)
@@ -717,7 +718,8 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
         CREW_DOB: '',
         CREW_PASSPORT: '',
         CREW_GENDER: '',
-        CREW_NATIONALITY: ''
+        CREW_NATIONALITY: '',
+        CREW_EMAIL: ''
       });
     }
 
