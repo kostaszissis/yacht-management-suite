@@ -670,7 +670,7 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
     const templateUrl = '/templates/CrewList2026.docx';
     console.log('📄 Template URL:', templateUrl);
 
-    const response = await fetch(templateUrl);
+    const response = await fetch(templateUrl, { cache: 'no-store' });
     console.log('📄 Response status:', response.status, response.statusText);
 
     if (!response.ok) {
