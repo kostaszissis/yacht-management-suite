@@ -7116,12 +7116,17 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       saveItems([...items, charter]);
     }
 
-    // 🔥 FIX 6: Sync to API
+    // 🔥 FIX 6: Sync to API - show error if fails
     try {
-      const apiResult = await saveBooking(charter.code, { bookingData: charter });
+      // 🔥 Clean charter data before sending - remove nested 'booking' and 'success' fields
+      const cleanCharter = { ...charter };
+      delete cleanCharter.booking;
+      delete cleanCharter.success;
+      const apiResult = await saveBooking(cleanCharter.code, { bookingData: cleanCharter });
       console.log('✅ Charter synced to API:', apiResult);
     } catch (error) {
-      console.error('❌ API sync error (charter saved locally):', error);
+      console.error('❌ API sync error:', error);
+      showMessage('⚠️ Το ναύλο αποθηκεύτηκε τοπικά αλλά ΟΧΙ στον server! Δοκιμάστε ξανά.', 'error');
     }
 
     // 🔥 Save Page 1 data so Page 4 floorplan can access vessel info
