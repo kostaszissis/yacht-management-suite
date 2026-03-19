@@ -699,19 +699,20 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
     };
 
     // Prepare crew members array for docxtemplater loop
-    // Each crew member needs: name, dateOfBirth, passport, gender, nationality
+    // Each crew member needs: name, dateOfBirth, passport, gender, nationality, phone, email
     const crewData = crewMembers.map((member, index) => ({
       ROW_NUM: (index + 1).toString(),
-      CREW_NAME: member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim(),
+      CREW_NAME: member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim() || '',
       CREW_DOB: formatDate(member.dateOfBirth) || '',
       CREW_PASSPORT: member.passport || '',
       CREW_GENDER: member.gender || '',
       CREW_NATIONALITY: member.nationality || '',
-      CREW_EMAIL: member.email || ''
+      CREW_PHONE: member.phone || member.CREW_PHONE || '',
+      CREW_EMAIL: member.email || member.CREW_EMAIL || ''
     }));
 
-    // Pad array to have at least 10 rows (typical crew list has 10 empty rows)
-    while (crewData.length < 10) {
+    // Pad array to have at least 12 rows
+    while (crewData.length < 12) {
       crewData.push({
         ROW_NUM: (crewData.length + 1).toString(),
         CREW_NAME: '',
@@ -719,101 +720,167 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
         CREW_PASSPORT: '',
         CREW_GENDER: '',
         CREW_NATIONALITY: '',
+        CREW_PHONE: '',
         CREW_EMAIL: ''
       });
     }
 
+    // Helper to get a crew member field safely (never undefined)
+    const crew = (n: number, field: string): string => crewData[n - 1]?.[field] || '';
+
+    // Skipper info from charter
+    const skipperName = charter.skipperFirstName && charter.skipperLastName
+      ? `${charter.skipperFirstName} ${charter.skipperLastName}`
+      : charter.clientName || '';
+    const skipperPhone = charter.skipperPhone || '';
+    const skipperEmail = charter.skipperEmail || '';
+    const skipperPassport = charter.skipperPassport || '';
+    const skipperNationality = charter.skipperNationality || '';
+    const skipperDob = formatDate(charter.skipperDob || charter.skipperDateOfBirth) || '';
+
+    // Charter party number
+    const charterPartyNo = charter.code || charter.charterCode || charter.bookingCode || charter.bookingNumber || '';
+
+    // Vessel registration fields - try multiple possible field names
+    const registrationNumber = boatDetails?.['Registration Number'] || boatDetails?.registerNo || boatDetails?.registrationNumber || boat?.registrationNumber || '';
+    const callSign = boatDetails?.['Call Sign'] || boatDetails?.callSign || boat?.callSign || '';
+    const eMitroo = boatDetails?.['E-Mitroo'] || boatDetails?.eMitroo || boatDetails?.['MMSI'] || boat?.eMitroo || '';
+
+    // Arrival time
+    const arrivalTime = charter.startTime || charter.checkInTime || charter.arrivalTime || '';
+
     // Prepare data for auto-fill - matches template placeholders
     const data = {
+      // Charter party number
+      CHARTER_PARTY_NO: charterPartyNo,
+      CHARTER_CODE: charterPartyNo,
+      BOOKING_CODE: charterPartyNo,
+
       // Table 2: Vessel Info
       YACHT_NAME: boat?.name || charter.vesselName || charter.boatName || '',
       YACHT_TYPE: boat?.type || boatDetails?.['Yacht Type'] || '',
       REGISTRY_PORT: boatDetails?.['Port of Registry'] || 'Piraeus',
-      REGISTRATION_NUMBER: boatDetails?.['Registration Number'] || '',
-      CALL_SIGN: boatDetails?.['Call Sign'] || '',
-      E_MITROO: boatDetails?.['E-Mitroo'] || boatDetails?.['MMSI'] || '',
+      REGISTRATION_NUMBER: registrationNumber,
+      CALL_SIGN: callSign,
+      E_MITROO: eMitroo,
       FLAG: boatDetails?.['Flag'] || 'Greek',
 
-      // Table 2: Dates
-      EMBARKATION_DATE: formatDate(charter.startDate),
+      // Table 2: Dates & Times
+      EMBARKATION_DATE: formatDate(charter.startDate) || '',
       EMBARKATION_PLACE: charter.departure || 'ALIMOS MARINA',
-      DISEMBARKATION_DATE: formatDate(charter.endDate),
+      DISEMBARKATION_DATE: formatDate(charter.endDate) || '',
       DISEMBARKATION_PLACE: charter.arrival || 'ALIMOS MARINA',
+      ARRIVAL_TIME: arrivalTime,
 
-      // Table 4: Contact Info
-      SKIPPER_MOBILE: charter.skipperPhone || '',
-      CHARTERER_MOBILE: charter.skipperPhone || '',
-      SKIPPER_NAME: charter.skipperFirstName && charter.skipperLastName
-        ? `${charter.skipperFirstName} ${charter.skipperLastName}`
-        : charter.clientName || '',
+      // Table 4: Skipper / Contact Info
+      SKIPPER_NAME: skipperName,
+      SKIPPER_MOBILE: skipperPhone,
+      SKIPPER_PHONE: skipperPhone,
+      SKIPPER_EMAIL: skipperEmail,
+      SKIPPER_PASSPORT: skipperPassport,
+      SKIPPER_NATIONALITY: skipperNationality,
+      SKIPPER_DOB: skipperDob,
+      CHARTERER_MOBILE: skipperPhone,
 
       // Crew members array for Table 3 loop
       crew: crewData,
 
-      // Individual crew members (for templates without loop support)
-      CREW1_NAME: crewData[0]?.CREW_NAME || '',
-      CREW1_DOB: crewData[0]?.CREW_DOB || '',
-      CREW1_PASSPORT: crewData[0]?.CREW_PASSPORT || '',
-      CREW1_GENDER: crewData[0]?.CREW_GENDER || '',
-      CREW1_NATIONALITY: crewData[0]?.CREW_NATIONALITY || '',
+      // Individual crew members CREW1–CREW12 (for flat-placeholder templates)
+      CREW1_NAME: crew(1, 'CREW_NAME'),
+      CREW1_DOB: crew(1, 'CREW_DOB'),
+      CREW1_PASSPORT: crew(1, 'CREW_PASSPORT'),
+      CREW1_GENDER: crew(1, 'CREW_GENDER'),
+      CREW1_NATIONALITY: crew(1, 'CREW_NATIONALITY'),
+      CREW1_PHONE: crew(1, 'CREW_PHONE'),
+      CREW1_EMAIL: crew(1, 'CREW_EMAIL'),
 
-      CREW2_NAME: crewData[1]?.CREW_NAME || '',
-      CREW2_DOB: crewData[1]?.CREW_DOB || '',
-      CREW2_PASSPORT: crewData[1]?.CREW_PASSPORT || '',
-      CREW2_GENDER: crewData[1]?.CREW_GENDER || '',
-      CREW2_NATIONALITY: crewData[1]?.CREW_NATIONALITY || '',
+      CREW2_NAME: crew(2, 'CREW_NAME'),
+      CREW2_DOB: crew(2, 'CREW_DOB'),
+      CREW2_PASSPORT: crew(2, 'CREW_PASSPORT'),
+      CREW2_GENDER: crew(2, 'CREW_GENDER'),
+      CREW2_NATIONALITY: crew(2, 'CREW_NATIONALITY'),
+      CREW2_PHONE: crew(2, 'CREW_PHONE'),
+      CREW2_EMAIL: crew(2, 'CREW_EMAIL'),
 
-      CREW3_NAME: crewData[2]?.CREW_NAME || '',
-      CREW3_DOB: crewData[2]?.CREW_DOB || '',
-      CREW3_PASSPORT: crewData[2]?.CREW_PASSPORT || '',
-      CREW3_GENDER: crewData[2]?.CREW_GENDER || '',
-      CREW3_NATIONALITY: crewData[2]?.CREW_NATIONALITY || '',
+      CREW3_NAME: crew(3, 'CREW_NAME'),
+      CREW3_DOB: crew(3, 'CREW_DOB'),
+      CREW3_PASSPORT: crew(3, 'CREW_PASSPORT'),
+      CREW3_GENDER: crew(3, 'CREW_GENDER'),
+      CREW3_NATIONALITY: crew(3, 'CREW_NATIONALITY'),
+      CREW3_PHONE: crew(3, 'CREW_PHONE'),
+      CREW3_EMAIL: crew(3, 'CREW_EMAIL'),
 
-      CREW4_NAME: crewData[3]?.CREW_NAME || '',
-      CREW4_DOB: crewData[3]?.CREW_DOB || '',
-      CREW4_PASSPORT: crewData[3]?.CREW_PASSPORT || '',
-      CREW4_GENDER: crewData[3]?.CREW_GENDER || '',
-      CREW4_NATIONALITY: crewData[3]?.CREW_NATIONALITY || '',
+      CREW4_NAME: crew(4, 'CREW_NAME'),
+      CREW4_DOB: crew(4, 'CREW_DOB'),
+      CREW4_PASSPORT: crew(4, 'CREW_PASSPORT'),
+      CREW4_GENDER: crew(4, 'CREW_GENDER'),
+      CREW4_NATIONALITY: crew(4, 'CREW_NATIONALITY'),
+      CREW4_PHONE: crew(4, 'CREW_PHONE'),
+      CREW4_EMAIL: crew(4, 'CREW_EMAIL'),
 
-      CREW5_NAME: crewData[4]?.CREW_NAME || '',
-      CREW5_DOB: crewData[4]?.CREW_DOB || '',
-      CREW5_PASSPORT: crewData[4]?.CREW_PASSPORT || '',
-      CREW5_GENDER: crewData[4]?.CREW_GENDER || '',
-      CREW5_NATIONALITY: crewData[4]?.CREW_NATIONALITY || '',
+      CREW5_NAME: crew(5, 'CREW_NAME'),
+      CREW5_DOB: crew(5, 'CREW_DOB'),
+      CREW5_PASSPORT: crew(5, 'CREW_PASSPORT'),
+      CREW5_GENDER: crew(5, 'CREW_GENDER'),
+      CREW5_NATIONALITY: crew(5, 'CREW_NATIONALITY'),
+      CREW5_PHONE: crew(5, 'CREW_PHONE'),
+      CREW5_EMAIL: crew(5, 'CREW_EMAIL'),
 
-      CREW6_NAME: crewData[5]?.CREW_NAME || '',
-      CREW6_DOB: crewData[5]?.CREW_DOB || '',
-      CREW6_PASSPORT: crewData[5]?.CREW_PASSPORT || '',
-      CREW6_GENDER: crewData[5]?.CREW_GENDER || '',
-      CREW6_NATIONALITY: crewData[5]?.CREW_NATIONALITY || '',
+      CREW6_NAME: crew(6, 'CREW_NAME'),
+      CREW6_DOB: crew(6, 'CREW_DOB'),
+      CREW6_PASSPORT: crew(6, 'CREW_PASSPORT'),
+      CREW6_GENDER: crew(6, 'CREW_GENDER'),
+      CREW6_NATIONALITY: crew(6, 'CREW_NATIONALITY'),
+      CREW6_PHONE: crew(6, 'CREW_PHONE'),
+      CREW6_EMAIL: crew(6, 'CREW_EMAIL'),
 
-      CREW7_NAME: crewData[6]?.CREW_NAME || '',
-      CREW7_DOB: crewData[6]?.CREW_DOB || '',
-      CREW7_PASSPORT: crewData[6]?.CREW_PASSPORT || '',
-      CREW7_GENDER: crewData[6]?.CREW_GENDER || '',
-      CREW7_NATIONALITY: crewData[6]?.CREW_NATIONALITY || '',
+      CREW7_NAME: crew(7, 'CREW_NAME'),
+      CREW7_DOB: crew(7, 'CREW_DOB'),
+      CREW7_PASSPORT: crew(7, 'CREW_PASSPORT'),
+      CREW7_GENDER: crew(7, 'CREW_GENDER'),
+      CREW7_NATIONALITY: crew(7, 'CREW_NATIONALITY'),
+      CREW7_PHONE: crew(7, 'CREW_PHONE'),
+      CREW7_EMAIL: crew(7, 'CREW_EMAIL'),
 
-      CREW8_NAME: crewData[7]?.CREW_NAME || '',
-      CREW8_DOB: crewData[7]?.CREW_DOB || '',
-      CREW8_PASSPORT: crewData[7]?.CREW_PASSPORT || '',
-      CREW8_GENDER: crewData[7]?.CREW_GENDER || '',
-      CREW8_NATIONALITY: crewData[7]?.CREW_NATIONALITY || '',
+      CREW8_NAME: crew(8, 'CREW_NAME'),
+      CREW8_DOB: crew(8, 'CREW_DOB'),
+      CREW8_PASSPORT: crew(8, 'CREW_PASSPORT'),
+      CREW8_GENDER: crew(8, 'CREW_GENDER'),
+      CREW8_NATIONALITY: crew(8, 'CREW_NATIONALITY'),
+      CREW8_PHONE: crew(8, 'CREW_PHONE'),
+      CREW8_EMAIL: crew(8, 'CREW_EMAIL'),
 
-      CREW9_NAME: crewData[8]?.CREW_NAME || '',
-      CREW9_DOB: crewData[8]?.CREW_DOB || '',
-      CREW9_PASSPORT: crewData[8]?.CREW_PASSPORT || '',
-      CREW9_GENDER: crewData[8]?.CREW_GENDER || '',
-      CREW9_NATIONALITY: crewData[8]?.CREW_NATIONALITY || '',
+      CREW9_NAME: crew(9, 'CREW_NAME'),
+      CREW9_DOB: crew(9, 'CREW_DOB'),
+      CREW9_PASSPORT: crew(9, 'CREW_PASSPORT'),
+      CREW9_GENDER: crew(9, 'CREW_GENDER'),
+      CREW9_NATIONALITY: crew(9, 'CREW_NATIONALITY'),
+      CREW9_PHONE: crew(9, 'CREW_PHONE'),
+      CREW9_EMAIL: crew(9, 'CREW_EMAIL'),
 
-      CREW10_NAME: crewData[9]?.CREW_NAME || '',
-      CREW10_DOB: crewData[9]?.CREW_DOB || '',
-      CREW10_PASSPORT: crewData[9]?.CREW_PASSPORT || '',
-      CREW10_GENDER: crewData[9]?.CREW_GENDER || '',
-      CREW10_NATIONALITY: crewData[9]?.CREW_NATIONALITY || '',
+      CREW10_NAME: crew(10, 'CREW_NAME'),
+      CREW10_DOB: crew(10, 'CREW_DOB'),
+      CREW10_PASSPORT: crew(10, 'CREW_PASSPORT'),
+      CREW10_GENDER: crew(10, 'CREW_GENDER'),
+      CREW10_NATIONALITY: crew(10, 'CREW_NATIONALITY'),
+      CREW10_PHONE: crew(10, 'CREW_PHONE'),
+      CREW10_EMAIL: crew(10, 'CREW_EMAIL'),
 
-      // Reference
-      CHARTER_CODE: charter.code || '',
-      BOOKING_CODE: charter.code || ''
+      CREW11_NAME: crew(11, 'CREW_NAME'),
+      CREW11_DOB: crew(11, 'CREW_DOB'),
+      CREW11_PASSPORT: crew(11, 'CREW_PASSPORT'),
+      CREW11_GENDER: crew(11, 'CREW_GENDER'),
+      CREW11_NATIONALITY: crew(11, 'CREW_NATIONALITY'),
+      CREW11_PHONE: crew(11, 'CREW_PHONE'),
+      CREW11_EMAIL: crew(11, 'CREW_EMAIL'),
+
+      CREW12_NAME: crew(12, 'CREW_NAME'),
+      CREW12_DOB: crew(12, 'CREW_DOB'),
+      CREW12_PASSPORT: crew(12, 'CREW_PASSPORT'),
+      CREW12_GENDER: crew(12, 'CREW_GENDER'),
+      CREW12_NATIONALITY: crew(12, 'CREW_NATIONALITY'),
+      CREW12_PHONE: crew(12, 'CREW_PHONE'),
+      CREW12_EMAIL: crew(12, 'CREW_EMAIL'),
     };
 
     console.log('📋 Step 4: Auto-fill data prepared:', data);
