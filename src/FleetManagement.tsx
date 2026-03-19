@@ -658,13 +658,30 @@ const generateCharterParty = async (charter, boat, showMessage?) => {
 
 // 🔥 FIX 27: Generate Crew List DOCX with auto-fill
 const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
-  console.log('👥 Crew List button clicked!');
-  console.log('👥 Charter:', charter);
-  console.log('👥 Boat:', boat);
-  console.log('👥 Boat Details:', boatDetails);
+  console.log('👥 generateCrewList called');
+  console.log('👥 charter:', JSON.stringify(charter, null, 2));
+  console.log('👥 boat:', JSON.stringify(boat, null, 2));
+  console.log('👥 boatDetails (from caller):', JSON.stringify(boatDetails, null, 2));
 
   try {
-    console.log('📄 Step 1: Fetching Crew List template...');
+    // Step 1: Fetch vessel custom fields from API (don't rely on boatDetails arg - it's often empty)
+    let cf: Record<string, string> = {};
+    try {
+      const vesselName = boat?.name || charter.vesselName || charter.boatName || '';
+      const ownerResponse = await fetch(`https://yachtmanagementsuite.com/api/vessel-owners.php?vessel_name=${encodeURIComponent(vesselName)}`);
+      if (ownerResponse.ok) {
+        const ownerResult = await ownerResponse.json();
+        const ownerData = ownerResult?.data || ownerResult;
+        cf = typeof ownerData?.custom_fields === 'string'
+          ? JSON.parse(ownerData.custom_fields)
+          : (ownerData?.custom_fields || {});
+        console.log('👥 Vessel custom_fields from API:', JSON.stringify(cf, null, 2));
+      }
+    } catch (e) {
+      console.warn('👥 Could not fetch vessel data from API:', e);
+    }
+
+    console.log('📄 Fetching Crew List template...');
 
     // Load template from public folder
     const templateUrl = `/templates/CrewList2026.docx?t=${Date.now()}`;
@@ -679,208 +696,194 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
       return;
     }
 
-    console.log('📄 Step 2: Converting to ArrayBuffer...');
     const templateBuffer = await response.arrayBuffer();
     console.log('📄 Template loaded, size:', templateBuffer.byteLength, 'bytes');
 
-    // Get crew members from charter (from API or localStorage)
-    const crewMembers = charter.crewMembers || [];
-    console.log('👥 Crew members found:', crewMembers.length);
+    // Passengers array — try all possible field names on charter
+    const crewMembers: any[] = charter.crewMembers || charter.passengers || charter.crew || charter.crewList || [];
+    console.log('👥 Passengers found:', crewMembers.length, crewMembers);
 
-    // Format dates
-    const formatDate = (dateStr) => {
+    // Format dates helper
+    const formatDate = (dateStr: string): string => {
       if (!dateStr) return '';
       try {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+        // Already formatted dd/mm/yyyy — return as-is
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleDateString('en-GB');
       } catch {
-        return dateStr;
+        return dateStr || '';
       }
     };
 
-    // Prepare crew members array for docxtemplater loop
-    // Each crew member needs: name, dateOfBirth, passport, gender, nationality, phone, email
-    const crewData = crewMembers.map((member, index) => ({
-      ROW_NUM: (index + 1).toString(),
-      CREW_NAME: member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim() || '',
-      CREW_DOB: formatDate(member.dateOfBirth) || '',
-      CREW_PASSPORT: member.passport || '',
-      CREW_GENDER: member.gender || '',
-      CREW_NATIONALITY: member.nationality || '',
-      CREW_PHONE: member.phone || member.CREW_PHONE || '',
-      CREW_EMAIL: member.email || member.CREW_EMAIL || ''
-    }));
+    // Safe passenger field getter — never returns undefined/null
+    const pax = (idx: number): any => crewMembers[idx] || {};
+    const paxName = (p: any): string =>
+      (p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || '');
+    const paxStr = (v: any): string => (v == null ? '' : String(v));
 
-    // Pad array to have at least 12 rows
-    while (crewData.length < 12) {
-      crewData.push({
-        ROW_NUM: (crewData.length + 1).toString(),
-        CREW_NAME: '',
-        CREW_DOB: '',
-        CREW_PASSPORT: '',
-        CREW_GENDER: '',
-        CREW_NATIONALITY: '',
-        CREW_PHONE: '',
-        CREW_EMAIL: ''
-      });
-    }
+    // -------------------------------------------------------
+    // Skipper data (from charter fields — check both top-level
+    // and charter.bookingData which some saves use)
+    // -------------------------------------------------------
+    const bd: any = charter.bookingData || {};
+    const skipperFirstName = charter.skipperFirstName || bd.skipperFirstName || '';
+    const skipperLastName  = charter.skipperLastName  || bd.skipperLastName  || '';
+    const skipperName = skipperFirstName && skipperLastName
+      ? `${skipperFirstName} ${skipperLastName}`
+      : charter.skipperName || bd.skipperName || charter.clientName || '';
+    const skipperPhone       = charter.skipperPhone       || bd.skipperPhone       || '';
+    const skipperEmail       = charter.skipperEmail       || bd.skipperEmail       || '';
+    const skipperPassport    = charter.skipperPassport    || bd.skipperPassport    || '';
+    const skipperNationality = charter.skipperNationality || bd.skipperNationality || '';
+    const skipperGender      = charter.skipperGender      || bd.skipperGender      || '';
+    const skipperDob         = formatDate(charter.skipperDob || charter.skipperDateOfBirth || bd.skipperDob || bd.skipperDateOfBirth || '');
 
-    // Helper to get a crew member field safely (never undefined)
-    const crew = (n: number, field: string): string => crewData[n - 1]?.[field] || '';
+    console.log('👥 Skipper resolved:', { skipperName, skipperPhone, skipperEmail, skipperPassport, skipperNationality, skipperGender, skipperDob });
 
-    // Skipper info from charter
-    const skipperName = charter.skipperFirstName && charter.skipperLastName
-      ? `${charter.skipperFirstName} ${charter.skipperLastName}`
-      : charter.clientName || '';
-    const skipperPhone = charter.skipperPhone || '';
-    const skipperEmail = charter.skipperEmail || '';
-    const skipperPassport = charter.skipperPassport || '';
-    const skipperNationality = charter.skipperNationality || '';
-    const skipperDob = formatDate(charter.skipperDob || charter.skipperDateOfBirth) || '';
+    // -------------------------------------------------------
+    // Vessel / registration fields
+    // cf = custom_fields from API (keys: register_no, call_sign, professional_license)
+    // -------------------------------------------------------
+    const charterPartyNo    = charter.code || charter.charterCode || charter.bookingCode || charter.bookingNumber || '';
+    const registrationNumber = cf['register_no']         || boatDetails?.['Register No / Αριθμός Νηολογίου'] || '';
+    const callSign           = cf['call_sign']            || boatDetails?.['CALL SIGN']                        || '';
+    const eMitroo            = cf['professional_license'] || boatDetails?.['Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο'] || '';
+    const flag               = cf['flag']                 || boatDetails?.['Flag']                             || 'Greek';
+    const registryPort       = cf['port_of_registry']     || boatDetails?.['Port of Registry']                 || 'Piraeus';
 
-    // Charter party number
-    const charterPartyNo = charter.code || charter.charterCode || charter.bookingCode || charter.bookingNumber || '';
+    console.log('👥 Vessel fields resolved:', { charterPartyNo, registrationNumber, callSign, eMitroo, flag, registryPort });
 
-    // Vessel registration fields - try multiple possible field names
-    const registrationNumber = boatDetails?.['Registration Number'] || boatDetails?.registerNo || boatDetails?.registrationNumber || boat?.registrationNumber || '';
-    const callSign = boatDetails?.['Call Sign'] || boatDetails?.callSign || boat?.callSign || '';
-    const eMitroo = boatDetails?.['E-Mitroo'] || boatDetails?.eMitroo || boatDetails?.['MMSI'] || boat?.eMitroo || '';
-
-    // Arrival time
-    const arrivalTime = charter.startTime || charter.checkInTime || charter.arrivalTime || '';
-
-    // Prepare data for auto-fill - matches template placeholders
-    const data = {
-      // Charter party number
-      CHARTER_PARTY_NO: charterPartyNo,
-      CHARTER_CODE: charterPartyNo,
-      BOOKING_CODE: charterPartyNo,
-
-      // Table 2: Vessel Info
-      YACHT_NAME: boat?.name || charter.vesselName || charter.boatName || '',
-      YACHT_TYPE: boat?.type || boatDetails?.['Yacht Type'] || '',
-      REGISTRY_PORT: boatDetails?.['Port of Registry'] || 'Piraeus',
+    // -------------------------------------------------------
+    // Build the data object — only keys that exist as
+    // {{placeholders}} in CrewList2026.docx are included.
+    //
+    // Template structure:
+    //   CREW1 row = Skipper
+    //   CREW2–CREW12 rows = Passengers 1–11
+    //   Footer: SKIPPER_NAME (×3), SKIPPER_MOBILE, CHARTERER_MOBILE
+    //   No ARRIVAL_TIME placeholder exists (it is static text).
+    // -------------------------------------------------------
+    const data: Record<string, string> = {
+      // Header / vessel block
+      CHARTER_PARTY_NO:    charterPartyNo,
+      YACHT_NAME:          boat?.name || charter.vesselName || charter.boatName || '',
+      YACHT_TYPE:          boat?.type || cf['yacht_type'] || '',
+      FLAG:                flag,
+      REGISTRY_PORT:       registryPort,
       REGISTRATION_NUMBER: registrationNumber,
-      CALL_SIGN: callSign,
-      E_MITROO: eMitroo,
-      FLAG: boatDetails?.['Flag'] || 'Greek',
+      CALL_SIGN:           callSign,
+      E_MITROO:            eMitroo,
 
-      // Table 2: Dates & Times
-      EMBARKATION_DATE: formatDate(charter.startDate) || '',
-      EMBARKATION_PLACE: charter.departure || 'ALIMOS MARINA',
-      DISEMBARKATION_DATE: formatDate(charter.endDate) || '',
-      DISEMBARKATION_PLACE: charter.arrival || 'ALIMOS MARINA',
-      ARRIVAL_TIME: arrivalTime,
+      // Dates
+      EMBARKATION_DATE:     formatDate(charter.startDate  || ''),
+      EMBARKATION_PLACE:    charter.departure || 'ALIMOS MARINA',
+      DISEMBARKATION_DATE:  formatDate(charter.endDate    || ''),
+      DISEMBARKATION_PLACE: charter.arrival   || 'ALIMOS MARINA',
 
-      // Table 4: Skipper / Contact Info
-      SKIPPER_NAME: skipperName,
-      SKIPPER_MOBILE: skipperPhone,
-      SKIPPER_PHONE: skipperPhone,
-      SKIPPER_EMAIL: skipperEmail,
-      SKIPPER_PASSPORT: skipperPassport,
-      SKIPPER_NATIONALITY: skipperNationality,
-      SKIPPER_DOB: skipperDob,
+      // Footer skipper block (only these 3 placeholders exist in the template)
+      SKIPPER_NAME:     skipperName,
+      SKIPPER_MOBILE:   skipperPhone,
       CHARTERER_MOBILE: skipperPhone,
 
-      // Crew members array for Table 3 loop
-      crew: crewData,
+      // ---- CREW1 = Skipper row ----
+      CREW1_NAME:        skipperName,
+      CREW1_DOB:         skipperDob,
+      CREW1_PASSPORT:    skipperPassport,
+      CREW1_GENDER:      skipperGender,
+      CREW1_NATIONALITY: skipperNationality,
+      CREW1_PHONE:       skipperPhone,
+      CREW1_EMAIL:       skipperEmail,
 
-      // Individual crew members CREW1–CREW12 (for flat-placeholder templates)
-      CREW1_NAME: crew(1, 'CREW_NAME'),
-      CREW1_DOB: crew(1, 'CREW_DOB'),
-      CREW1_PASSPORT: crew(1, 'CREW_PASSPORT'),
-      CREW1_GENDER: crew(1, 'CREW_GENDER'),
-      CREW1_NATIONALITY: crew(1, 'CREW_NATIONALITY'),
-      CREW1_PHONE: crew(1, 'CREW_PHONE'),
-      CREW1_EMAIL: crew(1, 'CREW_EMAIL'),
+      // ---- CREW2–CREW12 = Passengers 1–11 (crewMembers[0]–[10]) ----
+      CREW2_NAME:        paxStr(paxName(pax(0))),
+      CREW2_DOB:         formatDate(paxStr(pax(0).dateOfBirth)),
+      CREW2_PASSPORT:    paxStr(pax(0).passport),
+      CREW2_GENDER:      paxStr(pax(0).gender),
+      CREW2_NATIONALITY: paxStr(pax(0).nationality),
+      CREW2_PHONE:       paxStr(pax(0).phone),
+      CREW2_EMAIL:       paxStr(pax(0).email),
 
-      CREW2_NAME: crew(2, 'CREW_NAME'),
-      CREW2_DOB: crew(2, 'CREW_DOB'),
-      CREW2_PASSPORT: crew(2, 'CREW_PASSPORT'),
-      CREW2_GENDER: crew(2, 'CREW_GENDER'),
-      CREW2_NATIONALITY: crew(2, 'CREW_NATIONALITY'),
-      CREW2_PHONE: crew(2, 'CREW_PHONE'),
-      CREW2_EMAIL: crew(2, 'CREW_EMAIL'),
+      CREW3_NAME:        paxStr(paxName(pax(1))),
+      CREW3_DOB:         formatDate(paxStr(pax(1).dateOfBirth)),
+      CREW3_PASSPORT:    paxStr(pax(1).passport),
+      CREW3_GENDER:      paxStr(pax(1).gender),
+      CREW3_NATIONALITY: paxStr(pax(1).nationality),
+      CREW3_PHONE:       paxStr(pax(1).phone),
+      CREW3_EMAIL:       paxStr(pax(1).email),
 
-      CREW3_NAME: crew(3, 'CREW_NAME'),
-      CREW3_DOB: crew(3, 'CREW_DOB'),
-      CREW3_PASSPORT: crew(3, 'CREW_PASSPORT'),
-      CREW3_GENDER: crew(3, 'CREW_GENDER'),
-      CREW3_NATIONALITY: crew(3, 'CREW_NATIONALITY'),
-      CREW3_PHONE: crew(3, 'CREW_PHONE'),
-      CREW3_EMAIL: crew(3, 'CREW_EMAIL'),
+      CREW4_NAME:        paxStr(paxName(pax(2))),
+      CREW4_DOB:         formatDate(paxStr(pax(2).dateOfBirth)),
+      CREW4_PASSPORT:    paxStr(pax(2).passport),
+      CREW4_GENDER:      paxStr(pax(2).gender),
+      CREW4_NATIONALITY: paxStr(pax(2).nationality),
+      CREW4_PHONE:       paxStr(pax(2).phone),
+      CREW4_EMAIL:       paxStr(pax(2).email),
 
-      CREW4_NAME: crew(4, 'CREW_NAME'),
-      CREW4_DOB: crew(4, 'CREW_DOB'),
-      CREW4_PASSPORT: crew(4, 'CREW_PASSPORT'),
-      CREW4_GENDER: crew(4, 'CREW_GENDER'),
-      CREW4_NATIONALITY: crew(4, 'CREW_NATIONALITY'),
-      CREW4_PHONE: crew(4, 'CREW_PHONE'),
-      CREW4_EMAIL: crew(4, 'CREW_EMAIL'),
+      CREW5_NAME:        paxStr(paxName(pax(3))),
+      CREW5_DOB:         formatDate(paxStr(pax(3).dateOfBirth)),
+      CREW5_PASSPORT:    paxStr(pax(3).passport),
+      CREW5_GENDER:      paxStr(pax(3).gender),
+      CREW5_NATIONALITY: paxStr(pax(3).nationality),
+      CREW5_PHONE:       paxStr(pax(3).phone),
+      CREW5_EMAIL:       paxStr(pax(3).email),
 
-      CREW5_NAME: crew(5, 'CREW_NAME'),
-      CREW5_DOB: crew(5, 'CREW_DOB'),
-      CREW5_PASSPORT: crew(5, 'CREW_PASSPORT'),
-      CREW5_GENDER: crew(5, 'CREW_GENDER'),
-      CREW5_NATIONALITY: crew(5, 'CREW_NATIONALITY'),
-      CREW5_PHONE: crew(5, 'CREW_PHONE'),
-      CREW5_EMAIL: crew(5, 'CREW_EMAIL'),
+      CREW6_NAME:        paxStr(paxName(pax(4))),
+      CREW6_DOB:         formatDate(paxStr(pax(4).dateOfBirth)),
+      CREW6_PASSPORT:    paxStr(pax(4).passport),
+      CREW6_GENDER:      paxStr(pax(4).gender),
+      CREW6_NATIONALITY: paxStr(pax(4).nationality),
+      CREW6_PHONE:       paxStr(pax(4).phone),
+      CREW6_EMAIL:       paxStr(pax(4).email),
 
-      CREW6_NAME: crew(6, 'CREW_NAME'),
-      CREW6_DOB: crew(6, 'CREW_DOB'),
-      CREW6_PASSPORT: crew(6, 'CREW_PASSPORT'),
-      CREW6_GENDER: crew(6, 'CREW_GENDER'),
-      CREW6_NATIONALITY: crew(6, 'CREW_NATIONALITY'),
-      CREW6_PHONE: crew(6, 'CREW_PHONE'),
-      CREW6_EMAIL: crew(6, 'CREW_EMAIL'),
+      CREW7_NAME:        paxStr(paxName(pax(5))),
+      CREW7_DOB:         formatDate(paxStr(pax(5).dateOfBirth)),
+      CREW7_PASSPORT:    paxStr(pax(5).passport),
+      CREW7_GENDER:      paxStr(pax(5).gender),
+      CREW7_NATIONALITY: paxStr(pax(5).nationality),
+      CREW7_PHONE:       paxStr(pax(5).phone),
+      CREW7_EMAIL:       paxStr(pax(5).email),
 
-      CREW7_NAME: crew(7, 'CREW_NAME'),
-      CREW7_DOB: crew(7, 'CREW_DOB'),
-      CREW7_PASSPORT: crew(7, 'CREW_PASSPORT'),
-      CREW7_GENDER: crew(7, 'CREW_GENDER'),
-      CREW7_NATIONALITY: crew(7, 'CREW_NATIONALITY'),
-      CREW7_PHONE: crew(7, 'CREW_PHONE'),
-      CREW7_EMAIL: crew(7, 'CREW_EMAIL'),
+      CREW8_NAME:        paxStr(paxName(pax(6))),
+      CREW8_DOB:         formatDate(paxStr(pax(6).dateOfBirth)),
+      CREW8_PASSPORT:    paxStr(pax(6).passport),
+      CREW8_GENDER:      paxStr(pax(6).gender),
+      CREW8_NATIONALITY: paxStr(pax(6).nationality),
+      CREW8_PHONE:       paxStr(pax(6).phone),
+      CREW8_EMAIL:       paxStr(pax(6).email),
 
-      CREW8_NAME: crew(8, 'CREW_NAME'),
-      CREW8_DOB: crew(8, 'CREW_DOB'),
-      CREW8_PASSPORT: crew(8, 'CREW_PASSPORT'),
-      CREW8_GENDER: crew(8, 'CREW_GENDER'),
-      CREW8_NATIONALITY: crew(8, 'CREW_NATIONALITY'),
-      CREW8_PHONE: crew(8, 'CREW_PHONE'),
-      CREW8_EMAIL: crew(8, 'CREW_EMAIL'),
+      CREW9_NAME:        paxStr(paxName(pax(7))),
+      CREW9_DOB:         formatDate(paxStr(pax(7).dateOfBirth)),
+      CREW9_PASSPORT:    paxStr(pax(7).passport),
+      CREW9_GENDER:      paxStr(pax(7).gender),
+      CREW9_NATIONALITY: paxStr(pax(7).nationality),
+      CREW9_PHONE:       paxStr(pax(7).phone),
+      CREW9_EMAIL:       paxStr(pax(7).email),
 
-      CREW9_NAME: crew(9, 'CREW_NAME'),
-      CREW9_DOB: crew(9, 'CREW_DOB'),
-      CREW9_PASSPORT: crew(9, 'CREW_PASSPORT'),
-      CREW9_GENDER: crew(9, 'CREW_GENDER'),
-      CREW9_NATIONALITY: crew(9, 'CREW_NATIONALITY'),
-      CREW9_PHONE: crew(9, 'CREW_PHONE'),
-      CREW9_EMAIL: crew(9, 'CREW_EMAIL'),
+      CREW10_NAME:        paxStr(paxName(pax(8))),
+      CREW10_DOB:         formatDate(paxStr(pax(8).dateOfBirth)),
+      CREW10_PASSPORT:    paxStr(pax(8).passport),
+      CREW10_GENDER:      paxStr(pax(8).gender),
+      CREW10_NATIONALITY: paxStr(pax(8).nationality),
+      CREW10_PHONE:       paxStr(pax(8).phone),
+      CREW10_EMAIL:       paxStr(pax(8).email),
 
-      CREW10_NAME: crew(10, 'CREW_NAME'),
-      CREW10_DOB: crew(10, 'CREW_DOB'),
-      CREW10_PASSPORT: crew(10, 'CREW_PASSPORT'),
-      CREW10_GENDER: crew(10, 'CREW_GENDER'),
-      CREW10_NATIONALITY: crew(10, 'CREW_NATIONALITY'),
-      CREW10_PHONE: crew(10, 'CREW_PHONE'),
-      CREW10_EMAIL: crew(10, 'CREW_EMAIL'),
+      CREW11_NAME:        paxStr(paxName(pax(9))),
+      CREW11_DOB:         formatDate(paxStr(pax(9).dateOfBirth)),
+      CREW11_PASSPORT:    paxStr(pax(9).passport),
+      CREW11_GENDER:      paxStr(pax(9).gender),
+      CREW11_NATIONALITY: paxStr(pax(9).nationality),
+      CREW11_PHONE:       paxStr(pax(9).phone),
+      CREW11_EMAIL:       paxStr(pax(9).email),
 
-      CREW11_NAME: crew(11, 'CREW_NAME'),
-      CREW11_DOB: crew(11, 'CREW_DOB'),
-      CREW11_PASSPORT: crew(11, 'CREW_PASSPORT'),
-      CREW11_GENDER: crew(11, 'CREW_GENDER'),
-      CREW11_NATIONALITY: crew(11, 'CREW_NATIONALITY'),
-      CREW11_PHONE: crew(11, 'CREW_PHONE'),
-      CREW11_EMAIL: crew(11, 'CREW_EMAIL'),
-
-      CREW12_NAME: crew(12, 'CREW_NAME'),
-      CREW12_DOB: crew(12, 'CREW_DOB'),
-      CREW12_PASSPORT: crew(12, 'CREW_PASSPORT'),
-      CREW12_GENDER: crew(12, 'CREW_GENDER'),
-      CREW12_NATIONALITY: crew(12, 'CREW_NATIONALITY'),
-      CREW12_PHONE: crew(12, 'CREW_PHONE'),
-      CREW12_EMAIL: crew(12, 'CREW_EMAIL'),
+      CREW12_NAME:        paxStr(paxName(pax(10))),
+      CREW12_DOB:         formatDate(paxStr(pax(10).dateOfBirth)),
+      CREW12_PASSPORT:    paxStr(pax(10).passport),
+      CREW12_GENDER:      paxStr(pax(10).gender),
+      CREW12_NATIONALITY: paxStr(pax(10).nationality),
+      CREW12_PHONE:       paxStr(pax(10).phone),
+      CREW12_EMAIL:       paxStr(pax(10).email),
     };
 
     console.log('📋 Step 4: Auto-fill data prepared:', data);
@@ -903,9 +906,37 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
     doc.render(data);
     console.log('📄 Step 10: Document rendered successfully');
 
+    // -------------------------------------------------------
+    // Post-render: inject arrival time into static text.
+    // The template has NO {{ARRIVAL_TIME}} placeholder — the
+    // line reads "Arrival time in the marina: ___________".
+    // We replace the underscores with the actual time value.
+    // -------------------------------------------------------
+    const arrivalTime: string = charter.startTime || charter.checkInTime
+      || (charter.bookingData as any)?.startTime
+      || (charter.bookingData as any)?.checkInTime
+      || (charter.bookingData as any)?.checkInHour
+      || '';
+    console.log('👥 arrivalTime for injection:', arrivalTime,
+      { startTime: charter.startTime, checkInTime: charter.checkInTime,
+        bdStartTime: (charter.bookingData as any)?.startTime,
+        bdCheckInTime: (charter.bookingData as any)?.checkInTime,
+        bdCheckInHour: (charter.bookingData as any)?.checkInHour });
+
+    const renderedZip = doc.getZip();
+    if (arrivalTime) {
+      const xmlFile = 'word/document.xml';
+      let xml: string = renderedZip.files[xmlFile].asText();
+      // Replace the underscore placeholder that follows "marina: "
+      xml = xml.replace(/Arrival time in the marina:\s*_{3,}/g,
+        `Arrival time in the marina: ${arrivalTime}`);
+      renderedZip.file(xmlFile, xml);
+      console.log('👥 Arrival time injected:', arrivalTime);
+    }
+
     // Generate blob
     console.log('📄 Step 11: Generating blob...');
-    const blob = doc.getZip().generate({
+    const blob = renderedZip.generate({
       type: 'blob',
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
