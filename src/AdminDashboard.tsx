@@ -1730,15 +1730,17 @@ export default function AdminDashboard({
               </div>
             )}
 
-            {/* 📁 Charter Archive Button */}
-            <button
-              onClick={() => setShowCharterArchive(true)}
-              className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02]"
-              title="Αρχείο Ναύλων"
-            >
-              <span className="text-xl">📁</span>
-              <span className="text-sm font-bold">ΑΡΧΕΙΟ ΝΑΥΛΩΝ</span>
-            </button>
+            {/* 📁 Charter Archive Button — hidden for TECHNICAL role */}
+            {!authService.isTechnical() && (
+              <button
+                onClick={() => setShowCharterArchive(true)}
+                className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 rounded-xl flex items-center justify-center gap-2 text-white transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                title="Αρχείο Ναύλων"
+              >
+                <span className="text-xl">📁</span>
+                <span className="text-sm font-bold">ΑΡΧΕΙΟ ΝΑΥΛΩΝ</span>
+              </button>
+            )}
           </div>
 
           {/* Center - Boats List (more compact) */}
@@ -1929,8 +1931,8 @@ export default function AdminDashboard({
         boats={boats}
       />
 
-      {/* Charter Archive Modal */}
-      {showCharterArchive && (
+      {/* Charter Archive Modal — hidden for TECHNICAL role */}
+      {showCharterArchive && !authService.isTechnical() && (
         <CharterArchive onClose={() => setShowCharterArchive(false)} />
       )}
     </div>
