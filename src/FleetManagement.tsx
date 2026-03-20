@@ -4735,11 +4735,16 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
   const deleteDocumentFromAPI = async (docId) => {
     const vesselName = boat.name || boat.id;
 
-    console.log('🗑️ Deleting document from API:', { id: docId });
+    console.log('🗑️ Deleting document from API:', { vessel_name: vesselName, document_id: docId });
 
     try {
-      const response = await fetch(`https://yachtmanagementsuite.com/api/vessel-documents.php?id=${encodeURIComponent(docId)}`, {
-        method: 'DELETE'
+      const response = await fetch('https://yachtmanagementsuite.com/api/vessel-documents.php', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vessel_name: vesselName,
+          document_id: docId
+        })
       });
 
       const responseText = await response.text();
