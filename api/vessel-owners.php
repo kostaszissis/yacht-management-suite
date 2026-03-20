@@ -134,6 +134,15 @@ try {
             $exists = $checkStmt->fetch();
 
             if ($exists) {
+        // Check if this is a custom_fields-only update
+        $isCustomFieldsOnly = empty($input['owner_first_name']) && empty($input['owner_last_name']) && empty($input['owner_email']) && !empty($input['custom_fields']);
+        if ($isCustomFieldsOnly) {
+            $sql = "UPDATE vessel_owners SET custom_fields = :custom_fields, updated_at = CURRENT_TIMESTAMP WHERE vessel_name = :vessel_name";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute(['vessel_name' => $vesselName, 'custom_fields' => $input['custom_fields']]);
+            echo json_encode(['success' => true, 'message' => 'Custom fields updated']);
+            exit;
+        }
                 // Update existing record - build SET clause
                 $setClauses = [
                     'owner_first_name = :owner_first_name',
