@@ -4610,7 +4610,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
           // Map API fields to UI fields
           const mappedDocs = docsArray.map(doc => ({
             id: doc.id || doc.document_id || uid(),
-            title: doc.title || doc.document_type || doc.document_name || '',
+            title: doc.title || doc.document_name || '',
+            document_type: typeof doc.document_type === 'number' ? doc.document_type : (parseInt(doc.document_type) || 0),
             fileName: doc.fileName || doc.file_name || doc.document_name || '',
             fileType: doc.fileType || doc.file_type || 'application/pdf',
             fileData: doc.fileData || doc.file_data || '',
@@ -4663,12 +4664,22 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     setIsSavingDoc(true);
     const vesselName = boat.name || boat.id;
 
+    // Calculate auto-incremented document_type number
+    const maxDocType = documents.reduce((max, d) => {
+      const num = typeof d.document_type === 'number' ? d.document_type : (parseInt(d.document_type) || 0);
+      return num > max ? num : max;
+    }, 0);
+    const nextDocType = maxDocType + 1;
+
+    // Store the document_type number on the doc object for state consistency
+    doc.document_type = nextDocType;
+
     // Prepare the payload with correct field mapping
     const payload = {
       vessel_name: vesselName,
       document_id: doc.id,
-      document_type: doc.title,  // UI 'title' maps to API 'document_type'
-      document_name: doc.fileName,  // The actual filename
+      document_type: nextDocType,  // Auto-incremented number
+      document_name: doc.title,  // The user-typed title (e.g. "kaykas")
       file_name: doc.fileName,
       file_type: doc.fileType,
       file_data: doc.fileData,
@@ -4680,8 +4691,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
     console.log('📤 Saving document to API:', {
       vessel_name: vesselName,
       document_id: doc.id,
-      document_type: doc.title,
-      document_name: doc.fileName,
+      document_type: nextDocType,
+      document_name: doc.title,
       file_type: doc.fileType,
       has_file_data: !!doc.fileData,
       file_data_length: doc.fileData ? doc.fileData.length : 0
@@ -4699,10 +4710,14 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
 
       if (response.ok) {
         console.log('✅ Saved document to API for vessel:', vesselName);
-        // Also save to localStorage as backup
-        const key = `fleet_${boat.id}_documents`;
         const newDocs = [...documents, doc];
-        localStorage.setItem(key, JSON.stringify(newDocs));
+        // Cache to localStorage (non-critical - API is the source of truth)
+        try {
+          const key = `fleet_${boat.id}_documents`;
+          localStorage.setItem(key, JSON.stringify(newDocs));
+        } catch (localErr) {
+          console.warn('⚠️ localStorage cache failed (quota exceeded), API save succeeded:', localErr);
+        }
         setDocuments(newDocs);
         setIsSavingDoc(false);
         return true;
@@ -4711,20 +4726,8 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
       }
     } catch (e) {
       console.error('❌ Error saving document to API:', e);
-      // Fallback: Save to localStorage
-      try {
-        const key = `fleet_${boat.id}_documents`;
-        const newDocs = [...documents, doc];
-        localStorage.setItem(key, JSON.stringify(newDocs));
-        setDocuments(newDocs);
-        console.log('✅ Saved document to localStorage (API fallback) for boat:', boat.id);
-        setIsSavingDoc(false);
-        return true;
-      } catch (localErr) {
-        console.error('❌ Error saving to localStorage:', localErr);
-        setIsSavingDoc(false);
-        return false;
-      }
+      setIsSavingDoc(false);
+      return false;
     }
   };
 
@@ -4756,12 +4759,16 @@ function DocumentsAndDetailsPage({ boat, navigate, showMessage }) {
       console.error('❌ Error deleting document from API:', e);
     }
 
-    // Always update localStorage and state
+    // Always update state, cache to localStorage (non-critical)
     const newDocs = documents.filter(d => d.id !== docId);
-    const key = `fleet_${boat.id}_documents`;
-    localStorage.setItem(key, JSON.stringify(newDocs));
+    try {
+      const key = `fleet_${boat.id}_documents`;
+      localStorage.setItem(key, JSON.stringify(newDocs));
+    } catch (localErr) {
+      console.warn('⚠️ localStorage cache failed (quota exceeded), API delete succeeded:', localErr);
+    }
     setDocuments(newDocs);
-    console.log('✅ Removed document from local state and localStorage');
+    console.log('✅ Removed document from local state');
   };
 
   // Legacy saveDocuments for compatibility (saves all docs to localStorage)
