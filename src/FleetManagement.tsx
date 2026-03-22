@@ -6698,19 +6698,22 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   };
 
   // 🔥 NEW: Check for duplicate charter code (returns true if duplicate found)
+  // Uses EXACT string match (case-insensitive) — no partial/leading-zero stripping
   const checkDuplicateOnEnter = (code: string): boolean => {
     if (!code || !code.trim()) return false;
 
-    const codeToCheck = code.trim();
-    console.log('🔍 Checking duplicate for code:', codeToCheck);
+    const codeToCheck = code.trim().toUpperCase();
+    const excludeId = editingCharter?.id || editingCharter?.code;
+    console.log('🔍 Checking duplicate for code:', codeToCheck, excludeId ? `(excluding ${excludeId})` : '');
 
     // Check locally first (items array contains current boat's charters)
-    // 🔥 FIX: Use codeMatches for flexible matching (handles "charter party no 21" vs "21")
     const localDuplicate = items.some((charter: any) => {
-      const existingCode = charter.code || charter.bookingCode || charter.charterCode;
+      // Exclude the charter currently being edited
+      if (excludeId && (charter.id === excludeId || charter.code === excludeId)) return false;
+      const existingCode = (charter.code || charter.bookingCode || charter.charterCode || '').trim().toUpperCase();
       if (!existingCode) return false;
-      const match = codeMatches(existingCode, codeToCheck);
-      if (match) console.log('🔴 Found local duplicate:', existingCode, '≈', codeToCheck);
+      const match = existingCode === codeToCheck;
+      if (match) console.log('🔴 Found local duplicate:', existingCode, '===', codeToCheck);
       return match;
     });
 
@@ -6726,11 +6729,12 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
         try {
           const charters = JSON.parse(localStorage.getItem(key) || '[]');
           const found = charters.some((charter: any) => {
-            const existingCode = charter.code || charter.bookingCode || charter.charterCode;
+            // Exclude the charter currently being edited
+            if (excludeId && (charter.id === excludeId || charter.code === excludeId)) return false;
+            const existingCode = (charter.code || charter.bookingCode || charter.charterCode || '').trim().toUpperCase();
             if (!existingCode) return false;
-            // 🔥 FIX: Use codeMatches for flexible matching
-            const match = codeMatches(existingCode, codeToCheck);
-            if (match) console.log('🔴 Found localStorage duplicate:', existingCode, '≈', codeToCheck, 'in', key);
+            const match = existingCode === codeToCheck;
+            if (match) console.log('🔴 Found localStorage duplicate:', existingCode, '===', codeToCheck, 'in', key);
             return match;
           });
           if (found) {
