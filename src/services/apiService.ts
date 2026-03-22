@@ -429,17 +429,6 @@ export async function checkDuplicateCharterCode(
 
     const allBookings = await getAllBookings();
 
-    // Helper function to normalize charter code for comparison
-    const normalizeCode = (code: string): string => {
-      if (!code) return '';
-      // Remove common prefixes and normalize
-      return code.toString().trim().toLowerCase()
-        .replace(/^charter\s*party\s*(no\.?|number)?\s*/i, '')
-        .replace(/\s+/g, '');
-    };
-
-    const normalizedCheck = normalizeCode(codeToCheck);
-
     for (const booking of allBookings) {
       // Skip the booking being edited
       if (excludeBookingId && (booking.id === excludeBookingId || booking.code === excludeBookingId)) {
@@ -449,11 +438,8 @@ export async function checkDuplicateCharterCode(
       const existingCode = booking.code || booking.bookingCode || booking.charterCode || booking.booking_number;
       if (!existingCode) continue;
 
-      const normalizedExisting = normalizeCode(existingCode);
-
-      // Check for match (exact or normalized)
-      if (normalizedExisting === normalizedCheck ||
-          existingCode.toLowerCase() === codeToCheck) {
+      // Exact match only (case-insensitive)
+      if (existingCode.trim().toLowerCase() === codeToCheck) {
         console.log('❌ [API Validation] Found duplicate charter code:', existingCode);
         return { isDuplicate: true, existingBooking: booking };
       }
