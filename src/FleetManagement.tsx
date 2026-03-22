@@ -6703,13 +6703,20 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     if (!code || !code.trim()) return false;
 
     const codeToCheck = code.trim().toUpperCase();
-    const excludeId = editingCharter?.id || editingCharter?.code;
+    const excludeId = editingCharter?.booking_number || editingCharter?.bookingCode || editingCharter?.code || editingCharter?.id || editingCharter?.charterCode;
     console.log('🔍 Checking duplicate for code:', codeToCheck, excludeId ? `(excluding ${excludeId})` : '');
 
     // Check locally first (items array contains current boat's charters)
     const localDuplicate = items.some((charter: any) => {
-      // Exclude the charter currently being edited
-      if (excludeId && (charter.id === excludeId || charter.code === excludeId)) return false;
+      // Exclude the charter currently being edited - check ALL possible identifier fields
+      if (excludeId) {
+        const eid = excludeId.toString().trim().toUpperCase();
+        const charterIds = [
+          charter.id, charter.code, charter.booking_number,
+          charter.bookingCode, charter.charterCode
+        ].filter(Boolean).map((v: any) => v.toString().trim().toUpperCase());
+        if (charterIds.includes(eid)) return false;
+      }
       const existingCode = (charter.code || charter.bookingCode || charter.charterCode || '').trim().toUpperCase();
       if (!existingCode) return false;
       const match = existingCode === codeToCheck;
@@ -6729,8 +6736,15 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
         try {
           const charters = JSON.parse(localStorage.getItem(key) || '[]');
           const found = charters.some((charter: any) => {
-            // Exclude the charter currently being edited
-            if (excludeId && (charter.id === excludeId || charter.code === excludeId)) return false;
+            // Exclude the charter currently being edited - check ALL possible identifier fields
+            if (excludeId) {
+              const eid = excludeId.toString().trim().toUpperCase();
+              const charterIds = [
+                charter.id, charter.code, charter.booking_number,
+                charter.bookingCode, charter.charterCode
+              ].filter(Boolean).map((v: any) => v.toString().trim().toUpperCase());
+              if (charterIds.includes(eid)) return false;
+            }
             const existingCode = (charter.code || charter.bookingCode || charter.charterCode || '').trim().toUpperCase();
             if (!existingCode) return false;
             const match = existingCode === codeToCheck;
@@ -7040,7 +7054,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     // 🔥 API VALIDATION: Check duplicate charter code in database
     let isDuplicateCode = false;
     if (shouldCheckDuplicate) {
-      const excludeId = isEditMode ? editingCharter.id || editingCharter.code || editingCharter.bookingCode || editingCharter.charterCode || editingCharter.booking_number : undefined;
+      const excludeId = isEditMode ? editingCharter.booking_number || editingCharter.bookingCode || editingCharter.code || editingCharter.id || editingCharter.charterCode : undefined;
       const duplicateResult = await checkDuplicateCharterCode(newCharter.code, excludeId);
       isDuplicateCode = duplicateResult.isDuplicate;
       if (duplicateResult.existingBooking) {
@@ -7100,7 +7114,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     console.log('🔍 FINAL CHECK for date overlap (API validation)');
     console.log('🔍 Dates:', newCharter.startDate, '-', newCharter.endDate);
     // Check against API database
-    const excludeIdForDates = isEditMode ? editingCharter.id || editingCharter.code || editingCharter.bookingCode || editingCharter.charterCode || editingCharter.booking_number : undefined;
+    const excludeIdForDates = isEditMode ? editingCharter.booking_number || editingCharter.bookingCode || editingCharter.code || editingCharter.id || editingCharter.charterCode : undefined;
     const overlapResult = await checkDateOverlap(boat.id, newCharter.startDate, newCharter.endDate, excludeIdForDates);
     const hasDateOverlap = overlapResult.hasOverlap;
     if (overlapResult.overlappingBooking) {
@@ -7619,7 +7633,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
                       value={newCharter.code}
                       onChange={handleFormChange}
                       onKeyDown={handleFormKeyDown}
-                      onBlur={() => newCharter.code && validateCharterCodeOnBlur(newCharter.code, editingCharter?.id)}
+                      onBlur={() => newCharter.code && validateCharterCodeOnBlur(newCharter.code, editingCharter?.booking_number || editingCharter?.bookingCode || editingCharter?.code || editingCharter?.id)}
                       placeholder="π.χ. NAY-002"
                       autoComplete="off"
                       autoCorrect="off"

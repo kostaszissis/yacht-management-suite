@@ -430,9 +430,16 @@ export async function checkDuplicateCharterCode(
     const allBookings = await getAllBookings();
 
     for (const booking of allBookings) {
-      // Skip the booking being edited
-      if (excludeBookingId && (booking.id === excludeBookingId || booking.code === excludeBookingId || booking.booking_number === excludeBookingId || booking.bookingCode === excludeBookingId || booking.charterCode === excludeBookingId)) {
-        continue;
+      // Skip the booking being edited - check ALL possible identifier fields
+      if (excludeBookingId) {
+        const eid = excludeBookingId.toString().trim().toLowerCase();
+        const bookingIds = [
+          booking.id, booking.code, booking.booking_number,
+          booking.bookingCode, booking.charterCode
+        ].filter(Boolean).map((v: any) => v.toString().trim().toLowerCase());
+        if (bookingIds.includes(eid)) {
+          continue;
+        }
       }
 
       const existingCode = booking.code || booking.bookingCode || booking.charterCode || booking.booking_number;
@@ -489,9 +496,16 @@ export async function checkDateOverlap(
     console.log(`📦 [API Validation] Found ${vesselBookings.length} bookings for vessel ${vesselId}`);
 
     for (const booking of vesselBookings) {
-      // Skip the booking being edited
-      if (excludeBookingId && (booking.id === excludeBookingId || booking.code === excludeBookingId || booking.booking_number === excludeBookingId || booking.bookingCode === excludeBookingId || booking.charterCode === excludeBookingId)) {
-        continue;
+      // Skip the booking being edited - check ALL possible identifier fields
+      if (excludeBookingId) {
+        const eid = excludeBookingId.toString().trim().toLowerCase();
+        const bookingIds = [
+          booking.id, booking.code, booking.booking_number,
+          booking.bookingCode, booking.charterCode
+        ].filter(Boolean).map((v: any) => v.toString().trim().toLowerCase());
+        if (bookingIds.includes(eid)) {
+          continue;
+        }
       }
 
       const existingStart = new Date(booking.startDate || booking.start_date);
