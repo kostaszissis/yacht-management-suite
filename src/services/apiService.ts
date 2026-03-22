@@ -442,6 +442,13 @@ export async function checkDuplicateCharterCode(
         }
       }
 
+      // Skip orphan/empty records (booking_data < 100 chars means empty placeholder)
+      const bookingDataStr = JSON.stringify(booking.bookingData || booking.booking_data || booking);
+      if (bookingDataStr.length < 100) {
+        console.log('⏭️ [API Validation] Skipping orphan/empty record:', booking.booking_number || booking.id);
+        continue;
+      }
+
       const existingCode = booking.code || booking.bookingCode || booking.charterCode || booking.booking_number;
       if (!existingCode) continue;
 

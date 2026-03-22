@@ -7245,8 +7245,32 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       const cleanCharter = { ...charter };
       delete cleanCharter.booking;
       delete cleanCharter.success;
-      const apiResult = await saveBooking(cleanCharter.code, { bookingData: cleanCharter });
-      console.log('✅ Charter synced to API:', apiResult);
+
+      // 🔥 FIX: When editing and charter code changed, use ORIGINAL booking_number to update existing record
+      const originalBookingNumber = isEditMode
+        ? (editingCharter.booking_number || editingCharter.bookingCode || editingCharter.code || editingCharter.id)
+        : null;
+      const newBookingNumber = cleanCharter.code;
+      const codeChanged = isEditMode && originalBookingNumber && originalBookingNumber !== newBookingNumber;
+
+      if (codeChanged) {
+        // Code changed during edit: save under NEW code, then delete the OLD record
+        console.log('🔄 Charter code changed from', originalBookingNumber, 'to', newBookingNumber);
+        const apiResult = await saveBooking(newBookingNumber, { bookingData: cleanCharter });
+        console.log('✅ Charter saved under new code:', apiResult);
+        // Delete the old record to prevent orphans
+        try {
+          await deleteBooking(originalBookingNumber);
+          console.log('🗑️ Deleted old booking record:', originalBookingNumber);
+        } catch (delErr) {
+          console.warn('⚠️ Could not delete old booking record:', originalBookingNumber, delErr);
+        }
+      } else {
+        // Normal save: same code or new charter
+        const bookingNumber = isEditMode ? (originalBookingNumber || newBookingNumber) : newBookingNumber;
+        const apiResult = await saveBooking(bookingNumber, { bookingData: cleanCharter });
+        console.log('✅ Charter synced to API:', apiResult);
+      }
     } catch (error) {
       console.error('❌ API sync error:', error);
       showMessage('⚠️ Το ναύλο αποθηκεύτηκε τοπικά αλλά ΟΧΙ στον server! Δοκιμάστε ξανά.', 'error');
