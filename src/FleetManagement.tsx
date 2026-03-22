@@ -7040,7 +7040,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     // 🔥 API VALIDATION: Check duplicate charter code in database
     let isDuplicateCode = false;
     if (shouldCheckDuplicate) {
-      const excludeId = isEditMode ? editingCharter.id || editingCharter.code : undefined;
+      const excludeId = isEditMode ? editingCharter.id || editingCharter.code || editingCharter.bookingCode || editingCharter.charterCode || editingCharter.booking_number : undefined;
       const duplicateResult = await checkDuplicateCharterCode(newCharter.code, excludeId);
       isDuplicateCode = duplicateResult.isDuplicate;
       if (duplicateResult.existingBooking) {
@@ -7100,7 +7100,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     console.log('🔍 FINAL CHECK for date overlap (API validation)');
     console.log('🔍 Dates:', newCharter.startDate, '-', newCharter.endDate);
     // Check against API database
-    const excludeIdForDates = isEditMode ? editingCharter.id || editingCharter.code : undefined;
+    const excludeIdForDates = isEditMode ? editingCharter.id || editingCharter.code || editingCharter.bookingCode || editingCharter.charterCode || editingCharter.booking_number : undefined;
     const overlapResult = await checkDateOverlap(boat.id, newCharter.startDate, newCharter.endDate, excludeIdForDates);
     const hasDateOverlap = overlapResult.hasOverlap;
     if (overlapResult.overlappingBooking) {

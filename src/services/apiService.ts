@@ -431,7 +431,7 @@ export async function checkDuplicateCharterCode(
 
     for (const booking of allBookings) {
       // Skip the booking being edited
-      if (excludeBookingId && (booking.id === excludeBookingId || booking.code === excludeBookingId)) {
+      if (excludeBookingId && (booking.id === excludeBookingId || booking.code === excludeBookingId || booking.booking_number === excludeBookingId || booking.bookingCode === excludeBookingId || booking.charterCode === excludeBookingId)) {
         continue;
       }
 
@@ -490,7 +490,7 @@ export async function checkDateOverlap(
 
     for (const booking of vesselBookings) {
       // Skip the booking being edited
-      if (excludeBookingId && (booking.id === excludeBookingId || booking.code === excludeBookingId)) {
+      if (excludeBookingId && (booking.id === excludeBookingId || booking.code === excludeBookingId || booking.booking_number === excludeBookingId || booking.bookingCode === excludeBookingId || booking.charterCode === excludeBookingId)) {
         continue;
       }
 
