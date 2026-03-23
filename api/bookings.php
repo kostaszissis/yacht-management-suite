@@ -273,6 +273,9 @@ try {
                 exit();
             }
 
+            // Delete page1 records first (foreign key)
+            $stmt1 = $pdo->prepare("DELETE FROM page1_booking_details WHERE booking_number = :booking_number");
+            $stmt1->execute(['booking_number' => $bookingNumber]);
             $stmt = $pdo->prepare("DELETE FROM bookings WHERE booking_number = :booking_number");
             $stmt->execute(['booking_number' => $bookingNumber]);
 
