@@ -243,17 +243,54 @@ try {
             $newData = $input['bookingData'] ?? $input['booking_data'] ?? $input;
             $mergedData = array_merge($existingData ?? [], $newData);
 
-            $stmt = $pdo->prepare("UPDATE bookings SET booking_data = :booking_data WHERE booking_number = :booking_number");
-            $stmt->execute([
-                'booking_number' => $bookingNumber,
-                'booking_data' => json_encode($mergedData)
-            ]);
+            // 🔥 FIX: Atomic rename when new_booking_number is provided
+            $newBookingNumber = $input['new_booking_number'] ?? null;
+            if ($newBookingNumber && $newBookingNumber !== $bookingNumber) {
+                try {
+                    $pdo->beginTransaction();
 
-            echo json_encode([
-                'success' => true,
-                'message' => 'Booking updated successfully',
-                'booking_number' => $bookingNumber
-            ]);
+                    // Update page1_booking_details first (foreign key dependency)
+                    $stmtPage1 = $pdo->prepare("UPDATE page1_booking_details SET booking_number = :new_bn WHERE booking_number = :old_bn");
+                    $stmtPage1->execute(['new_bn' => $newBookingNumber, 'old_bn' => $bookingNumber]);
+
+                    // Update bookings table with new booking_number AND new data
+                    $stmtBooking = $pdo->prepare("UPDATE bookings SET booking_number = :new_bn, booking_data = :booking_data WHERE booking_number = :old_bn");
+                    $stmtBooking->execute([
+                        'new_bn' => $newBookingNumber,
+                        'old_bn' => $bookingNumber,
+                        'booking_data' => json_encode($mergedData)
+                    ]);
+
+                    $pdo->commit();
+
+                    echo json_encode([
+                        'success' => true,
+                        'message' => 'Booking renamed and updated successfully',
+                        'booking_number' => $newBookingNumber,
+                        'old_booking_number' => $bookingNumber
+                    ]);
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    http_response_code(500);
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Failed to rename booking: ' . $e->getMessage()
+                    ]);
+                }
+            } else {
+                // Normal update (no rename)
+                $stmt = $pdo->prepare("UPDATE bookings SET booking_data = :booking_data WHERE booking_number = :booking_number");
+                $stmt->execute([
+                    'booking_number' => $bookingNumber,
+                    'booking_data' => json_encode($mergedData)
+                ]);
+
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Booking updated successfully',
+                    'booking_number' => $bookingNumber
+                ]);
+            }
             break;
 
         case 'DELETE':

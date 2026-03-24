@@ -180,6 +180,27 @@ export async function updateBooking(
 }
 
 /**
+ * Rename a booking's booking_number atomically and update its data.
+ * Sends new_booking_number in the PUT body so the PHP backend does an atomic rename.
+ */
+export async function renameBooking(
+  oldBookingNumber: string,
+  newBookingNumber: string,
+  bookingData: any
+) {
+  const response = await fetch(`${API_URL}/bookings.php?booking_number=${encodeURIComponent(oldBookingNumber)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookingData, new_booking_number: newBookingNumber })
+  });
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('Booking not found');
+    throw new Error('Failed to rename booking');
+  }
+  return response.json();
+}
+
+/**
  * Update charter status
  * @param bookingNumber - The booking number/code
  * @param status - New status (Option, Reservation, Confirmed, Cancelled, etc.)

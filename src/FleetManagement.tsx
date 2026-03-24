@@ -5,7 +5,7 @@ import AdminDashboard from './AdminDashboard';
 import { codeMatches, textMatches } from './utils/searchUtils';
 // 🔥 FIX 6 & 7: Import API functions for charter sync and vessels
 // 🔥 FIX 16: Added API loading functions for multi-device sync
-import { saveBooking, getVessels, getBookingsByVessel, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking, getAllBookings, getTasksByVessel, saveTask, deleteTask, migrateTasksFromLocalStorage, getInvoicesByVessel, saveInvoice, deleteInvoice, migrateInvoicesFromLocalStorage, checkDuplicateCharterCode, checkDateOverlap, savePage1DataHybrid } from './services/apiService';
+import { saveBooking, renameBooking, getVessels, getBookingsByVessel, deleteBooking, updateCharterPayments, updateCharterStatus, getBooking, getAllBookings, getTasksByVessel, saveTask, deleteTask, migrateTasksFromLocalStorage, getInvoicesByVessel, saveInvoice, deleteInvoice, migrateInvoicesFromLocalStorage, checkDuplicateCharterCode, checkDateOverlap, savePage1DataHybrid } from './services/apiService';
 // 🔥 FIX 23: Charter Party DOCX generation
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
@@ -6793,7 +6793,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       console.log('📋 Current newCharter:', newCharter);
 
       // 🔥 SPECIAL: If this is the charter code field, check for duplicates FIRST
-      if (e.currentTarget.name === 'code' && newCharter.code) {
+      if (e.currentTarget.name === 'code' && newCharter.code && !editingCharter) {
         console.log('🔍 Checking charter code duplicate...');
         const isDuplicate = checkDuplicateOnEnter(newCharter.code);
         console.log('🔍 isDuplicate:', isDuplicate);
@@ -6905,6 +6905,10 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   // 🔥 API VALIDATION: Check if charter code already exists (uses imported checkDuplicateCharterCode)
   const validateCharterCodeOnBlur = async (code: string, excludeId?: string) => {
     console.log('🔍 validateCharterCodeOnBlur called with code:', code);
+    if (editingCharter) {
+      setCharterCodeError('');
+      return;
+    }
     if (!code || !code.trim()) {
       setCharterCodeError('');
       return;
@@ -7046,7 +7050,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     // 🔥 CRITICAL: Final check for duplicate charter code before saving (using API)
     // 🔥 SKIP duplicate check if editing the SAME charter code
     const isCodeChanged = isEditMode && editingCharter.code !== newCharter.code;
-    const shouldCheckDuplicate = !isEditMode || isCodeChanged;
+    const shouldCheckDuplicate = !isEditMode;
 
     console.log('🛑🛑🛑 FINAL CHECK for duplicate code:', newCharter.code);
     console.log('🛑 isEditMode:', isEditMode, 'isCodeChanged:', isCodeChanged, 'shouldCheckDuplicate:', shouldCheckDuplicate);
@@ -7254,17 +7258,10 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       const codeChanged = isEditMode && originalBookingNumber && originalBookingNumber !== newBookingNumber;
 
       if (codeChanged) {
-        // Code changed during edit: save under NEW code, then delete the OLD record
+        // Code changed during edit: atomic rename via PUT with new_booking_number
         console.log('🔄 Charter code changed from', originalBookingNumber, 'to', newBookingNumber);
-        const apiResult = await saveBooking(newBookingNumber, { bookingData: cleanCharter });
-        console.log('✅ Charter saved under new code:', apiResult);
-        // Delete the old record to prevent orphans
-        try {
-          await deleteBooking(originalBookingNumber);
-          console.log('🗑️ Deleted old booking record:', originalBookingNumber);
-        } catch (delErr) {
-          console.warn('⚠️ Could not delete old booking record:', originalBookingNumber, delErr);
-        }
+        const apiResult = await renameBooking(originalBookingNumber, newBookingNumber, cleanCharter);
+        console.log('✅ Charter renamed and saved:', apiResult);
       } else {
         // Normal save: same code or new charter
         const bookingNumber = isEditMode ? (originalBookingNumber || newBookingNumber) : newBookingNumber;
