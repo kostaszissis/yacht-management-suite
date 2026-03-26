@@ -2042,27 +2042,27 @@ function EmployeeManagementModal({ onClose }) {
     return `${prefix}${num}!${name}`;
   };
 
-  const handleChangeCode = (oldCode: string, currentName: string) => {
+  const handleChangeCode = async (oldCode: string, currentName: string) => {
     const newCode = prompt(`Νέος κωδικός για "${currentName}":`, oldCode);
     if (!newCode || !newCode.trim() || newCode.trim() === oldCode) return;
-    const codes = authService.getAllEmployeeCodes();
-    const idx = codes.findIndex((c: any) => c.code === oldCode);
-    if (idx === -1) { globalShowMessage('Δεν βρέθηκε ο υπάλληλος', 'error'); return; }
-    codes[idx].code = newCode.trim();
-    localStorage.setItem('auth_employee_codes', JSON.stringify(codes));
-    loadEmployees();
-    globalShowMessage(`Κωδικός άλλαξε: ${oldCode} → ${newCode.trim()}`, 'success');
+    const success = await authService.updateEmployeeCode(oldCode, { code: newCode.trim() });
+    if (success) {
+      loadEmployees();
+      globalShowMessage(`Κωδικός άλλαξε: ${oldCode} → ${newCode.trim()}`, 'success');
+    } else {
+      globalShowMessage('❌ Σφάλμα αλλαγής κωδικού!', 'error');
+    }
   };
 
-  const handleAddEmployee = () => {
+  const handleAddEmployee = async () => {
     if (!newEmployee.name.trim()) {
       globalShowMessage('❌ Παρακαλώ εισάγετε όνομα!', 'error');
       return;
     }
 
     const code = newEmployee.code || generateCode();
-    
-    const success = authService.addEmployeeCode({
+
+    const success = await authService.addEmployeeCode({
       code: code,
       name: newEmployee.name.trim(),
       role: newEmployee.role,
@@ -2092,20 +2092,20 @@ function EmployeeManagementModal({ onClose }) {
     }
   };
 
-  const handleToggleEmployee = (code) => {
-    authService.toggleEmployeeCode(code);
+  const handleToggleEmployee = async (code) => {
+    await authService.toggleEmployeeCode(code);
     loadEmployees();
     globalShowMessage('✅ Κατάσταση άλλαξε!', 'success');
   };
 
-  const handleDeleteEmployee = (code, name) => {
+  const handleDeleteEmployee = async (code, name) => {
     if (code === 'ADMIN2025') {
       globalShowMessage('❌ Δεν μπορείτε να διαγράψετε τον κύριο Admin!', 'error');
       return;
     }
-    
+
     if (window.confirm(`Διαγραφή υπαλλήλου ${name};`)) {
-      authService.deleteEmployeeCode(code);
+      await authService.deleteEmployeeCode(code);
       loadEmployees();
       globalShowMessage('✅ Υπάλληλος διαγράφηκε!', 'success');
     }
