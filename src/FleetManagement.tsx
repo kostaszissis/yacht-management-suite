@@ -2229,15 +2229,13 @@ function EmployeeManagementModal({ onClose }) {
                       <p className="font-bold text-white">{emp.name}</p>
                       <p className="text-xs text-[#6b7280] font-mono">
                         {emp.code}
-                        {emp.code !== 'ADMIN2025' && (
-                          <button
-                            onClick={() => handleChangeCode(emp.code, emp.name)}
-                            className="ml-2 text-purple-400 hover:text-purple-300 text-xs"
-                            title="Αλλαγή κωδικού"
-                          >
-                            ✏️
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleChangeCode(emp.code, emp.name)}
+                          className="ml-2 text-purple-400 hover:text-purple-300 text-xs"
+                          title="Αλλαγή κωδικού"
+                        >
+                          ✏️
+                        </button>
                       </p>
                     </div>
                   </div>
