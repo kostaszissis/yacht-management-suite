@@ -6699,69 +6699,37 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
   // 🔥 NEW: Check for duplicate charter code (returns true if duplicate found)
   // Uses EXACT string match (case-insensitive) — no partial/leading-zero stripping
-  const checkDuplicateOnEnter = (code: string): boolean => {
+  const checkDuplicateOnEnter = async (code: string): Promise<boolean> => {
     if (!code || !code.trim()) return false;
+    const numToCheck = code.trim().toUpperCase().replace(/[^0-9]/g, '');
+    if (!numToCheck) return false;
 
-    const codeToCheck = code.trim().toUpperCase();
     const excludeId = editingCharter?.booking_number || editingCharter?.bookingCode || editingCharter?.code || editingCharter?.id || editingCharter?.charterCode;
-    console.log('🔍 Checking duplicate for code:', codeToCheck, excludeId ? `(excluding ${excludeId})` : '');
+    const excludeNum = excludeId ? excludeId.toString().replace(/[^0-9]/g, '') : '';
 
-    // Check locally first (items array contains current boat's charters)
-    const localDuplicate = items.some((charter: any) => {
-      // Exclude the charter currently being edited - check ALL possible identifier fields
-      if (excludeId) {
-        const eid = excludeId.toString().trim().toUpperCase();
-        const charterIds = [
-          charter.id, charter.code, charter.booking_number,
-          charter.bookingCode, charter.charterCode
-        ].filter(Boolean).map((v: any) => v.toString().trim().toUpperCase());
-        if (charterIds.includes(eid)) return false;
-      }
-      const existingCode = (charter.code || charter.bookingCode || charter.charterCode || '').trim().toUpperCase();
-      if (!existingCode) return false;
-      const match = existingCode === codeToCheck;
-      if (match) console.log('🔴 Found local duplicate:', existingCode, '===', codeToCheck);
-      return match;
-    });
+    console.log('GLOBAL duplicate check for:', numToCheck, 'excluding:', excludeNum);
 
-    if (localDuplicate) {
-      console.log('❌ Local duplicate found!');
-      return true;
+    try {
+      const resp = await fetch('/api/bookings.php');
+      if (!resp.ok) return false;
+      const result = await resp.json();
+      const allBookings = result.data || result || [];
+      console.log('Loaded', allBookings.length, 'bookings');
+
+      const dup = allBookings.some((b: any) => {
+        const bNum = (b.booking_number || b.code || '').toString().replace(/[^0-9]/g, '');
+        if (!bNum) return false;
+        if (excludeNum && bNum === excludeNum) return false;
+        if (bNum === numToCheck) { console.log('DUPLICATE:', b.booking_number); return true; }
+        return false;
+      });
+
+      if (dup) return true;
+    } catch (e) {
+      console.log('Check error:', e);
     }
 
-    // Also check all boats' charters in localStorage
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.includes('_ΝΑΥΛΑ')) {
-        try {
-          const charters = JSON.parse(localStorage.getItem(key) || '[]');
-          const found = charters.some((charter: any) => {
-            // Exclude the charter currently being edited - check ALL possible identifier fields
-            if (excludeId) {
-              const eid = excludeId.toString().trim().toUpperCase();
-              const charterIds = [
-                charter.id, charter.code, charter.booking_number,
-                charter.bookingCode, charter.charterCode
-              ].filter(Boolean).map((v: any) => v.toString().trim().toUpperCase());
-              if (charterIds.includes(eid)) return false;
-            }
-            const existingCode = (charter.code || charter.bookingCode || charter.charterCode || '').trim().toUpperCase();
-            if (!existingCode) return false;
-            const match = existingCode === codeToCheck;
-            if (match) console.log('🔴 Found localStorage duplicate:', existingCode, '===', codeToCheck, 'in', key);
-            return match;
-          });
-          if (found) {
-            console.log('❌ localStorage duplicate found!');
-            return true;
-          }
-        } catch (e) {
-          // Skip
-        }
-      }
-    }
-
-    console.log('✅ No duplicate found');
+    console.log('No duplicate found');
     return false;
   };
 
@@ -6786,7 +6754,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
   };
 
   // 🔥 NEW: Handle Enter key to move to next input field
-  const handleFormKeyDown = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleFormKeyDown = async (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>): Promise<void> => {
     if (e.key === 'Enter') {
       e.preventDefault();
       console.log('⌨️ Enter pressed on field:', e.currentTarget.name);
@@ -6795,7 +6763,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       // 🔥 SPECIAL: If this is the charter code field, check for duplicates FIRST
       if (e.currentTarget.name === 'code' && newCharter.code && !editingCharter) {
         console.log('🔍 Checking charter code duplicate...');
-        const isDuplicate = checkDuplicateOnEnter(newCharter.code);
+        const isDuplicate = await checkDuplicateOnEnter(newCharter.code);
         console.log('🔍 isDuplicate:', isDuplicate);
         if (isDuplicate) {
           // Show error immediately
@@ -6835,6 +6803,21 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
           return; // DON'T move to next field
         } else {
           setCharterCodeError(''); // Clear error if no duplicate
+            // Move to next field - find startDate input
+            setTimeout(() => {
+              const nextInput = document.querySelector('input[name="startDate"]') as HTMLElement;
+              if (nextInput) nextInput.focus();
+            }, 50);
+            return; // Skip bottom move-to-next logic (e.currentTarget is null after await)
+            // Manually move to next field after async check
+            const codeForm = savedTarget.closest('form');
+            if (codeForm) {
+              const codeInputs = Array.from(codeForm.querySelectorAll('input:not([type="hidden"]), select, textarea')) as HTMLElement[];
+              const codeIdx = codeInputs.indexOf(savedTarget);
+              if (codeIdx < codeInputs.length - 1) {
+                codeInputs[codeIdx + 1].focus();
+              }
+            }
         }
       }
 
@@ -7050,7 +7033,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
     // 🔥 CRITICAL: Final check for duplicate charter code before saving (using API)
     // 🔥 SKIP duplicate check if editing the SAME charter code
     const isCodeChanged = isEditMode && editingCharter.code !== newCharter.code;
-    const shouldCheckDuplicate = !isEditMode;
+    const shouldCheckDuplicate = !isEditMode || isCodeChanged;
 
     console.log('🛑🛑🛑 FINAL CHECK for duplicate code:', newCharter.code);
     console.log('🛑 isEditMode:', isEditMode, 'isCodeChanged:', isCodeChanged, 'shouldCheckDuplicate:', shouldCheckDuplicate);
@@ -7166,7 +7149,7 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
 
     // 🔥🔥🔥 FINAL SAFETY CHECK - One last verification before saving (skip for edit mode same code)
     if (shouldCheckDuplicate) {
-      const finalDuplicateCheck = checkDuplicateOnEnter(newCharter.code);
+      const finalDuplicateCheck = await checkDuplicateOnEnter(newCharter.code);
       if (finalDuplicateCheck) {
         console.log('🛑🛑🛑 FINAL SAFETY CHECK CAUGHT DUPLICATE - ABSOLUTELY BLOCKING SAVE!');
         alert('❌ ΣΤΑΜΑΤΑ! Βρέθηκε διπλότυπο charter party code στον τελικό έλεγχο!\n\nΔεν αποθηκεύτηκε!');
@@ -7270,7 +7253,11 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
       }
     } catch (error) {
       console.error('❌ API sync error:', error);
-      showMessage('⚠️ Το ναύλο αποθηκεύτηκε τοπικά αλλά ΟΧΙ στον server! Δοκιμάστε ξανά.', 'error');
+      if (error.message && error.message.includes('already exists')) {
+        showMessage('❌ Αυτός ο αριθμός ναύλου υπάρχει ήδη! Δεν αποθηκεύτηκε.', 'error');
+        return;
+      }
+      showMessage('⚠ Το ναύλο αποθηκεύτηκε τοπικά αλλά ΟΧΙ στον server! Δοκιμάστε ξανά.', 'error');
     }
 
     // 🔥 Save Page 1 data so Page 4 floorplan can access vessel info

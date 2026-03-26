@@ -435,7 +435,12 @@ export async function getAllBookings(): Promise<any[]> {
  * @param charterCode - The charter party number to check
  * @param excludeBookingId - Optional booking ID to exclude (for edit mode)
  * @returns Object with isDuplicate flag and existing booking info if found
+
  */
+function extractNum(code: string): string {
+  return code.replace(/[^0-9]/g, "");
+}
+
 export async function checkDuplicateCharterCode(
   charterCode: string,
   excludeBookingId?: string
@@ -474,7 +479,8 @@ export async function checkDuplicateCharterCode(
       if (!existingCode) continue;
 
       // Exact match only (case-insensitive)
-      if (existingCode.trim().toLowerCase() === codeToCheck) {
+      console.log("🔍 Comparing:", extractNum(existingCode), "vs", extractNum(charterCode), "existing:", existingCode);
+      if (extractNum(existingCode) === extractNum(charterCode)) {
         console.log('❌ [API Validation] Found duplicate charter code:', existingCode);
         return { isDuplicate: true, existingBooking: booking };
       }

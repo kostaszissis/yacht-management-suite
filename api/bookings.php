@@ -139,20 +139,21 @@ try {
             $bookingNumber = $input['bookingNumber'] ?? $input['booking_number'];
             $bookingData = $input['bookingData'] ?? $input['booking_data'] ?? $input;
 
-            // Check if booking already exists
-            $checkStmt = $pdo->prepare("SELECT booking_number FROM bookings WHERE booking_number = :booking_number");
-            $checkStmt->execute(['booking_number' => $bookingNumber]);
-
-            if ($checkStmt->fetch()) {
-                http_response_code(409);
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'Booking already exists'
-                ]);
-                exit();
+            // Check if booking number already exists (number-only comparison)
+            $numOnly = preg_replace('/[^0-9]/', '', $bookingNumber);
+            if ($numOnly) {
+                $checkStmt = $pdo->prepare("SELECT booking_number FROM bookings WHERE CAST(NULLIF(regexp_replace(booking_number, '[^0-9]', '', 'g'), '') AS INTEGER) = CAST(:num_only AS INTEGER)");
+                $checkStmt->execute(['num_only' => $numOnly]);
+                if ($checkStmt->fetch()) {
+                    http_response_code(409);
+                    echo json_encode([
+                        'success' => false,
+                        'error' => 'Charter number ' . $numOnly . ' already exists'
+                    ]);
+                    exit();
+                }
             }
 
-            // Check for date overlap on same vessel
             $vesselName = $bookingData['vesselName'] ?? '';
             $startDate = $bookingData['startDate'] ?? '';
             $endDate = $bookingData['endDate'] ?? '';
@@ -249,6 +250,7 @@ try {
                 try {
                     $pdo->beginTransaction();
 
+
                     // Update page1_booking_details first (foreign key dependency)
                     $stmtPage1 = $pdo->prepare("UPDATE page1_booking_details SET booking_number = :new_bn WHERE booking_number = :old_bn");
                     $stmtPage1->execute(['new_bn' => $newBookingNumber, 'old_bn' => $bookingNumber]);
@@ -261,7 +263,8 @@ try {
                         'booking_data' => json_encode($mergedData)
                     ]);
 
-                    $pdo->commit();
+
+                $pdo->commit();
 
                     echo json_encode([
                         'success' => true,
