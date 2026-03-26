@@ -2042,6 +2042,18 @@ function EmployeeManagementModal({ onClose }) {
     return `${prefix}${num}!${name}`;
   };
 
+  const handleChangeCode = (oldCode: string, currentName: string) => {
+    const newCode = prompt(`Νέος κωδικός για "${currentName}":`, oldCode);
+    if (!newCode || !newCode.trim() || newCode.trim() === oldCode) return;
+    const codes = authService.getAllEmployeeCodes();
+    const idx = codes.findIndex((c: any) => c.code === oldCode);
+    if (idx === -1) { globalShowMessage('Δεν βρέθηκε ο υπάλληλος', 'error'); return; }
+    codes[idx].code = newCode.trim();
+    localStorage.setItem('auth_employee_codes', JSON.stringify(codes));
+    loadEmployees();
+    globalShowMessage(`Κωδικός άλλαξε: ${oldCode} → ${newCode.trim()}`, 'success');
+  };
+
   const handleAddEmployee = () => {
     if (!newEmployee.name.trim()) {
       globalShowMessage('❌ Παρακαλώ εισάγετε όνομα!', 'error');
@@ -2133,6 +2145,17 @@ function EmployeeManagementModal({ onClose }) {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-[#374151] mb-2">Κωδικός (προαιρετικό)</label>
+                <input
+                  type="text"
+                  value={newEmployee.code}
+                  onChange={(e) => setNewEmployee((prev: any) => ({ ...prev, code: e.target.value }))}
+                  placeholder="Αυτόματος αν μείνει κενό"
+                  className="w-full px-4 py-3 bg-[#f9fafb] text-[#374151] rounded-lg border border-[#d1d5db] focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-[#374151] mb-2">Ρόλος *</label>
                 <select
                   value={newEmployee.role}
@@ -2204,10 +2227,21 @@ function EmployeeManagementModal({ onClose }) {
                     </div>
                     <div>
                       <p className="font-bold text-white">{emp.name}</p>
-                      <p className="text-xs text-[#6b7280] font-mono">{emp.code}</p>
+                      <p className="text-xs text-[#6b7280] font-mono">
+                        {emp.code}
+                        {emp.code !== 'ADMIN2025' && (
+                          <button
+                            onClick={() => handleChangeCode(emp.code, emp.name)}
+                            className="ml-2 text-purple-400 hover:text-purple-300 text-xs"
+                            title="Αλλαγή κωδικού"
+                          >
+                            ✏️
+                          </button>
+                        )}
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleToggleEmployee(emp.code)}
