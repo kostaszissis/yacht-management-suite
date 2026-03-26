@@ -5,6 +5,8 @@
 
 import { codeMatches } from './utils/searchUtils';
 
+const EMPLOYEES_API_URL = 'https://yachtmanagementsuite.com/api/employees.php';
+
 // Employee Codes Structure
 export interface EmployeeCode {
   code: string;
@@ -71,6 +73,15 @@ export interface VATSettings {
   lastUpdatedBy: string;
   lastUpdatedAt: string;
 }
+
+// Permission field names for mapping between flat EmployeeCode and API permissions object
+const PERMISSION_FIELDS = [
+  'canEdit', 'canDelete', 'canManageFleet', 'canClearData', 'canManageCodes',
+  'canViewFinancials', 'canEditFinancials', 'canDoCheckInOut', 'canManageTasks'
+] as const;
+
+// Module-level cache for employee codes
+let employeeCache: EmployeeCode[] | null = null;
 
 // Default Employee Codes
 const DEFAULT_EMPLOYEE_CODES: EmployeeCode[] = [
@@ -197,41 +208,99 @@ const DEFAULT_EMPLOYEE_CODES: EmployeeCode[] = [
 ];
 
 // =================================================================
+// API HELPERS - Map between flat EmployeeCode and API format
+// =================================================================
+
+const mapApiEmployeeToLocal = (apiEmp: any): EmployeeCode => {
+  const permissions = apiEmp.permissions || {};
+  return {
+    code: apiEmp.code,
+    name: apiEmp.name || '',
+    role: apiEmp.role || 'TECHNICAL',
+    canEdit: permissions.canEdit ?? false,
+    canDelete: permissions.canDelete ?? false,
+    canManageFleet: permissions.canManageFleet ?? false,
+    canClearData: permissions.canClearData ?? false,
+    canManageCodes: permissions.canManageCodes ?? false,
+    canViewFinancials: permissions.canViewFinancials ?? false,
+    canEditFinancials: permissions.canEditFinancials ?? false,
+    canDoCheckInOut: permissions.canDoCheckInOut ?? false,
+    canManageTasks: permissions.canManageTasks ?? false,
+    enabled: apiEmp.enabled ?? true,
+  };
+};
+
+const mapLocalToApiPermissions = (emp: Partial<EmployeeCode>): Record<string, boolean> => {
+  const permissions: Record<string, boolean> = {};
+  for (const field of PERMISSION_FIELDS) {
+    if (field in emp) {
+      permissions[field] = !!(emp as any)[field];
+    }
+  }
+  return permissions;
+};
+
+// =================================================================
+// API FETCH & CACHE
+// =================================================================
+
+export const fetchEmployeesFromAPI = async (): Promise<EmployeeCode[]> => {
+  try {
+    const response = await fetch(EMPLOYEES_API_URL);
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    const data = await response.json();
+    if (!data.success || !Array.isArray(data.employees)) {
+      throw new Error('Invalid API response');
+    }
+
+    const employees = data.employees.map(mapApiEmployeeToLocal);
+
+    // Update cache
+    employeeCache = employees;
+
+    // Store in localStorage as offline fallback
+    localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(employees));
+    console.log('✅ Employee codes fetched from API:', employees.length);
+
+    return employees;
+  } catch (error) {
+    console.error('❌ Failed to fetch employees from API:', error);
+    // Return cache or localStorage fallback
+    if (employeeCache) return employeeCache;
+    try {
+      const stored = localStorage.getItem(EMPLOYEE_CODES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        employeeCache = parsed;
+        return parsed;
+      }
+    } catch (_) {}
+    return DEFAULT_EMPLOYEE_CODES;
+  }
+};
+
+export const initializeEmployeeCodes = async (): Promise<void> => {
+  try {
+    await fetchEmployeesFromAPI();
+    console.log('✅ Employee codes initialized from API');
+  } catch (error) {
+    console.error('❌ Failed to initialize employee codes from API, using fallback:', error);
+  }
+};
+
+// =================================================================
 // INITIALIZATION
 // =================================================================
 
 export const initializeAuth = () => {
-  // Initialize employee codes if not exists
-  const existingCodes = localStorage.getItem(EMPLOYEE_CODES_KEY);
-  if (!existingCodes) {
-    localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(DEFAULT_EMPLOYEE_CODES));
-    console.log('✅ Employee codes initialized');
-  } else {
-    // 🔧 FIX: Check and update employee codes to ensure correct permissions
-    try {
-      const parsed = JSON.parse(existingCodes);
-      let needsUpdate = false;
-
-      // Check if CHECKIN2025 exists and has correct canEdit permission
-      const checkin2025 = parsed.find((emp: EmployeeCode) => emp.code === 'CHECKIN2025');
-      if (!checkin2025) {
-        console.log('⚠️ CHECKIN2025 missing! Adding...');
-        needsUpdate = true;
-      } else if (checkin2025.canEdit !== true) {
-        // 🔥 FIX: Update CHECKIN2025 to have canEdit: true
-        console.log('⚠️ CHECKIN2025 has wrong canEdit permission! Updating...');
-        checkin2025.canEdit = true;
-        localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(parsed));
-        console.log('✅ CHECKIN2025 canEdit updated to true');
-      }
-
-      if (needsUpdate) {
-        localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(DEFAULT_EMPLOYEE_CODES));
-        console.log('✅ Employee codes updated with defaults');
-      }
-    } catch (error) {
-      console.error('Error checking employee codes, reinitializing...', error);
+  // Initialize employee codes from localStorage if no cache yet
+  if (!employeeCache) {
+    const existingCodes = localStorage.getItem(EMPLOYEE_CODES_KEY);
+    if (!existingCodes) {
       localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(DEFAULT_EMPLOYEE_CODES));
+      console.log('✅ Employee codes initialized with defaults');
     }
   }
 
@@ -241,6 +310,9 @@ export const initializeAuth = () => {
     localStorage.setItem(ACTIVITY_LOGS_KEY, JSON.stringify([]));
     console.log('✅ Activity logs initialized');
   }
+
+  // Kick off async API fetch (non-blocking)
+  initializeEmployeeCodes();
 };
 
 // =================================================================
@@ -248,26 +320,22 @@ export const initializeAuth = () => {
 // =================================================================
 
 export const getAllEmployeeCodes = (): EmployeeCode[] => {
+  // Return cache if available
+  if (employeeCache) return employeeCache;
+
+  // Fallback to localStorage
   try {
     const stored = localStorage.getItem(EMPLOYEE_CODES_KEY);
-    if (!stored) return DEFAULT_EMPLOYEE_CODES;
-
-    const codes = JSON.parse(stored);
-
-    // 🔥 REAL-TIME FIX: Ensure CHECKIN2025 has canEdit: true
-    const checkin2025 = codes.find((emp: EmployeeCode) => emp.code === 'CHECKIN2025');
-    if (checkin2025 && checkin2025.canEdit !== true) {
-      console.log('🔧 Fixing CHECKIN2025 canEdit permission in real-time...');
-      checkin2025.canEdit = true;
-      localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(codes));
-      console.log('✅ CHECKIN2025 canEdit fixed to true');
+    if (stored) {
+      const codes = JSON.parse(stored);
+      employeeCache = codes;
+      return codes;
     }
-
-    return codes;
   } catch (error) {
-    console.error('Error loading employee codes:', error);
-    return DEFAULT_EMPLOYEE_CODES;
+    console.error('Error loading employee codes from localStorage:', error);
   }
+
+  return DEFAULT_EMPLOYEE_CODES;
 };
 
 export const getEmployeeByCode = (code: string): EmployeeCode | null => {
@@ -275,18 +343,30 @@ export const getEmployeeByCode = (code: string): EmployeeCode | null => {
   return codes.find(emp => codeMatches(emp.code, code) && emp.enabled) || null;
 };
 
-export const addEmployeeCode = (employee: Omit<EmployeeCode, 'enabled'>): boolean => {
+export const addEmployeeCode = async (employee: Omit<EmployeeCode, 'enabled'>): Promise<boolean> => {
   try {
-    const codes = getAllEmployeeCodes();
+    const permissions = mapLocalToApiPermissions(employee);
 
-    // Check if code already exists (case-insensitive)
-    if (codes.find(emp => codeMatches(emp.code, employee.code))) {
-      throw new Error('Employee code already exists');
+    const response = await fetch(EMPLOYEES_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: employee.code,
+        name: employee.name,
+        role: employee.role,
+        permissions,
+        enabled: true
+      })
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `API error: ${response.status}`);
     }
-    
-    codes.push({ ...employee, enabled: true });
-    localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(codes));
-    console.log('✅ Employee code added:', employee.code);
+
+    // Invalidate cache so next read fetches fresh data
+    employeeCache = null;
+    console.log('✅ Employee code added via API:', employee.code);
     return true;
   } catch (error) {
     console.error('Error adding employee code:', error);
@@ -294,18 +374,34 @@ export const addEmployeeCode = (employee: Omit<EmployeeCode, 'enabled'>): boolea
   }
 };
 
-export const updateEmployeeCode = (code: string, updates: Partial<EmployeeCode>): boolean => {
+export const updateEmployeeCode = async (code: string, updates: Partial<EmployeeCode>): Promise<boolean> => {
   try {
-    const codes = getAllEmployeeCodes();
-    const index = codes.findIndex(emp => codeMatches(emp.code, code));
+    const body: any = { code };
 
-    if (index === -1) {
-      throw new Error('Employee code not found');
+    if ('name' in updates) body.name = updates.name;
+    if ('role' in updates) body.role = updates.role;
+    if ('enabled' in updates) body.enabled = updates.enabled;
+    if ('code' in updates && updates.code !== code) body.newCode = updates.code;
+
+    // Collect permission fields
+    const permissions = mapLocalToApiPermissions(updates);
+    if (Object.keys(permissions).length > 0) {
+      body.permissions = permissions;
     }
-    
-    codes[index] = { ...codes[index], ...updates };
-    localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(codes));
-    console.log('✅ Employee code updated:', code);
+
+    const response = await fetch(EMPLOYEES_API_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `API error: ${response.status}`);
+    }
+
+    employeeCache = null;
+    console.log('✅ Employee code updated via API:', code);
     return true;
   } catch (error) {
     console.error('Error updating employee code:', error);
@@ -313,12 +409,21 @@ export const updateEmployeeCode = (code: string, updates: Partial<EmployeeCode>)
   }
 };
 
-export const deleteEmployeeCode = (code: string): boolean => {
+export const deleteEmployeeCode = async (code: string): Promise<boolean> => {
   try {
-    const codes = getAllEmployeeCodes();
-    const filtered = codes.filter(emp => !codeMatches(emp.code, code));
-    localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(filtered));
-    console.log('✅ Employee code deleted:', code);
+    const response = await fetch(EMPLOYEES_API_URL, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code })
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `API error: ${response.status}`);
+    }
+
+    employeeCache = null;
+    console.log('✅ Employee code deleted via API:', code);
     return true;
   } catch (error) {
     console.error('Error deleting employee code:', error);
@@ -326,18 +431,29 @@ export const deleteEmployeeCode = (code: string): boolean => {
   }
 };
 
-export const toggleEmployeeCode = (code: string): boolean => {
+export const toggleEmployeeCode = async (code: string): Promise<boolean> => {
   try {
+    // Get current state from cache
     const codes = getAllEmployeeCodes();
-    const index = codes.findIndex(emp => codeMatches(emp.code, code));
-
-    if (index === -1) {
-      throw new Error('Employee code not found');
+    const emp = codes.find(e => codeMatches(e.code, code));
+    if (!emp) {
+      console.error('Employee not found:', code);
+      return false;
     }
-    
-    codes[index].enabled = !codes[index].enabled;
-    localStorage.setItem(EMPLOYEE_CODES_KEY, JSON.stringify(codes));
-    console.log('✅ Employee code toggled:', code, codes[index].enabled);
+
+    const response = await fetch(EMPLOYEES_API_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, enabled: !emp.enabled })
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `API error: ${response.status}`);
+    }
+
+    employeeCache = null;
+    console.log('✅ Employee code toggled via API:', code, !emp.enabled);
     return true;
   } catch (error) {
     console.error('Error toggling employee code:', error);
@@ -379,7 +495,7 @@ export const addOwnerCode = (owner: Omit<OwnerCode, 'enabled'>): boolean => {
     if (codes.find(o => codeMatches(o.code, owner.code))) {
       throw new Error('Owner code already exists');
     }
-    
+
     codes.push({ ...owner, enabled: true });
     localStorage.setItem(OWNER_CODES_KEY, JSON.stringify(codes));
     console.log('✅ Owner code added:', owner.code);
@@ -398,7 +514,7 @@ export const updateOwnerCode = (code: string, updates: Partial<OwnerCode>): bool
     if (index === -1) {
       throw new Error('Owner code not found');
     }
-    
+
     codes[index] = { ...codes[index], ...updates };
     localStorage.setItem(OWNER_CODES_KEY, JSON.stringify(codes));
     console.log('✅ Owner code updated:', code);
@@ -604,7 +720,7 @@ export const logActivity = (
   try {
     const user = getCurrentUser();
     if (!user) return;
-    
+
     const log: ActivityLog = {
       id: Date.now().toString() + Math.random().toString(36).slice(2),
       timestamp: new Date().toISOString(),
@@ -615,15 +731,15 @@ export const logActivity = (
       vesselId,
       details
     };
-    
+
     const logs = getAllActivityLogs();
     logs.unshift(log); // Add to beginning
-    
+
     // Keep only last 1000 logs
     if (logs.length > 1000) {
       logs.splice(1000);
     }
-    
+
     localStorage.setItem(ACTIVITY_LOGS_KEY, JSON.stringify(logs));
     console.log('✅ Activity logged:', action);
   } catch (error) {
@@ -737,7 +853,9 @@ export const canEditVATRate = (): boolean => {
 export default {
   // Initialization
   initializeAuth,
-  
+  initializeEmployeeCodes,
+  fetchEmployeesFromAPI,
+
   // Employee Codes
   getAllEmployeeCodes,
   getEmployeeByCode,
@@ -745,7 +863,7 @@ export default {
   updateEmployeeCode,
   deleteEmployeeCode,
   toggleEmployeeCode,
-  
+
   // Owner Codes
   getAllOwnerCodes,
   getOwnerByCode,
@@ -753,13 +871,13 @@ export default {
   addOwnerCode,
   updateOwnerCode,
   deleteOwnerCode,
-  
+
   // Authentication
   login,
   logout,
   getCurrentUser,
   isLoggedIn,
-  
+
   // Permission Checks
   canEdit,
   canDelete,
@@ -776,7 +894,7 @@ export default {
   isBooking,
   isAccounting,
   getOwnerBoatIds,
-  
+
   // Activity Logging
   logActivity,
   getAllActivityLogs,
