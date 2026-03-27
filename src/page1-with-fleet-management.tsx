@@ -589,15 +589,67 @@ export default function Page1() {
           checkInTime: prev.checkInTime || page1Data.checkInTime,
           checkOutDate: prev.checkOutDate || page1Data.checkOutDate,
           checkOutTime: prev.checkOutTime || page1Data.checkOutTime,
-          skipperFirstName: prev.skipperFirstName || page1Data.skipperFirstName,
-          skipperLastName: prev.skipperLastName || page1Data.skipperLastName,
-          skipperAddress: prev.skipperAddress || page1Data.skipperAddress,
-          skipperEmail: prev.skipperEmail || page1Data.skipperEmail,
-          skipperPhone: prev.skipperPhone || page1Data.skipperPhone,
+          skipperFirstName: prev.skipperFirstName || page1Data.skipperFirstName || page1Data.chartererFirstName,
+          skipperLastName: prev.skipperLastName || page1Data.skipperLastName || page1Data.chartererLastName,
+          skipperAddress: prev.skipperAddress || page1Data.skipperAddress || page1Data.chartererAddress,
+          skipperEmail: prev.skipperEmail || page1Data.skipperEmail || page1Data.chartererEmail,
+          skipperPhone: prev.skipperPhone || page1Data.skipperPhone || page1Data.chartererPhone,
+          chartererFirstName: prev.chartererFirstName || page1Data.skipperFirstName || page1Data.chartererFirstName,
+          chartererLastName: prev.chartererLastName || page1Data.skipperLastName || page1Data.chartererLastName,
+          chartererAddress: prev.chartererAddress || page1Data.skipperAddress || page1Data.chartererAddress,
+          chartererEmail: prev.chartererEmail || page1Data.skipperEmail || page1Data.chartererEmail,
+          chartererPhone: prev.chartererPhone || page1Data.skipperPhone || page1Data.chartererPhone,
+          sameAsSkipper: true,
         }));
       }
     }
   }, []);
+
+  // 🔥 FIX: When bookingNumber exists but skipper fields are empty, fetch from API
+  useEffect(() => {
+    if (!form.bookingNumber || form.skipperFirstName) return;
+
+    const fetchBookingData = async () => {
+      try {
+        console.log('📥 PAGE 1: Fetching booking data for:', form.bookingNumber);
+        const response = await fetch(`https://yachtmanagementsuite.com/api/bookings.php?booking_number=${encodeURIComponent(form.bookingNumber)}`);
+        const data = await response.json();
+
+        if (data.booking?.booking_data) {
+          const bd = data.booking.booking_data;
+          console.log('📥 PAGE 1: Got booking_data from API:', bd);
+
+          setForm(prev => {
+            const skipperFirst = bd.skipperFirstName || bd.chartererFirstName || '';
+            const skipperLast = bd.skipperLastName || bd.chartererLastName || '';
+            const skipperAddr = bd.skipperAddress || bd.chartererAddress || '';
+            const skipperMail = bd.skipperEmail || bd.chartererEmail || '';
+            const skipperPh = bd.skipperPhone || bd.chartererPhone || '';
+            const isSame = bd.sameAsSkipper !== undefined ? bd.sameAsSkipper : true;
+
+            return {
+              ...prev,
+              skipperFirstName: prev.skipperFirstName || skipperFirst,
+              skipperLastName: prev.skipperLastName || skipperLast,
+              skipperAddress: prev.skipperAddress || skipperAddr,
+              skipperEmail: prev.skipperEmail || skipperMail,
+              skipperPhone: prev.skipperPhone || skipperPh,
+              chartererFirstName: prev.chartererFirstName || (isSame ? skipperFirst : (bd.chartererFirstName || '')),
+              chartererLastName: prev.chartererLastName || (isSame ? skipperLast : (bd.chartererLastName || '')),
+              chartererAddress: prev.chartererAddress || (isSame ? skipperAddr : (bd.chartererAddress || '')),
+              chartererEmail: prev.chartererEmail || (isSame ? skipperMail : (bd.chartererEmail || '')),
+              chartererPhone: prev.chartererPhone || (isSame ? skipperPh : (bd.chartererPhone || '')),
+              sameAsSkipper: isSame,
+            };
+          });
+        }
+      } catch (error) {
+        console.error('❌ PAGE 1: Error fetching booking data:', error);
+      }
+    };
+
+    fetchBookingData();
+  }, [form.bookingNumber, form.skipperFirstName]);
 
   // 🔥 TWO-WAY SYNC: Save form data to sync storage whenever it changes
   useEffect(() => {
@@ -742,13 +794,19 @@ export default function Page1() {
         checkInTime: booking.checkInTime || booking.startTime || '',
         checkOutDate: booking.checkOutDate || booking.endDate || '',
         checkOutTime: booking.checkOutTime || booking.endTime || '',
-        skipperFirstName: booking.skipperFirstName || '',
-        skipperLastName: booking.skipperLastName || '',
-        skipperAddress: booking.skipperAddress || '',
-        skipperEmail: booking.skipperEmail || '',
-        skipperPhone: booking.skipperPhone || '',
+        skipperFirstName: booking.skipperFirstName || booking.chartererFirstName || '',
+        skipperLastName: booking.skipperLastName || booking.chartererLastName || '',
+        skipperAddress: booking.skipperAddress || booking.chartererAddress || '',
+        skipperEmail: booking.skipperEmail || booking.chartererEmail || '',
+        skipperPhone: booking.skipperPhone || booking.chartererPhone || '',
         phoneCountryCode: booking.phoneCountryCode || '+30',
         vesselId: booking.vesselId || booking.vesselName || booking.boatName || '',
+        chartererFirstName: booking.skipperFirstName || booking.chartererFirstName || '',
+        chartererLastName: booking.skipperLastName || booking.chartererLastName || '',
+        chartererAddress: booking.skipperAddress || booking.chartererAddress || '',
+        chartererEmail: booking.skipperEmail || booking.chartererEmail || '',
+        chartererPhone: booking.skipperPhone || booking.chartererPhone || '',
+        sameAsSkipper: true,
       });
       setMode(booking.mode || 'in');
     }
