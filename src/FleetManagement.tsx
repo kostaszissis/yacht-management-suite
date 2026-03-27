@@ -746,7 +746,7 @@ const generateCrewList = async (charter, boat, boatDetails?, showMessage?) => {
     // Vessel / registration fields
     // cf = custom_fields from API (keys: register_no, call_sign, professional_license)
     // -------------------------------------------------------
-    const charterPartyNo    = charter.code || charter.charterCode || charter.bookingCode || charter.bookingNumber || '';
+    const charterPartyNoFull = charter.code || charter.charterCode || charter.bookingCode || charter.bookingNumber || ''; const charterPartyNo = charterPartyNoFull.replace(/CHARTER PARTY N[O0]s*/i, '').replace(/CHARER PARTY N[O0]s*/i, '').replace(/CHARTER PART N[O0]s*/i, '').trim();
     const registrationNumber = cf['register_no']         || boatDetails?.['Register No / Αριθμός Νηολογίου'] || '';
     const callSign           = cf['call_sign']            || boatDetails?.['CALL SIGN']                        || '';
     const eMitroo            = cf['professional_license'] || boatDetails?.['Αριθμ. Πρωτ. Αδείας Επαγγελματικού Πλοίου Αναψυχής / E-μητρώο'] || '';
@@ -1983,8 +1983,8 @@ function EmployeeManagementModal({ onClose }) {
     loadEmployees();
   }, []);
 
-  const loadEmployees = () => {
-    const codes = authService.getAllEmployeeCodes();
+  const loadEmployees = async () => {
+    const codes = await authService.fetchEmployeesFromAPI().catch(() => authService.getAllEmployeeCodes());
     setEmployees(codes);
   };
 
