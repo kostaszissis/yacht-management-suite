@@ -264,8 +264,8 @@ async function getPaymentSummary(filters: Filters): Promise<PaymentSummary[]> {
   const data: PaymentSummary[] = rawData.map(booking => {
     // Ensure proper number conversion - handle string or number input
     const amount = parseFloat(String(booking.amount)) || 0;
-    const totalPaid = parseFloat(String(booking.totalPaid)) || 0;
-    const balance = parseFloat(String(booking.balance)) || 0;
+      const paymentsArr = Array.isArray(booking.payments) ? booking.payments : [];
+      const totalPaid = paymentsArr.reduce((sum: number, p: any) => sum + (parseFloat(String(p.amount)) || 0), 0); const balance = amount - totalPaid;
 
     return {
       bookingCode: booking.bookingNumber || 'N/A',
@@ -275,7 +275,14 @@ async function getPaymentSummary(filters: Filters): Promise<PaymentSummary[]> {
       totalAmount: amount,
       paidAmount: totalPaid,
       unpaidAmount: balance,
-      status: (booking.paymentStatus as 'paid' | 'partial' | 'unpaid') || 'unpaid'
+      status: (() => {
+              const s = (booking.paymentStatus || '').toUpperCase();
+              if (s.includes('ΕΞΟΦΛ') || s.includes('PAID') || s === 'ΠΛΗΡΩΜΕΝΟ') return 'paid' as const;
+              if (s.includes('ΜΕΡΙΚ') || s.includes('PARTIAL')) return 'partial' as const;
+              if (totalPaid > 0 && totalPaid < amount) return 'partial' as const;
+              if (totalPaid >= amount && amount > 0) return 'paid' as const;
+              return 'unpaid' as const;
+            })()
     };
   });
 
