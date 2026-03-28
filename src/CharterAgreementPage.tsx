@@ -21,7 +21,7 @@ export default function CharterAgreementPage() {
   const [showCrewForm, setShowCrewForm] = useState(false);
   const [skipperLicense, setSkipperLicense] = useState<string>('');
   const [crewMembers, setCrewMembers] = useState([
-    { name: '', passport: '', dateOfBirth: '', nationality: '' }
+    { name: '', passport: '', dateOfBirth: '', nationality: '', email: '', phone: '', gender: '', role: 'Crew Member' }
   ]);
   // 🔥 Auto-refresh: Track last update time
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -624,7 +624,7 @@ export default function CharterAgreementPage() {
   };
 
   const addCrewMember = () => {
-    setCrewMembers([...crewMembers, { name: '', passport: '', dateOfBirth: '', nationality: '' }]);
+    setCrewMembers([...crewMembers, { name: '', passport: '', dateOfBirth: '', nationality: '', email: '', phone: '', gender: '', role: 'Crew Member' }]);
   };
 
   const removeCrewMember = (index: number) => {
@@ -930,6 +930,15 @@ export default function CharterAgreementPage() {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <select
+                            value={member.role || 'Crew Member'}
+                            onChange={(e) => handleCrewMemberChange(index, 'role', e.target.value)}
+                            className="md:col-span-2 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                          >
+                            <option value="Skipper">{language === 'en' ? 'Skipper' : 'Κυβερνήτης'}</option>
+                            <option value="Co-Skipper">{language === 'en' ? 'Co-Skipper' : 'Συγκυβερνήτης'}</option>
+                            <option value="Crew Member">{language === 'en' ? 'Crew Member' : 'Μέλος Πληρώματος'}</option>
+                          </select>
                           <input
                             type="text"
                             placeholder={language === 'en' ? 'Full Name' : 'Ονοματεπώνυμο'}
