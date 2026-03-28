@@ -425,8 +425,8 @@ async function getOccupancySummary(filters: Filters): Promise<OccupancySummary[]
   const rawData = await fetchReportsData(filters);
   console.log('Raw data received:', rawData.length, 'records');
 
-  // Charter season: April 1st to October 31st = 214 days
-  const SEASON_DAYS = 214;
+  // Charter season: April 18th to October 31st = 197 days
+  const SEASON_DAYS = 197;
 
   // Calculate booked days per vessel
   const grouped: Record<string, { vesselId: number; vesselName: string; bookedDays: number }> = {};
@@ -847,7 +847,7 @@ const ConsolidatedReports: React.FC = () => {
         sheetName = 'Occupancy Summary';
         data = occupancyData.map(o => ({
           'Vessel': o.vesselName,
-          'Season (Apr-Oct)': '214 days',
+          'Season (Apr-Oct)': '197 days',
           'Booked Days': o.bookedDays,
           'Occupancy %': o.occupancyPercent + '%'
         }));
@@ -1300,7 +1300,7 @@ const ConsolidatedReports: React.FC = () => {
                     <div className="text-blue-100 text-sm mb-1">{lang === 'el' ? 'Μέσο Ποσοστό Στόλου' : 'Average Fleet Occupancy'}</div>
                     <div className="text-5xl font-bold text-white">{avgOccupancy}%</div>
                     <div className="text-blue-200 text-xs mt-2">
-                      {lang === 'el' ? 'Περίοδος: 1 Απριλίου - 31 Οκτωβρίου (214 ημέρες)' : 'Season: April 1 - October 31 (214 days)'}
+                      {lang === 'el' ? 'Περίοδος: 18 Απριλίου - 31 Οκτωβρίου (197 ημέρες)' : 'Season: April 18 - October 31 (197 days)'}
                     </div>
                   </div>
                 </div>
@@ -1320,7 +1320,7 @@ const ConsolidatedReports: React.FC = () => {
                         />
                       </div>
                       <div className="flex justify-between text-xs">
-                        <span className="text-[#6b7280]">{occ.bookedDays}/214 {lang === 'el' ? 'ημέρες' : 'days'}</span>
+                        <span className="text-[#6b7280]">{occ.bookedDays}/197 {lang === 'el' ? 'ημέρες' : 'days'}</span>
                         <span className={`font-bold ${
                           occ.occupancyPercent >= 70 ? 'text-green-600' :
                           occ.occupancyPercent >= 40 ? 'text-yellow-600' : 'text-red-600'
