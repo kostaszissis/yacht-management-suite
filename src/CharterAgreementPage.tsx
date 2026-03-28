@@ -21,7 +21,7 @@ export default function CharterAgreementPage() {
   const [showCrewForm, setShowCrewForm] = useState(false);
   const [skipperLicense, setSkipperLicense] = useState<string>('');
   const [crewMembers, setCrewMembers] = useState([
-    { name: '', passport: '', dateOfBirth: '', nationality: '', email: '', phone: '', gender: '', role: 'Crew Member' }
+    { name: '', passport: '', dateOfBirth: '', nationality: '' }
   ]);
   // 🔥 Auto-refresh: Track last update time
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -624,7 +624,7 @@ export default function CharterAgreementPage() {
   };
 
   const addCrewMember = () => {
-    setCrewMembers([...crewMembers, { name: '', passport: '', dateOfBirth: '', nationality: '', email: '', phone: '', gender: '', role: 'Crew Member' }]);
+    setCrewMembers([...crewMembers, { name: '', passport: '', dateOfBirth: '', nationality: '' }]);
   };
 
   const removeCrewMember = (index: number) => {
@@ -771,47 +771,6 @@ export default function CharterAgreementPage() {
           </div>
 
           <div className="bg-white rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  <span className="text-2xl">📜</span>
-                  {language === 'en' ? 'Charter Agreement (Ναυλοσύμφωνο)' : 'Ναυλοσύμφωνο (Charter Agreement)'}
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  {language === 'en'
-                    ? 'Download, print, sign and bring it with you'
-                    : 'Κατεβάστε, τυπώστε, υπογράψτε και φέρτε το μαζί σας'}
-                </p>
-              </div>
-              <button
-                onClick={handleDownloadCharterAgreement}
-                className="px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all shadow-md"
-              >
-                📥 {language === 'en' ? 'Download' : 'Λήψη'}
-              </button>
-            </div>
-
-            {/* 🔥 FIX 27: Crew List DOCX Download Button */}
-            <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-200 mt-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <span className="text-2xl">👥</span>
-                  {language === 'en' ? 'Crew List (Λίστα Πληρώματος)' : 'Λίστα Πληρώματος (Crew List)'}
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  {language === 'en'
-                    ? 'Download auto-filled crew list document'
-                    : 'Κατεβάστε την αυτόματα συμπληρωμένη λίστα πληρώματος'}
-                </p>
-              </div>
-              <button
-                onClick={handleDownloadCrewList}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md"
-              >
-                👥 {language === 'en' ? 'Download' : 'Λήψη'}
-              </button>
-            </div>
-
             {/* 🔥 Financial Summary Section */}
             {bookingData.charterAmount && (
               <div className="mt-4 bg-gradient-to-br from-slate-800 to-gray-900 rounded-xl p-6 text-white">
@@ -917,7 +876,7 @@ export default function CharterAgreementPage() {
                       <div key={index} className="bg-gray-50 rounded-lg p-4 space-y-3">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-semibold text-gray-700">
-                            {language === 'en' ? `Crew Member ${index + 1}` : `Μέλος Πληρώματος ${index + 1}`}
+                            {member.role === 'skipper' ? (language === 'en' ? `Skipper` : `Κυβερνήτης`) : member.role === 'co-skipper' ? (language === 'en' ? `Co-Skipper` : `Συγκυβερνήτης`) : (language === 'en' ? `Crew Member ${index + 1}` : `Μέλος Πληρώματος ${index + 1}`)}
                           </h4>
                           {index > 0 && (
                             <button
@@ -930,15 +889,6 @@ export default function CharterAgreementPage() {
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <select
-                            value={member.role || 'Crew Member'}
-                            onChange={(e) => handleCrewMemberChange(index, 'role', e.target.value)}
-                            className="md:col-span-2 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
-                          >
-                            <option value="Skipper">{language === 'en' ? 'Skipper' : 'Κυβερνήτης'}</option>
-                            <option value="Co-Skipper">{language === 'en' ? 'Co-Skipper' : 'Συγκυβερνήτης'}</option>
-                            <option value="Crew Member">{language === 'en' ? 'Crew Member' : 'Μέλος Πληρώματος'}</option>
-                          </select>
                           <input
                             type="text"
                             placeholder={language === 'en' ? 'Full Name' : 'Ονοματεπώνυμο'}
@@ -967,6 +917,23 @@ export default function CharterAgreementPage() {
                             onChange={(e) => handleCrewMemberChange(index, 'nationality', e.target.value)}
                             className="px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
                           />
+                <div className="grid grid-cols-3 gap-3 mt-2">
+                  <input type="email" placeholder={language === 'en' ? 'Email' : 'Email'} value={member.email || ''} onChange={(e) => handleCrewMemberChange(index, 'email', e.target.value)} className="px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none" />
+                  <input type="tel" placeholder={language === 'en' ? 'Phone' : 'Telephone'} value={member.phone || ''} onChange={(e) => handleCrewMemberChange(index, 'phone', e.target.value)} className="px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none" />
+                  <select value={member.gender || ''} onChange={(e) => handleCrewMemberChange(index, 'gender', e.target.value)} className="px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none">
+                    <option value="">Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="mt-2">
+                  <select value={member.role || 'crew'} onChange={(e) => handleCrewMemberChange(index, 'role', e.target.value)} className="px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none w-full">
+                    <option value="crew">{language === 'en' ? 'Crew Member' : 'Crew Member'}</option>
+                    <option value="skipper">{language === 'en' ? 'Skipper' : 'Skipper'}</option>
+                    <option value="co-skipper">{language === 'en' ? 'Co-Skipper' : 'Co-Skipper'}</option>
+                  </select>
+                </div>
                         </div>
                       </div>
                     ))}
