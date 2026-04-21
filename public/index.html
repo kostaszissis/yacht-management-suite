@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="el">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e40af" />
+    <meta name="description" content="Complete yacht charter management system" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="YMS" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Standard Favicon -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+
+    <title>Yacht Management Suite</title>
+
+    <!-- External Scripts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="/fonts/DejaVuSans-normal.js"></script>
+    <script src="/fonts/DejaVuSans-bold.js"></script>
+  </head>
+  <body>
+    <noscript>Χρειάζεται JavaScript για να τρέξει αυτή η εφαρμογή.</noscript>
+    <div id="root"></div>
+
+    <style>
+      * { outline: 0 !important; }
+      *:focus, *:active, input:focus, select:focus, button:focus, textarea:focus {
+        outline: 0 !important;
+        box-shadow: none !important;
+      }
+    </style>
+
+    <!-- Service Worker Registration with AUTO-UPDATE -->
+    <script>
+      // 🔥 AUTO-UPDATE PWA - No user action required
+      // localStorage is NEVER touched - only service worker cache is managed
+
+      (function() {
+        const isLocalhost = Boolean(
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '[::1]' ||
+          window.location.hostname.match(/^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/)
+        );
+        const isHttps = window.location.protocol === 'https:';
+
+        if (!('serviceWorker' in navigator) || (!isHttps && !isLocalhost)) {
+          console.warn('⚠️ PWA requires HTTPS. Service Worker not registered.');
+          return;
+        }
+
+        // Track if we're currently refreshing to prevent loops
+        let refreshing = false;
+
+        // Listen for controller change (new SW activated) and reload
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (refreshing) return;
+          refreshing = true;
+          console.log('🔄 New version activated - reloading...');
+          window.location.reload();
+        });
+
+        // Listen for messages from service worker
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'SW_UPDATED') {
+            console.log('📦 Service Worker updated to:', event.data.version);
+          }
+        });
+
+        // Register and check for updates
+        window.addEventListener('load', async () => {
+          try {
+            const registration = await navigator.serviceWorker.register('/service-worker.js');
+            console.log('✅ Service Worker registered:', registration.scope);
+
+            // Check for updates IMMEDIATELY on every page load
+            registration.update().catch(() => {});
+
+            // If there's a waiting worker, activate it immediately
+            if (registration.waiting) {
+              console.log('🆕 New version waiting - activating...');
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+
+            // Listen for new service worker installing
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              console.log('📥 New version downloading...');
+
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New version installed and ready - activate it immediately
+                  console.log('✨ New version ready - activating...');
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            });
+
+            // Check for updates every 30 seconds (aggressive update checking)
+            setInterval(() => {
+              registration.update().catch(() => {});
+            }, 30 * 1000);
+
+            // Also check for updates when page becomes visible
+            document.addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'visible') {
+                registration.update().catch(() => {});
+              }
+            });
+
+          } catch (error) {
+            console.error('❌ Service Worker registration failed:', error);
+          }
+        });
+
+        // PWA Install Event
+        window.addEventListener('appinstalled', () => {
+          console.log('✅ PWA installed successfully');
+        });
+
+        // Log PWA mode
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+          console.log('🚀 Running as installed PWA');
+        }
+      })();
+    </script>
+  </body>
+</html>
