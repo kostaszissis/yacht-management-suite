@@ -923,7 +923,7 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
       if (onNavigate && typeof onNavigate === 'function') {
         onNavigate('next');
       } else {
-        navigate('/page3');
+        navigate('/page5');
       }
     } catch (error) {
       alert(t.saveError || 'Save error!');
@@ -932,7 +932,7 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
 
   const handlePrevious = () => {
     handleSaveDraft();
-    navigate('/page1');
+    navigate('/page3');
   };
 
 

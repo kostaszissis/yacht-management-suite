@@ -680,17 +680,17 @@ function transformPage2Data(data: any, lang: string = 'en'): any[] {
 
   // Main equipment items
   if (data.items && Array.isArray(data.items)) {
-    results.push(...transformItemsToInventory(data.items, 'Page 2', {en:'Main Equipment',el:'Κύριος Εξοπλισμός',it:'Equipaggiamento Principale',de:'Hauptausrüstung',ru:'Основное оборудование',fr:'Équipement Principal',ro:'Echipament Principal',pl:'Wyposażenie Główne',he:'ציוד ראשי',es:'Equipamiento Principal'}, lang));
+    results.push(...transformItemsToInventory(data.items, 'Equipment Inspection', {en:'Main Equipment',el:'Κύριος Εξοπλισμός',it:'Equipaggiamento Principale',de:'Hauptausrüstung',ru:'Основное оборудование',fr:'Équipement Principal',ro:'Echipament Principal',pl:'Wyposażenie Główne',he:'ציוד ראשי',es:'Equipamiento Principal'}, lang));
   }
 
   // Hull items
   if (data.hullItems && Array.isArray(data.hullItems)) {
-    results.push(...transformItemsToInventory(data.hullItems, 'Page 2', {en:'Hull',el:'Κύτος',it:'Scafo',de:'Rumpf',ru:'Корпус',fr:'Coque',ro:'Coca',pl:'Kadłub',he:'גוף הסירה',es:'Casco'}, lang));
+    results.push(...transformItemsToInventory(data.hullItems, 'Equipment Inspection', {en:'Hull',el:'Κύτος',it:'Scafo',de:'Rumpf',ru:'Корпус',fr:'Coque',ro:'Coca',pl:'Kadłub',he:'גוף הסירה',es:'Casco'}, lang));
   }
 
   // Dinghy items
   if (data.dinghyItems && Array.isArray(data.dinghyItems)) {
-    results.push(...transformItemsToInventory(data.dinghyItems, 'Page 2', {en:'Dinghy',el:'Λέμβος',it:'Tender',de:'Beiboot',ru:'Тузик',fr:'Annexe',ro:'Barcă',pl:'Ponton',he:'סירת גומי',es:'Bote'}, lang));
+    results.push(...transformItemsToInventory(data.dinghyItems, 'Equipment Inspection', {en:'Dinghy',el:'Λέμβος',it:'Tender',de:'Beiboot',ru:'Тузик',fr:'Annexe',ro:'Barcă',pl:'Ponton',he:'סירת גומי',es:'Bote'}, lang));
   }
 
   return results;
@@ -726,47 +726,47 @@ function transformPage4Data(data: any, lang: string = 'en'): any[] {
 
   // Navigation items
   if (data.navItems && Array.isArray(data.navItems)) {
-    results.push(...transformItemsToInventory(data.navItems, 'Page 4', {en:'Navigation',el:'Πλοήγηση',it:'Navigazione',de:'Navigation',ru:'Навигация',fr:'Navigation',ro:'Navigație',pl:'Nawigacja',he:'ניווט',es:'Navegación'}, lang));
+    results.push(...transformItemsToInventory(data.navItems, 'Detailed Inspection', {en:'Navigation',el:'Πλοήγηση',it:'Navigazione',de:'Navigation',ru:'Навигация',fr:'Navigation',ro:'Navigație',pl:'Nawigacja',he:'ניווט',es:'Navegación'}, lang));
   }
 
   // Safety items
   if (data.safetyItems && Array.isArray(data.safetyItems)) {
-    results.push(...transformItemsToInventory(data.safetyItems, 'Page 4', {en:'Safety',el:'Ασφάλεια',it:'Sicurezza',de:'Sicherheit',ru:'Безопасность',fr:'Sécurité',ro:'Siguranță',pl:'Bezpieczeństwo',he:'בטיחות',es:'Seguridad'}, lang));
+    results.push(...transformItemsToInventory(data.safetyItems, 'Detailed Inspection', {en:'Safety',el:'Ασφάλεια',it:'Sicurezza',de:'Sicherheit',ru:'Безопасность',fr:'Sécurité',ro:'Siguranță',pl:'Bezpieczeństwo',he:'בטיחות',es:'Seguridad'}, lang));
   }
 
   // Generator items
   if (data.genItems && Array.isArray(data.genItems)) {
-    results.push(...transformItemsToInventory(data.genItems, 'Page 4', {en:'Generator',el:'Γεννήτρια',it:'Generatore',de:'Generator',ru:'Генератор',fr:'Générateur',ro:'Generator',pl:'Generator',he:'גנרטור',es:'Generador'}, lang));
+    results.push(...transformItemsToInventory(data.genItems, 'Detailed Inspection', {en:'Generator',el:'Γεννήτρια',it:'Generatore',de:'Generator',ru:'Генератор',fr:'Générateur',ro:'Generator',pl:'Generator',he:'גנרטור',es:'Generador'}, lang));
   }
 
   // Deck items
   if (data.deckItems && Array.isArray(data.deckItems)) {
-    results.push(...transformItemsToInventory(data.deckItems, 'Page 4', {en:'Deck',el:'Κατάστρωμα',it:'Ponte',de:'Deck',ru:'Палуба',fr:'Pont',ro:'Punte',pl:'Pokład',he:'סיפון',es:'Cubierta'}, lang));
+    results.push(...transformItemsToInventory(data.deckItems, 'Detailed Inspection', {en:'Deck',el:'Κατάστρωμα',it:'Ponte',de:'Deck',ru:'Палуба',fr:'Pont',ro:'Punte',pl:'Pokład',he:'סיפון',es:'Cubierta'}, lang));
   }
 
   // Front deck items
   if (data.fdeckItems && Array.isArray(data.fdeckItems)) {
-    results.push(...transformItemsToInventory(data.fdeckItems, 'Page 4', {en:'Front Deck',el:'Πλώρη',it:'Ponte Anteriore',de:'Vordeck',ru:'Носовая палуба',fr:'Pont Avant',ro:'Punte Față',pl:'Pokład Dziobowy',he:'סיפון קדמי',es:'Cubierta Delantera'}, lang));
+    results.push(...transformItemsToInventory(data.fdeckItems, 'Detailed Inspection', {en:'Front Deck',el:'Πλώρη',it:'Ponte Anteriore',de:'Vordeck',ru:'Носовая палуба',fr:'Pont Avant',ro:'Punte Față',pl:'Pokład Dziobowy',he:'סיפון קדמי',es:'Cubierta Delantera'}, lang));
   }
 
   // Dinghy items
   if (data.dinghyItems && Array.isArray(data.dinghyItems)) {
-    results.push(...transformItemsToInventory(data.dinghyItems, 'Page 4', {en:'Dinghy',el:'Λέμβος',it:'Tender',de:'Beiboot',ru:'Тузик',fr:'Annexe',ro:'Barcă',pl:'Ponton',he:'סירת גומי',es:'Bote'}, lang));
+    results.push(...transformItemsToInventory(data.dinghyItems, 'Detailed Inspection', {en:'Dinghy',el:'Λέμβος',it:'Tender',de:'Beiboot',ru:'Тузик',fr:'Annexe',ro:'Barcă',pl:'Ponton',he:'סירת גומי',es:'Bote'}, lang));
   }
 
   // Fenders items
   if (data.fendersItems && Array.isArray(data.fendersItems)) {
-    results.push(...transformItemsToInventory(data.fendersItems, 'Page 4', {en:'Fenders',el:'Μπαλόνια',it:'Parabordi',de:'Fender',ru:'Кранцы',fr:'Pare-battages',ro:'Apărători',pl:'Odbijacze',he:'פנדרים',es:'Defensas'}, lang));
+    results.push(...transformItemsToInventory(data.fendersItems, 'Detailed Inspection', {en:'Fenders',el:'Μπαλόνια',it:'Parabordi',de:'Fender',ru:'Кранцы',fr:'Pare-battages',ro:'Apărători',pl:'Odbijacze',he:'פנדרים',es:'Defensas'}, lang));
   }
 
   // Boathook items
   if (data.boathookItems && Array.isArray(data.boathookItems)) {
-    results.push(...transformItemsToInventory(data.boathookItems, 'Page 4', {en:'Boathook',el:'Γάντζος',it:'Mezzo Marinaio',de:'Bootshaken',ru:'Отпорный крюк',fr:'Gaffe',ro:'Cange',pl:'Bosak',he:'אנקול',es:'Bichero'}, lang));
+    results.push(...transformItemsToInventory(data.boathookItems, 'Detailed Inspection', {en:'Boathook',el:'Γάντζος',it:'Mezzo Marinaio',de:'Bootshaken',ru:'Отпорный крюк',fr:'Gaffe',ro:'Cange',pl:'Bosak',he:'אנקול',es:'Bichero'}, lang));
   }
 
   // Main items (if present)
   if (data.items && Array.isArray(data.items)) {
-    results.push(...transformItemsToInventory(data.items, 'Page 4', {en:'General',el:'Γενικά',it:'Generale',de:'Allgemein',ru:'Общее',fr:'Général',ro:'General',pl:'Ogólne',he:'כללי',es:'General'}, lang));
+    results.push(...transformItemsToInventory(data.items, 'Detailed Inspection', {en:'General',el:'Γενικά',it:'Generale',de:'Allgemein',ru:'Общее',fr:'Général',ro:'General',pl:'Ogólne',he:'כללי',es:'General'}, lang));
   }
 
   return results;
@@ -2204,9 +2204,9 @@ export default function Page5({ onNavigate }) {
         const p2 = await getPage2DataHybrid(bookingNumForValidation, mode);
         if (p2) {
           const p2Arrays = [
-            { key: 'items', label: 'Page 2' },
-            { key: 'hullItems', label: 'Page 2 - Hull' },
-            { key: 'dinghyItems', label: 'Page 2 - Dinghy' }
+            { key: 'items', label: 'Equipment Inspection' },
+            { key: 'hullItems', label: 'Hull Inspection' },
+            { key: 'dinghyItems', label: 'Dinghy (Equipment)' }
           ];
           for (const { key, label } of p2Arrays) {
             if (Array.isArray(p2[key])) {
@@ -2239,15 +2239,15 @@ export default function Page5({ onNavigate }) {
         const p4 = await getPage4DataHybrid(bookingNumForValidation, mode);
         if (p4) {
           const p4Arrays = [
-            { key: 'items', label: 'Page 4' },
-            { key: 'navItems', label: 'Page 4 - Navigation' },
-            { key: 'safetyItems', label: 'Page 4 - Safety' },
-            { key: 'genItems', label: 'Page 4 - General' },
-            { key: 'deckItems', label: 'Page 4 - Deck' },
-            { key: 'fdeckItems', label: 'Page 4 - Fore Deck' },
-            { key: 'dinghyItems', label: 'Page 4 - Dinghy' },
-            { key: 'fendersItems', label: 'Page 4 - Fenders' },
-            { key: 'boathookItems', label: 'Page 4 - Boathook' }
+            { key: 'items', label: 'Detailed Inspection' },
+            { key: 'navItems', label: 'Navigation Equipment' },
+            { key: 'safetyItems', label: 'Safety Equipment' },
+            { key: 'genItems', label: 'General Equipment' },
+            { key: 'deckItems', label: 'Deck Equipment' },
+            { key: 'fdeckItems', label: 'Fore Deck Equipment' },
+            { key: 'dinghyItems', label: 'Dinghy Equipment' },
+            { key: 'fendersItems', label: 'Fenders' },
+            { key: 'boathookItems', label: 'Boathook' }
           ];
           for (const { key, label } of p4Arrays) {
             if (Array.isArray(p4[key])) {

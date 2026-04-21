@@ -78,7 +78,7 @@ const NavigationWrapper: React.FC<{ pageNum: number; children: React.ReactNode }
   const navigate = useNavigate();
 
   const handleNavigate = (direction: 'next' | 'prev') => {
-    const routes = ['/', '/page1', '/page2', '/page3', '/page4', '/page5'];
+    const routes = ['/', '/page1', '/page4', '/page3', '/page2', '/page5'];
     const currentIndex = routes.indexOf(window.location.pathname);
     
     console.log(`🚀 handleNavigate called: direction=${direction}, currentPath=${window.location.pathname}, currentIndex=${currentIndex}`);
@@ -104,7 +104,7 @@ const NavigationWrapper: React.FC<{ pageNum: number; children: React.ReactNode }
   );
 };
 
-const APP_VERSION = '4.9';
+const APP_VERSION = '4.10';
 
 function App() {
 

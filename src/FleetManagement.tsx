@@ -7664,6 +7664,33 @@ function CharterPage({ items, boat, showMessage, saveItems }) {
             sameAsSkipper: charter.sameAsSkipper || false
     });
 
+    // 🔥 FIX BUG 1: Load skipper from crew_invitations when editing existing charter
+    // (only if skipper fields empty — don't override existing data)
+    if (!charter.skipperFirstName && !charter.skipperLastName && charter.code) {
+      (async () => {
+        try {
+          const r = await fetch('/api/crew-invitations.php?action=list&booking_number=' + encodeURIComponent(charter.code));
+          const j = await r.json();
+          if (j?.success && Array.isArray(j.data)) {
+            const sk = j.data.find((i: any) => i.role === 'skipper' && i.status === 'submitted');
+            if (sk) {
+              console.log('📥 FLEET EDIT: Loading skipper from crew-invitations for', charter.code);
+              setNewCharter(prev => ({
+                ...prev,
+                skipperFirstName: prev.skipperFirstName || sk.submitted_first_name || '',
+                skipperLastName: prev.skipperLastName || sk.submitted_last_name || '',
+                skipperAddress: prev.skipperAddress || sk.submitted_address || '',
+                skipperEmail: prev.skipperEmail || sk.submitted_email || sk.invite_email || '',
+                skipperPhone: prev.skipperPhone || sk.submitted_phone || '',
+              }));
+            }
+          }
+        } catch (e) {
+          console.error('❌ FLEET EDIT: Skipper enrichment failed', e);
+        }
+      })();
+    }
+
     // Set editing mode
     setEditingCharter(charter);
 

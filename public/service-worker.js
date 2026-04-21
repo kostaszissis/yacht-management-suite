@@ -1,7 +1,7 @@
-sconst BUILD_VERSION = 'mnjzesl9';
-const BUILD_DATE = '2026-04-04T06:58:57.981Z';
+const BUILD_VERSION = 'mo8tsa9x';
+const BUILD_DATE = '2026-04-21T16:15:44.133Z';
 
-elf.addEventListener('install', function(e) {
+self.addEventListener('install', function(e) {
   self.skipWaiting();
 });
 self.addEventListener('activate', function(e) {
