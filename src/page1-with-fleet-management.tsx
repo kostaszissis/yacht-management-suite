@@ -299,15 +299,47 @@ export default function Page1() {
   const context = useContext(DataContext);
   const { data: contextData, updateData, globalBookings, isRefreshing: globalIsRefreshing, refreshBookings } = context || {};
   
-  const [currentBookingNumber, setCurrentBookingNumber] = useState(''); // FIX: no localStorage read - multi-user architecture
+  const [currentBookingNumber, setCurrentBookingNumber] = useState(() => contextData?.bookingNumber || ''); // 🔥 BUG A FIX: read from context on mount (persists across back navigation)
   
   const [mode, setMode] = useState(() => {
+    // 🔥 FIX: Read from DataContext first (persists across navigation), then saved data, then default
+    if (contextData?.mode) return contextData.mode;
     if (currentBookingNumber) {
       const data = loadBookingData(currentBookingNumber);
       return data?.mode || 'in';
     }
     return 'in';
   });
+
+  // 🔥 FIX: Listen to modeChanged event so Page 1 syncs when mode changes elsewhere
+  useEffect(() => {
+    const handleModeChange = (e: any) => {
+      if (e?.detail?.mode) {
+        console.log('📢 Page1 received modeChanged event:', e.detail.mode);
+        setMode(e.detail.mode);
+      }
+    };
+    window.addEventListener('modeChanged', handleModeChange);
+    return () => window.removeEventListener('modeChanged', handleModeChange);
+  }, []);
+
+  // 🔥 FIX: On mount, if contextData has a mode, sync local state (covers Back navigation case)
+  useEffect(() => {
+    if (contextData?.mode && contextData.mode !== mode) {
+      console.log('🔄 Page1 syncing mode from context:', contextData.mode);
+      setMode(contextData.mode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextData?.mode]);
+
+  // 🔥 BUG A FIX: On context.bookingNumber change, sync local currentBookingNumber (covers Back navigation case)
+  useEffect(() => {
+    if (contextData?.bookingNumber && contextData.bookingNumber !== currentBookingNumber) {
+      console.log('🔄 Page1 syncing bookingNumber from context:', contextData.bookingNumber);
+      setCurrentBookingNumber(contextData.bookingNumber);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextData?.bookingNumber]);
   
   const [networkStatus, setNetworkStatus] = useState(
     navigator.onLine ? 'online' : 'offline'
@@ -604,7 +636,8 @@ export default function Page1() {
 
   // 🔥 FIX: When bookingNumber exists but skipper fields are empty, fetch from API
   useEffect(() => {
-    if (!form.bookingNumber || form.skipperFirstName) return;
+    // 🔥 BUG 2 FIX: guard on chartererFirstName (page1.php returns only skipper, charterer needs bookings.php)
+    if (!form.bookingNumber || form.chartererFirstName) return;
 
     const fetchBookingData = async () => {
       try {
@@ -646,7 +679,7 @@ export default function Page1() {
     };
 
     fetchBookingData();
-  }, [form.bookingNumber, form.skipperFirstName]);
+  }, [form.bookingNumber, form.chartererFirstName]);
 
   // Load skipper from charter-archive (CharterAgreement invitations) or crew-invitations directly
   useEffect(() => {

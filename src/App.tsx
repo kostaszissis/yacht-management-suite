@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import HomePage from './HomePage';
 import Page1 from './page1-with-fleet-management';
 import Page2 from './vessel-checkin-page2';
@@ -68,6 +68,16 @@ const ProtectedAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 // Κεντρικό Context για συγχρονισμό δεδομένων
+
+// 🔥 SCROLL TO TOP on route change — fixes "pages open scrolled to bottom"
+function ScrollToTop() {
+  const location = useLocation();
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+  return null;
+}
+
 export const DataContext = React.createContext<any>(null);
 
 // Navigation wrapper component
@@ -104,7 +114,7 @@ const NavigationWrapper: React.FC<{ pageNum: number; children: React.ReactNode }
   );
 };
 
-const APP_VERSION = '4.10';
+const APP_VERSION = '5.0';
 
 function App() {
 
@@ -422,6 +432,7 @@ function App() {
   return (
     <DataContext.Provider value={contextValue}>
       <Router>
+        <ScrollToTop />
         {/* Sync status indicator - shows when refreshing data */}
         <SyncIndicator isRefreshing={isRefreshing} lastRefresh={lastRefresh} />
         <div style={{ minHeight: '100vh', background: '#eae8dc' }}>

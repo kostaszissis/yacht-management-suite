@@ -26,7 +26,8 @@ import {
   ActionButtons,
   MainsailAgreement,
   SignatureBox,
-  TableSection
+  TableSection,
+  SHOW_BOOKING_INFO_ON_CHECKLIST_PAGES
 } from './shared-components';
 
 export const INITIAL_KEYS = [
@@ -382,6 +383,21 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
     DINGHY_KEYS.map((key) => ({ id: uid(), key, price: "", qty: 1, inOk: false, out: null, media: [] }))
   );
 
+  // 🔥 BUG 1 FIX: Reset mode-non-specific flags on mode change to prevent Select All carry-over
+  // Also reset items.out to null when switching to check-out (load useEffect will populate from storage if exists)
+  useEffect(() => {
+    setMainsailAgreed(false);
+    setDiversAgreed(false);
+    setDiversImageUploaded(false);
+    setDiversReportFile(null);
+    if (mode === 'out') {
+      // 🔥 INDEPENDENCE FIX: reset BOTH inOk (check-in carry-over) AND out on switch to check-out
+      setItems(prev => prev.map(it => ({ ...it, inOk: false, out: null })));
+      setHullItems(prev => prev.map(it => ({ ...it, inOk: false, out: null })));
+      setDinghyItems(prev => prev.map(it => ({ ...it, inOk: false, out: null })));
+    }
+  }, [mode]);
+
   useEffect(() => {
     console.log(`🚀🚀🚀 SIGNATURE useEffect TRIGGERED! mode=${mode}, booking=${currentBookingNumber}`);
 
@@ -422,14 +438,14 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
             // If we have current mode items, merge inOk from check-in
             if (currentItems && checkInItemsData) {
               return currentItems.map(item => {
-                const checkInItem = checkInItemsData.find(ci => ci.key === item.key);
-                return { ...item, inOk: checkInItem?.inOk || item.inOk || false };
+                // 🔥 INDEPENDENCE FIX: do NOT inherit inOk from check-in
+                return { ...item, inOk: false };
               });
             }
 
-            // If only check-in items exist (starting checkout), use them as base
+            // If only check-in items exist (starting checkout), use them as base — but reset inOk too
             if (checkInItemsData) {
-              return checkInItemsData.map(item => ({ ...item, out: null }));
+              return checkInItemsData.map(item => ({ ...item, inOk: false, out: null }));
             }
 
             return currentItems;
@@ -464,9 +480,10 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
             } else if (mode === 'out' && (checkInItems || checkInHullItems || checkInDinghyItems)) {
               // No check-out data yet, but we have check-in data - use it as starting point
               console.log('🔄 Using check-in data as base for check-out');
-              if (checkInItems) setItems(checkInItems.map(item => ({ ...item, out: null })));
-              if (checkInHullItems) setHullItems(checkInHullItems.map(item => ({ ...item, out: null })));
-              if (checkInDinghyItems) setDinghyItems(checkInDinghyItems.map(item => ({ ...item, out: null })));
+              // 🔥 INDEPENDENCE FIX: reset inOk AND out — check-out starts clean
+              if (checkInItems) setItems(checkInItems.map(item => ({ ...item, inOk: false, out: null })));
+              if (checkInHullItems) setHullItems(checkInHullItems.map(item => ({ ...item, inOk: false, out: null })));
+              if (checkInDinghyItems) setDinghyItems(checkInDinghyItems.map(item => ({ ...item, inOk: false, out: null })));
             }
           }
         } catch (error) {
@@ -1057,6 +1074,7 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
       
       <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-6">
         
+        {SHOW_BOOKING_INFO_ON_CHECKLIST_PAGES && (
         <div className="mb-6 p-4 rounded-xl border-2" style={{ backgroundColor: brand.successBg, borderColor: brand.successBorder }}>
           <div className="grid grid-cols-3 gap-4">
             <div>
@@ -1077,6 +1095,7 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
             </div>
           </div>
         </div>
+        )}
 
         <div className="text-center mb-4">
           <button className="px-6 py-3 rounded-lg font-bold text-white text-lg" style={{ backgroundColor: brand.blue }}>

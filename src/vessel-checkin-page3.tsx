@@ -19,6 +19,7 @@ import {
   savePage3Data,
   loadPage3Data,
   BookingInfoBox,
+  SHOW_BOOKING_INFO_ON_CHECKLIST_PAGES,
   TailwindButton,
   PageHeader,
   TopControls,
@@ -133,6 +134,11 @@ export default function Page3({ onNavigate }) {
   const [newOptionalItem, setNewOptionalItem] = useState("");
   
   const [toiletWarningAccepted, setToiletWarningAccepted] = useState(false);
+
+  // 🔥 BUG 1 FIX: Reset mode-non-specific flag on mode change to prevent Select All carry-over
+  useEffect(() => {
+    setToiletWarningAccepted(false);
+  }, [mode]);
   
   const [showCamera, setShowCamera] = useState(false);
   const [currentItemId, setCurrentItemId] = useState(null);
@@ -238,14 +244,14 @@ export default function Page3({ onNavigate }) {
       // If we have current mode items, merge inOk from check-in
       if (currentItems && checkInItemsData) {
         return currentItems.map(item => {
-          const checkInItem = checkInItemsData.find(ci => ci.key === item.key);
-          return { ...item, inOk: checkInItem?.inOk || item.inOk || false };
+          // 🔥 INDEPENDENCE FIX: do NOT inherit inOk from check-in
+          return { ...item, inOk: false };
         });
       }
 
-      // If only check-in items exist (starting checkout), use them as base
+      // If only check-in items exist (starting checkout), use them as base — reset inOk too
       if (checkInItemsData) {
-        return checkInItemsData.map(item => ({ ...item, out: null }));
+        return checkInItemsData.map(item => ({ ...item, inOk: false, out: null }));
       }
 
       return currentItems;
@@ -309,9 +315,10 @@ export default function Page3({ onNavigate }) {
     } else if (selectedMode === 'out' && (checkInSafetyItems || checkInCabinItems || checkInOptionalItems)) {
       // 🔥 FIX: No check-out data yet, but we have check-in data - use it as starting point
       console.log('🔄 Using check-in data as base for check-out');
-      setSafetyItems(checkInSafetyItems ? checkInSafetyItems.map(item => ({ ...item, out: null })) : initItems(SAFETY_KEYS));
-      setCabinItems(checkInCabinItems ? checkInCabinItems.map(item => ({ ...item, out: null })) : initItems(CABIN_KEYS));
-      setOptionalItems(checkInOptionalItems ? checkInOptionalItems.map(item => ({ ...item, out: null })) : initItems(OPTIONAL_KEYS));
+      // 🔥 INDEPENDENCE FIX: reset inOk AND out — check-out starts clean
+      setSafetyItems(checkInSafetyItems ? checkInSafetyItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(SAFETY_KEYS));
+      setCabinItems(checkInCabinItems ? checkInCabinItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(CABIN_KEYS));
+      setOptionalItems(checkInOptionalItems ? checkInOptionalItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(OPTIONAL_KEYS));
       setNotes("");
       setSignatureImage("");
       setToiletWarningAccepted(false);
@@ -715,7 +722,7 @@ export default function Page3({ onNavigate }) {
     <div className="min-h-screen p-4 md:p-8" style={{ backgroundColor: brand.pageBg }}>
       <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-10">
         
-        <BookingInfoBox bookingInfo={bookingInfo} currentBookingNumber={currentBookingNumber} />
+        {SHOW_BOOKING_INFO_ON_CHECKLIST_PAGES && <BookingInfoBox bookingInfo={bookingInfo} currentBookingNumber={currentBookingNumber} />}
         <TailwindButton />
         <PageHeader title={t.title} />
         <ModeDisplay mode={mode} t={t} />

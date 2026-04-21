@@ -16,6 +16,14 @@ export const LANG_MAP = [
 export const flagImg = (countryCode) =>
   `https://flagcdn.com/24x18/${countryCode.toLowerCase()}.png`;
 
+// 🔥 FEATURE FLAG — όταν false, το Booking Info block κρύβεται στις σελίδες 2/3/4 (σελίδες 1 + 5 δεν επηρεάζονται)
+// Για άλλο deployment/πελάτη, γύρνα σε true χωρίς άλλη αλλαγή.
+export const SHOW_BOOKING_INFO_ON_CHECKLIST_PAGES = false;
+
+// 🔥 FEATURE FLAG — όταν false, η READ-ONLY Check-IN reference column κρύβεται στο check-out
+// Για άλλο deployment/πελάτη, γύρνα σε true χωρίς άλλη αλλαγή.
+export const SHOW_CHECKIN_REFERENCE_IN_CHECKOUT = false;
+
 
 
 // 🔥 FORMAT DATE: YYYY-MM-DD → DD/MM/YYYY
@@ -2157,7 +2165,7 @@ export function TableSection({ data, t, setPrice, incQty, decQty, toggleInOk, se
               <th className="border px-2 py-2 text-center" style={{ borderColor: brand.black, width: '120px' }}>{t.checkIn}</th>
             ) : (
               <>
-                <th className="border px-2 py-2 text-center" style={{ borderColor: brand.black, width: '120px' }}>{t.checkIn}</th>
+                {SHOW_CHECKIN_REFERENCE_IN_CHECKOUT && <th className="border px-2 py-2 text-center" style={{ borderColor: brand.black, width: '120px' }}>{t.checkIn}</th>}
                 <th className="border px-2 py-2 text-center" style={{ borderColor: brand.black, width: '120px' }}>{t.outOk || "check-out OK"}</th>
                 <th className="border px-2 py-2 text-center" style={{ borderColor: brand.black, width: '150px' }}>{t.outNotOk || "check-out NOT OK"}</th>
               </>
@@ -2226,12 +2234,14 @@ export function TableSection({ data, t, setPrice, incQty, decQty, toggleInOk, se
                 </td>
               ) : (
                 <>
-                  {/* Check-IN status column (READ ONLY - NO onClick!) */}
+                  {/* Check-IN status column (READ ONLY - NO onClick!) — hidden by flag */}
+                  {SHOW_CHECKIN_REFERENCE_IN_CHECKOUT && (
                   <td className="border px-2 py-2 text-center" style={{ borderColor: brand.black }}>
                     <div className="px-3 py-1 rounded font-semibold text-sm" style={{ backgroundColor: item.inOk ? brand.successBg : "#f5f5f5", color: item.inOk ? brand.successText : "#999", border: `1px solid ${item.inOk ? brand.successBorder : "#ccc"}` }}>
                       {item.inOk ? "✓ OK" : t.checkIn}
                     </div>
                   </td>
+                  )}
                   {/* OUT OK button */}
                   <td className="border px-2 py-2 text-center" style={{ borderColor: brand.black }}>
                     <button onClick={() => setOut(item.id, item.out === "ok" ? null : "ok")} className="px-3 py-1 rounded font-semibold text-sm" style={{ backgroundColor: item.out === "ok" ? brand.successBg : "#f3f4f6", color: item.out === "ok" ? brand.successText : brand.black, border: `1px solid ${item.out === "ok" ? brand.successBorder : brand.black}` }}>

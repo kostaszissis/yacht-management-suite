@@ -15,6 +15,7 @@ import {
   mid,
   I18N,
   BookingInfoBox,
+  SHOW_BOOKING_INFO_ON_CHECKLIST_PAGES,
   TailwindButton,
   PageHeader,
   TopControls,
@@ -517,14 +518,14 @@ export default function Page4({ onNavigate }) {
       // If we have current mode items, merge inOk from check-in
       if (currentItems && checkInItemsData) {
         return currentItems.map(item => {
-          const checkInItem = checkInItemsData.find(ci => ci.key === item.key);
-          return { ...item, inOk: checkInItem?.inOk || item.inOk || false };
+          // 🔥 INDEPENDENCE FIX: do NOT inherit inOk from check-in
+          return { ...item, inOk: false };
         });
       }
 
-      // If only check-in items exist (starting checkout), use them as base
+      // If only check-in items exist (starting checkout), use them as base — reset inOk too
       if (checkInItemsData) {
-        return checkInItemsData.map(item => ({ ...item, out: null }));
+        return checkInItemsData.map(item => ({ ...item, inOk: false, out: null }));
       }
 
       return currentItems;
@@ -592,15 +593,16 @@ export default function Page4({ onNavigate }) {
     } else if (selectedMode === 'out' && checkInData) {
       // 🔥 FIX: No check-out data yet, but we have check-in data - use it as starting point
       console.log('🔄 Using check-in data as base for check-out');
-      setItems(checkInData.items ? checkInData.items.map(item => ({ ...item, out: null })) : initItems(KITCHEN_KEYS));
-      setNavItems(checkInData.navItems ? checkInData.navItems.map(item => ({ ...item, out: null })) : initItems(NAV_KEYS));
-      setSafetyItems(checkInData.safetyItems ? checkInData.safetyItems.map(item => ({ ...item, out: null })) : initItems(SAFETY_KEYS));
-      setGenItems(checkInData.genItems ? checkInData.genItems.map(item => ({ ...item, out: null })) : initItems(GEN_KEYS));
-      setDeckItems(checkInData.deckItems ? checkInData.deckItems.map(item => ({ ...item, out: null })) : initItems(DECK_KEYS));
-      setFdeckItems(checkInData.fdeckItems ? checkInData.fdeckItems.map(item => ({ ...item, out: null })) : initItems(FDECK_KEYS));
-      setDinghyItems(checkInData.dinghyItems ? checkInData.dinghyItems.map(item => ({ ...item, out: null })) : initItems(DINGHY_KEYS));
-      setFendersItems(checkInData.fendersItems ? checkInData.fendersItems.map(item => ({ ...item, out: null })) : initItems(FENDERS_KEYS));
-      setBoathookItems(checkInData.boathookItems ? checkInData.boathookItems.map(item => ({ ...item, out: null })) : initItems(BOATHOOK_KEYS));
+      // 🔥 INDEPENDENCE FIX: reset inOk AND out — check-out starts clean
+      setItems(checkInData.items ? checkInData.items.map(item => ({ ...item, inOk: false, out: null })) : initItems(KITCHEN_KEYS));
+      setNavItems(checkInData.navItems ? checkInData.navItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(NAV_KEYS));
+      setSafetyItems(checkInData.safetyItems ? checkInData.safetyItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(SAFETY_KEYS));
+      setGenItems(checkInData.genItems ? checkInData.genItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(GEN_KEYS));
+      setDeckItems(checkInData.deckItems ? checkInData.deckItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(DECK_KEYS));
+      setFdeckItems(checkInData.fdeckItems ? checkInData.fdeckItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(FDECK_KEYS));
+      setDinghyItems(checkInData.dinghyItems ? checkInData.dinghyItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(DINGHY_KEYS));
+      setFendersItems(checkInData.fendersItems ? checkInData.fendersItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(FENDERS_KEYS));
+      setBoathookItems(checkInData.boathookItems ? checkInData.boathookItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(BOATHOOK_KEYS));
       setNotes("");
       setSignatureImage("");
     } else {
@@ -1187,7 +1189,7 @@ export default function Page4({ onNavigate }) {
     <div className="min-h-screen p-4 md:p-8" style={{ backgroundColor: brand.pageBg }}>
       <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-10">
         
-        <BookingInfoBox bookingInfo={bookingInfo} currentBookingNumber={currentBookingNumber} />
+        {SHOW_BOOKING_INFO_ON_CHECKLIST_PAGES && <BookingInfoBox bookingInfo={bookingInfo} currentBookingNumber={currentBookingNumber} />}
         <TailwindButton />
           <PageHeader title={t.boatInventoryMap || 'BOAT INVENTORY - INTERACTIVE MAP'} />
         <ModeDisplay mode={mode} t={t} />

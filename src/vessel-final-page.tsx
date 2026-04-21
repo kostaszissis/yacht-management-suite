@@ -29,6 +29,7 @@ import {
   saveBookingData,
   loadBookingData,
   BookingInfoBox,
+  SHOW_BOOKING_INFO_ON_CHECKLIST_PAGES,
   PageHeader,
   TopControls,
   ModeDisplay,
@@ -2448,6 +2449,7 @@ export default function Page5({ onNavigate }) {
   return (
     <div className="min-h-screen p-6" style={{ background: brand.pageBg }}>
       <div className="max-w-6xl mx-auto bg-white shadow rounded-2xl p-6" style={{ border: `1px solid ${brand.black}` }}>
+        {SHOW_BOOKING_INFO_ON_CHECKLIST_PAGES && (
         <BookingInfoBox 
           bookingInfo={{
             bookingNumber: bookingData.bookingNumber || localStorage.getItem('currentBooking') || "N/A",
@@ -2459,6 +2461,7 @@ export default function Page5({ onNavigate }) {
           }}
           currentBookingNumber={bookingData.bookingNumber || localStorage.getItem('currentBooking') || "N/A"}
         />
+        )}
         
         <div className="flex justify-center mb-6">
           <div className="h-16 px-6 rounded flex items-center justify-center font-bold text-xl" style={{ backgroundColor: brand.blue, color: 'white' }}>
