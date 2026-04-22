@@ -14,7 +14,6 @@ import React, { useState, useRef, useEffect, useContext } from "react";
 import { generateLuxuryPDF } from './utils/LuxuryPDFGenerator';
 import { sendCheckInEmail, sendCheckOutEmail } from './services/emailService';
 import authService, { getVATRate } from './authService';
-import FloatingChatWidget from './FloatingChatWidget';
 import { saveBooking, getBooking, savePage5DataHybrid, getPage5DataHybrid, getAllBookings, getPage1DataHybrid, getPage2DataHybrid, getPage3DataHybrid, getPage4DataHybrid } from './services/apiService';
 import { getPageMedia, mergeMediaIntoItems } from './utils/mediaStorage';
 import { DataContext } from './App';
@@ -2949,7 +2948,6 @@ export default function Page5({ onNavigate }) {
       )}
 
       {/* Floating Chat Widget */}
-      <FloatingChatWidget />
     </div>
   );
 }

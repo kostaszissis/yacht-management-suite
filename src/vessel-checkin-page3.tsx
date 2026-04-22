@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useContext } from "react";
-import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
 import { savePage3DataHybrid, getPage3DataHybrid, getAllBookings, getPage1DataHybrid } from './services/apiService';
 import { savePageMedia } from './utils/mediaStorage';
@@ -1021,7 +1020,6 @@ export default function Page3({ onNavigate }) {
       )}
 
       {/* Floating Chat Widget */}
-      <FloatingChatWidget />
     </div>
   );
 }

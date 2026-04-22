@@ -2,6 +2,7 @@ import authService from './authService';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { flagImg } from './shared-components';
 import { useSignatureTouch } from './utils/useSignatureTouch';
+import FloatingChatWidget from './FloatingChatWidget';
 
 // ============================================================
 // GATE PAGE — Tailwind Yachting
@@ -1645,6 +1646,9 @@ const GatePage: React.FC = () => {
       <div style={{ padding: '20px', fontSize: '13px', opacity: 0.6, textAlign: 'center' }}>
         © {new Date().getFullYear()} Tailwind Yachting — Marina Alimos, Greece
       </div>
+
+      {/* 🔥 Live chat widget — only on login/create email step */}
+      {step === 'email' && <FloatingChatWidget />}
     </div>
   );
 };

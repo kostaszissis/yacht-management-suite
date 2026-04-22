@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useContext } from "react";
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import { DataContext } from './App';
-import FloatingChatWidget from './FloatingChatWidget';
 import authService from './authService';
 import { savePage2DataHybrid, getPage2DataHybrid, getPage1DataHybrid } from './services/apiService';
 import { savePageMedia, getPageMedia, mergeMediaIntoItems } from './utils/mediaStorage';
@@ -1416,7 +1415,6 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
       )}
 
       {/* Floating Chat Widget */}
-      <FloatingChatWidget />
     </div>
   );
 }
