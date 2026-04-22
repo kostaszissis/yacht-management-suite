@@ -1,5 +1,5 @@
-const BUILD_VERSION = 'moa5y9bs';
-const BUILD_DATE = '2026-04-22T14:44:04.408Z';
+const BUILD_VERSION = 'moa8debk';
+const BUILD_DATE = '2026-04-22T15:51:49.952Z';
 
 self.addEventListener('install', function(e) {
   self.skipWaiting();

@@ -2039,14 +2039,14 @@ export default function Page1() {
                     {t.phone} <span className="text-red-500">*</span>
                     {mode === 'out' && <span className="ml-2 text-xs bg-gray-500 text-white px-2 py-1 rounded">🔒</span>}
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 min-w-0">
                     <select
                       value={form.phoneCountryCode}
                       onChange={(e) => handleCountryCodeChange(e.target.value)}
                       onKeyDown={handleFormKeyDown}
                       disabled={mode === 'out'}
-                      className={`border border-blue-400 rounded p-2 bg-white ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                      style={{ width: "120px" }}
+                      className={`border border-blue-400 rounded p-2 bg-white shrink-0 ${mode === 'out' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      style={{ width: "100px", minWidth: "100px" }}
                     >
                       {COUNTRY_CODES.map(({ code, country, flag }) => (
                         <option key={`${country}-${code}`} value={code}>
@@ -2086,40 +2086,36 @@ export default function Page1() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              {/* Back Button - Left */}
-              <button 
-                type="button" 
+            <div className="grid grid-cols-2 md:flex md:items-center md:justify-between gap-2 md:gap-3">
+              <button
+                type="button"
                 onClick={() => navigate('/home')}
-                className="px-5 py-2.5 rounded text-sm font-medium bg-gray-600 text-white hover:bg-gray-700 flex items-center gap-2">
-                                ← {t.back}
-🏠 {lang === 'el' ? 'Αρχική' : 'Home'}
+                className="px-3 py-3 rounded text-sm font-medium bg-gray-600 text-white hover:bg-gray-700 flex items-center justify-center gap-1 min-h-[44px] col-span-2 md:col-span-1 md:order-first">
+                ← 🏠 {lang === 'el' ? 'Αρχική' : 'Home'}
               </button>
-
-              {/* Right Side Buttons */}
-              <div className="flex gap-3">
+              <div className="grid grid-cols-2 md:flex gap-2 md:gap-3 col-span-2 md:col-span-1">
                 <button
                   type="button"
                   onClick={handleSaveDraft}
-                  className="px-5 py-2.5 rounded text-sm font-medium bg-gray-600 text-white hover:bg-gray-700">
+                  className="px-3 py-3 rounded text-sm font-medium bg-gray-600 text-white hover:bg-gray-700 min-h-[44px]">
                   {t.saveDraft}
                 </button>
                 <button
                   type="button"
                   onClick={handleClearForm}
-                  className="px-5 py-2.5 rounded text-sm font-medium border-2 border-blue-500 bg-white text-blue-500 hover:bg-blue-50">
+                  className="px-3 py-3 rounded text-sm font-medium border-2 border-blue-500 bg-white text-blue-500 hover:bg-blue-50 min-h-[44px]">
                   {t.clear}
                 </button>
                 <button
                   type="button"
                   onClick={generatePDF}
-                  className="px-5 py-2.5 rounded text-sm font-medium bg-red-500 text-white hover:bg-red-600">
+                  className="px-3 py-3 rounded text-sm font-medium bg-red-500 text-white hover:bg-red-600 min-h-[44px]">
                   📄 {t.pdf}
                 </button>
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="px-5 py-2.5 rounded text-sm font-medium bg-blue-500 text-white hover:bg-blue-600">
+                  className="px-3 py-3 rounded text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 min-h-[44px]">
                   {t.next} →
                 </button>
               </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSignatureTouch } from './utils/useSignatureTouch';
 import { useParams } from 'react-router-dom';
 
 export default function CrewInviteForm() {
@@ -14,6 +15,7 @@ export default function CrewInviteForm() {
     gdpr_consent1: false, gdpr_consent2: false, gdpr_consent3: false,
   });
   const canvasRef = useRef(null);
+  useSignatureTouch(canvasRef);
   const [isDrawing, setIsDrawing] = useState(false);
   const [signatureData, setSignatureData] = useState('');
 

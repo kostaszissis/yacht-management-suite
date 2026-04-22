@@ -1,6 +1,7 @@
 import authService from './authService';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { flagImg } from './shared-components';
+import { useSignatureTouch } from './utils/useSignatureTouch';
 
 // ============================================================
 // GATE PAGE — Tailwind Yachting
@@ -759,6 +760,7 @@ const GatePage: React.FC = () => {
   const [hasGdpr, setHasGdpr] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  useSignatureTouch(canvasRef);
   const isDrawing = useRef(false);
 
   // Helper

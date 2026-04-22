@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import wordDocumentService from './services/wordDocumentService';
 import { updateCharterCrew, loadCharterCrew, getAllBookings, loadChartererData, saveChartererData } from './services/apiService';
+import { useSignatureTouch } from './utils/useSignatureTouch';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
@@ -60,6 +61,8 @@ export default function CharterAgreementPage() {
   // Canvas refs for signatures
   const chartererCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const skipperCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  useSignatureTouch(chartererCanvasRef);
+  useSignatureTouch(skipperCanvasRef);
   const [isDrawingCharterer, setIsDrawingCharterer] = useState(false);
   const [isDrawingSkipper, setIsDrawingSkipper] = useState(false);
 

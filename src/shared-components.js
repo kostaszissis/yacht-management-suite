@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useSignatureTouch } from "./utils/useSignatureTouch";
 
 export const LANG_MAP = [
   { code: 'el', country: 'GR', label: 'Ελληνικά' },
@@ -1950,6 +1951,7 @@ export function MainsailAgreement({ t, onAcceptChange, initialValue }) {
 export function SignatureBox({ brand, lang, onSignChange, onImageChange, initialImage, currentBookingNumber, mode, pageNumber = 2 }) {
   const t = I18N[lang] || I18N.en;
   const canvasRef = useRef(null);
+  useSignatureTouch(canvasRef);
   const [hasSigned, setHasSigned] = useState(false);
 
   // 🔥 Drawing logic with addEventListener (from Page 3)
@@ -2180,7 +2182,7 @@ export function TableSection({ data, t, setPrice, incQty, decQty, toggleInOk, se
               <td className="border px-2 py-2 text-center font-semibold" style={{ borderColor: brand.black, color: "#dc2626" }}>{idx + 1}</td>
               <td className="border px-2 py-2" style={{ borderColor: brand.black }}>
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold" style={{ color: brand.black }}>{getLabel(item.key)}</span>
+                  <span className="font-semibold break-words" style={{ color: brand.black, wordBreak: 'break-word', hyphens: 'auto' }}>{getLabel(item.key)}</span>
                   {canRemoveItems && (
                     <button onClick={() => removeRow(item.id)} className="ml-2 text-red-600 hover:text-red-800 font-bold">✕</button>
                   )}
@@ -2194,8 +2196,8 @@ export function TableSection({ data, t, setPrice, incQty, decQty, toggleInOk, se
                       setPrice(item.id, Math.max(0, currentPrice - 5).toString());
                     }}
                     disabled={!canEditPrices}
-                    className="w-5 h-5 border rounded flex items-center justify-center text-xs font-bold"
-                    style={{ borderColor: brand.black, color: brand.black, backgroundColor: !canEditPrices ? '#f5f5f5' : 'white' }}>
+                    className="min-w-[44px] min-h-[44px] border rounded flex items-center justify-center text-sm font-bold"
+                    style={{ borderColor: brand.black, color: brand.black, backgroundColor: !canEditPrices ? '#f5f5f5' : 'white', touchAction: 'manipulation' }}>
                     −5
                   </button>
                   <input
@@ -2203,7 +2205,7 @@ export function TableSection({ data, t, setPrice, incQty, decQty, toggleInOk, se
                     value={item.price || ""}
                     onChange={(e) => setPrice(item.id, e.target.value)}
                     disabled={!canEditPrices}
-                    className="w-16 px-1 py-0.5 border rounded text-center text-sm"
+                    className="w-20 px-2 py-2 border rounded text-center text-sm"
                     style={{ borderColor: brand.black, backgroundColor: !canEditPrices ? '#f5f5f5' : 'white', color: brand.black }}
                   />
                   <span className="text-sm font-semibold" style={{ color: brand.black }}>€</span>
@@ -2213,17 +2215,17 @@ export function TableSection({ data, t, setPrice, incQty, decQty, toggleInOk, se
                       setPrice(item.id, (currentPrice + 5).toString());
                     }}
                     disabled={!canEditPrices}
-                    className="w-5 h-5 border rounded flex items-center justify-center text-xs font-bold"
-                    style={{ borderColor: brand.black, color: brand.black, backgroundColor: !canEditPrices ? '#f5f5f5' : 'white' }}>
+                    className="min-w-[44px] min-h-[44px] border rounded flex items-center justify-center text-sm font-bold"
+                    style={{ borderColor: brand.black, color: brand.black, backgroundColor: !canEditPrices ? '#f5f5f5' : 'white', touchAction: 'manipulation' }}>
                     +5
                   </button>
                 </div>
               </td>
               <td className="border px-1 py-1 text-center align-middle" style={{ borderColor: brand.black }}>
                 <div className="flex items-center justify-center gap-1">
-                  <button onClick={() => decQty(item.id)} className="w-6 h-6 border rounded flex items-center justify-center font-bold" style={{ borderColor: brand.black, color: brand.black }}>−</button>
+                  <button onClick={() => decQty(item.id)} className="min-w-[44px] min-h-[44px] border rounded flex items-center justify-center font-bold text-lg" style={{ borderColor: brand.black, color: brand.black, touchAction: 'manipulation' }}>−</button>
                   <span className="font-semibold mx-1" style={{ color: brand.black }}>{item.qty || 1}</span>
-                  <button onClick={() => incQty(item.id)} className="w-6 h-6 border rounded flex items-center justify-center font-bold" style={{ borderColor: brand.black, color: brand.black }}>+</button>
+                  <button onClick={() => incQty(item.id)} className="min-w-[44px] min-h-[44px] border rounded flex items-center justify-center font-bold text-lg" style={{ borderColor: brand.black, color: brand.black, touchAction: 'manipulation' }}>+</button>
                 </div>
               </td>
               {mode === "in" ? (

@@ -19,6 +19,7 @@ import { saveBooking, getBooking, savePage5DataHybrid, getPage5DataHybrid, getAl
 import { getPageMedia, mergeMediaIntoItems } from './utils/mediaStorage';
 import { DataContext } from './App';
 import { useNavigate } from 'react-router-dom';
+import { useSignatureTouch } from './utils/useSignatureTouch';
 
 import {
   brand,
@@ -946,6 +947,7 @@ const SignatureBox = ({
   highlightError = false
 }) => {
   const canvasRef = useRef(null);
+  useSignatureTouch(canvasRef);
   const [signed, setSigned] = useState(!!initialImage);
 
   useEffect(() => {
@@ -1079,9 +1081,9 @@ const SignatureBox = ({
       }}>
         <canvas 
           ref={canvasRef} 
-          width={860} 
-          height={200} 
-          className="w-full h-[200px] cursor-crosshair"
+          width={600} 
+          height={180} 
+          className="w-full max-w-full h-[180px] md:h-[200px] cursor-crosshair"
           style={{ background: signed ? brand.successBg : '#ffffff', touchAction: 'none', transition: 'background 0.3s ease' }}
         />
       </div>
@@ -1484,6 +1486,7 @@ function EmployeeSignatureWithLogin({
   onImageChange,
   onLoginClick
 }) {
+  useSignatureTouch(canvasRef);
   
   useEffect(() => {
     if (!isEmployee || !canvasRef.current) return;
@@ -1645,9 +1648,9 @@ function EmployeeSignatureWithLogin({
       }}>
         <canvas 
           ref={canvasRef} 
-          width={860} 
-          height={200} 
-          className="w-full h-[200px] cursor-crosshair"
+          width={600} 
+          height={180} 
+          className="w-full max-w-full h-[180px] md:h-[200px] cursor-crosshair"
           style={{ background: signed ? brand.successBg : '#ffffff', touchAction: 'none', transition: 'background 0.3s ease' }}
         />
       </div>
@@ -2795,19 +2798,19 @@ export default function Page5({ onNavigate }) {
         </div>
         
         {/* ACTION BUTTONS */}
-        <div className="mt-6 flex flex-wrap justify-between gap-3">
+        <div className="mt-6 grid grid-cols-2 md:flex md:flex-wrap md:justify-between gap-2 md:gap-3">
           <button 
             type="button" 
             onClick={handlePrevious} 
-            className="px-4 py-2 rounded font-semibold bg-gray-500 text-white hover:bg-gray-600 transition-colors"
+            className="px-4 py-3 rounded font-semibold bg-gray-500 text-white hover:bg-gray-600 transition-colors min-h-[44px] col-span-2 md:col-span-1"
           >
             ← {t.back}
           </button>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3 col-span-2 md:col-span-1">
             <button 
               type="button" 
               onClick={handleSaveDraft} 
-              className="px-4 py-2 rounded transition-colors bg-gray-500 text-white hover:bg-gray-600"
+              className="px-4 py-3 rounded transition-colors bg-gray-500 text-white hover:bg-gray-600 min-h-[44px]"
             >
               {t.save}
             </button>
@@ -2816,7 +2819,7 @@ export default function Page5({ onNavigate }) {
               type="button" 
               onClick={handleGeneratePDF} 
               disabled={areButtonsLocked || isSubmitting || isSubmitted}
-              className="px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105" 
+              className="px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 min-h-[44px]" 
               style={{ background: areButtonsLocked ? '#9ca3af' : '#dc2626', color: '#fff' }}
               title={areButtonsLocked ? (lang === 'el' ? 'Χρειάζεται κωδικός υπαλλήλου' : 'Employee code required') : ''}
             >
@@ -2827,7 +2830,7 @@ export default function Page5({ onNavigate }) {
               type="button" 
               onClick={handleSubmit} 
               disabled={areButtonsLocked || isSubmitting || isSubmitted}
-              className="px-4 py-2 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
+              className="px-4 py-3 rounded font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 min-h-[44px]"
               style={{ background: isSubmitted ? '#22c55e' : (areButtonsLocked || isSubmitting) ? '#9ca3af' : brand.blue, color: '#fff' }}
               title={areButtonsLocked ? (lang === 'el' ? 'Χρειάζεται κωδικός υπαλλήλου' : 'Employee code required') : ''}
             >
