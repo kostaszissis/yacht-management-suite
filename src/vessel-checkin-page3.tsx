@@ -244,14 +244,14 @@ export default function Page3({ onNavigate }) {
       // If we have current mode items, merge inOk from check-in
       if (currentItems && checkInItemsData) {
         return currentItems.map(item => {
-          // 🔥 INDEPENDENCE FIX: do NOT inherit inOk from check-in
-          return { ...item, inOk: false };
+          const checkInItem = checkInItemsData.find(ci => ci.key === item.key);
+          return { ...item, inOk: checkInItem?.inOk || item.inOk || false };
         });
       }
 
-      // If only check-in items exist (starting checkout), use them as base — reset inOk too
+      // If only check-in items exist (starting checkout), use them as base — preserve inOk for reference
       if (checkInItemsData) {
-        return checkInItemsData.map(item => ({ ...item, inOk: false, out: null }));
+        return checkInItemsData.map(item => ({ ...item, out: null }));
       }
 
       return currentItems;
@@ -316,9 +316,9 @@ export default function Page3({ onNavigate }) {
       // 🔥 FIX: No check-out data yet, but we have check-in data - use it as starting point
       console.log('🔄 Using check-in data as base for check-out');
       // 🔥 INDEPENDENCE FIX: reset inOk AND out — check-out starts clean
-      setSafetyItems(checkInSafetyItems ? checkInSafetyItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(SAFETY_KEYS));
-      setCabinItems(checkInCabinItems ? checkInCabinItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(CABIN_KEYS));
-      setOptionalItems(checkInOptionalItems ? checkInOptionalItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(OPTIONAL_KEYS));
+      setSafetyItems(checkInSafetyItems ? checkInSafetyItems.map(item => ({ ...item, out: null })) : initItems(SAFETY_KEYS));
+      setCabinItems(checkInCabinItems ? checkInCabinItems.map(item => ({ ...item, out: null })) : initItems(CABIN_KEYS));
+      setOptionalItems(checkInOptionalItems ? checkInOptionalItems.map(item => ({ ...item, out: null })) : initItems(OPTIONAL_KEYS));
       setNotes("");
       setSignatureImage("");
       setToiletWarningAccepted(false);
@@ -352,18 +352,12 @@ export default function Page3({ onNavigate }) {
     setOptionalItems(prev => prev.map(it => it.id === id ? {...it, qty: Math.max(1, (it.qty || 1) - 1)} : it));
   };
 
+  // 🔥 SIMPLE TOGGLE (match page 2): always toggles, works check-in AND check-out
   const toggleInOk = (id) => {
-    // 🔥 Check-in mode: Μόνο μαρκάρισμα (ΟΧΙ ξεμαρκάρισμα)
-    // Check-out mode: Κανονικό toggle
-    if (mode === 'in') {
-      setSafetyItems(prev => prev.map(it => it.id === id ? {...it, inOk: true} : it));
-      setCabinItems(prev => prev.map(it => it.id === id ? {...it, inOk: true} : it));
-      setOptionalItems(prev => prev.map(it => it.id === id ? {...it, inOk: true} : it));
-    } else {
-      setSafetyItems(prev => prev.map(it => it.id === id ? {...it, inOk: !it.inOk} : it));
-      setCabinItems(prev => prev.map(it => it.id === id ? {...it, inOk: !it.inOk} : it));
-      setOptionalItems(prev => prev.map(it => it.id === id ? {...it, inOk: !it.inOk} : it));
-    }
+    const toggle = (prev) => prev.map((it) => (it.id === id ? { ...it, inOk: !it.inOk } : it));
+    setSafetyItems(toggle);
+    setCabinItems(toggle);
+    setOptionalItems(toggle);
   };
 
   const setOut = (id, value) => {

@@ -824,9 +824,9 @@ export default function HomePage() {
     { id: 'guides', icon: '🎥', title: t.technicalGuides, color: 'purple', action: () => console.log('guides') },
     { id: 'agreement', icon: '📄', title: t.charterAgreement, color: 'green', action: () => navigate('/charter-agreement', { state: { bookingCode: bookingStatus?.bookingCode } }) },
     { id: 'prefill', icon: '📋', title: t.preFillDetails, color: 'orange', action: handlePreFillClick },
-      { id: 'enter', icon: '➡️', title: t.staffLogin || 'Enter', color: 'blue', action: () => { if (isStaff) { navigate('/admin'); } else { setShowAdminModal(true); } } },
-    { id: 'fleet', icon: '⚓', title: t.fleetManagement, color: 'teal', action: handleFleetClick },
     { id: 'news', icon: '📰', title: t.companyNewsletter, color: 'indigo', action: handleCompanyNews },
+    { id: 'fleet', icon: '⚓', title: t.fleetManagement, color: 'teal', action: handleFleetClick },
+    { id: 'enter', icon: '➡️', title: t.staffLogin || 'Enter', color: 'blue', action: () => { if (isStaff) { navigate('/admin'); } else { setShowAdminModal(true); } } },
   ];
 
   const quickActions = [
@@ -1037,6 +1037,7 @@ export default function HomePage() {
                   ...styles.serviceCard,
                   ...(state.locked ? styles.serviceCardLocked : {}),
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  ...(service.id === 'enter' ? { gridColumn: '2' } : {}),
                 }}
                 className={!state.locked ? 'shadow-md hover:shadow-2xl hover:-translate-y-2 hover:scale-105 transform-gpu' : ''}
               >
@@ -1102,7 +1103,7 @@ export default function HomePage() {
 
         {/* Footer */}
         <div style={styles.footer}>
-          © 2026 Yacht Management Suite v5.0<br />
+          © 2026 Yacht Management Suite v5.1<br />
           All rights reserved
         </div>
       </div>

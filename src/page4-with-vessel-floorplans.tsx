@@ -518,14 +518,14 @@ export default function Page4({ onNavigate }) {
       // If we have current mode items, merge inOk from check-in
       if (currentItems && checkInItemsData) {
         return currentItems.map(item => {
-          // 🔥 INDEPENDENCE FIX: do NOT inherit inOk from check-in
-          return { ...item, inOk: false };
+          const checkInItem = checkInItemsData.find(ci => ci.key === item.key);
+          return { ...item, inOk: checkInItem?.inOk || item.inOk || false };
         });
       }
 
-      // If only check-in items exist (starting checkout), use them as base — reset inOk too
+      // If only check-in items exist (starting checkout), use them as base — preserve inOk for reference
       if (checkInItemsData) {
-        return checkInItemsData.map(item => ({ ...item, inOk: false, out: null }));
+        return checkInItemsData.map(item => ({ ...item, out: null }));
       }
 
       return currentItems;
@@ -594,15 +594,15 @@ export default function Page4({ onNavigate }) {
       // 🔥 FIX: No check-out data yet, but we have check-in data - use it as starting point
       console.log('🔄 Using check-in data as base for check-out');
       // 🔥 INDEPENDENCE FIX: reset inOk AND out — check-out starts clean
-      setItems(checkInData.items ? checkInData.items.map(item => ({ ...item, inOk: false, out: null })) : initItems(KITCHEN_KEYS));
-      setNavItems(checkInData.navItems ? checkInData.navItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(NAV_KEYS));
-      setSafetyItems(checkInData.safetyItems ? checkInData.safetyItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(SAFETY_KEYS));
-      setGenItems(checkInData.genItems ? checkInData.genItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(GEN_KEYS));
-      setDeckItems(checkInData.deckItems ? checkInData.deckItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(DECK_KEYS));
-      setFdeckItems(checkInData.fdeckItems ? checkInData.fdeckItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(FDECK_KEYS));
-      setDinghyItems(checkInData.dinghyItems ? checkInData.dinghyItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(DINGHY_KEYS));
-      setFendersItems(checkInData.fendersItems ? checkInData.fendersItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(FENDERS_KEYS));
-      setBoathookItems(checkInData.boathookItems ? checkInData.boathookItems.map(item => ({ ...item, inOk: false, out: null })) : initItems(BOATHOOK_KEYS));
+      setItems(checkInData.items ? checkInData.items.map(item => ({ ...item, out: null })) : initItems(KITCHEN_KEYS));
+      setNavItems(checkInData.navItems ? checkInData.navItems.map(item => ({ ...item, out: null })) : initItems(NAV_KEYS));
+      setSafetyItems(checkInData.safetyItems ? checkInData.safetyItems.map(item => ({ ...item, out: null })) : initItems(SAFETY_KEYS));
+      setGenItems(checkInData.genItems ? checkInData.genItems.map(item => ({ ...item, out: null })) : initItems(GEN_KEYS));
+      setDeckItems(checkInData.deckItems ? checkInData.deckItems.map(item => ({ ...item, out: null })) : initItems(DECK_KEYS));
+      setFdeckItems(checkInData.fdeckItems ? checkInData.fdeckItems.map(item => ({ ...item, out: null })) : initItems(FDECK_KEYS));
+      setDinghyItems(checkInData.dinghyItems ? checkInData.dinghyItems.map(item => ({ ...item, out: null })) : initItems(DINGHY_KEYS));
+      setFendersItems(checkInData.fendersItems ? checkInData.fendersItems.map(item => ({ ...item, out: null })) : initItems(FENDERS_KEYS));
+      setBoathookItems(checkInData.boathookItems ? checkInData.boathookItems.map(item => ({ ...item, out: null })) : initItems(BOATHOOK_KEYS));
       setNotes("");
       setSignatureImage("");
     } else {

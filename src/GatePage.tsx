@@ -1,5 +1,6 @@
 import authService from './authService';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { flagImg } from './shared-components';
 
 // ============================================================
 // GATE PAGE — Tailwind Yachting
@@ -15,19 +16,20 @@ interface LangOption {
   code: string;
   name: string;
   flag: string;
+  country: string;
 }
 
 const LANGUAGES: LangOption[] = [
-  { code: 'el', name: 'Ελληνικά', flag: '🇬🇷' },
-  { code: 'en', name: 'English', flag: '🇬🇧' },
-  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'ro', name: 'Română', flag: '🇷🇴' },
-  { code: 'pl', name: 'Polski', flag: '🇵🇱' },
-  { code: 'he', name: 'עברית', flag: '🇮🇱' },
-  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'el', name: 'Ελληνικά', flag: '🇬🇷', country: 'GR' },
+  { code: 'en', name: 'English', flag: '🇬🇧', country: 'GB' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹', country: 'IT' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪', country: 'DE' },
+  { code: 'ru', name: 'Русский', flag: '🇷🇺', country: 'RU' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷', country: 'FR' },
+  { code: 'ro', name: 'Română', flag: '🇷🇴', country: 'RO' },
+  { code: 'pl', name: 'Polski', flag: '🇵🇱', country: 'PL' },
+  { code: 'he', name: 'עברית', flag: '🇮🇱', country: 'IL' },
+  { code: 'es', name: 'Español', flag: '🇪🇸', country: 'ES' },
 ];
 
 // ---------- TRANSLATIONS ----------
@@ -109,6 +111,90 @@ const T: Record<string, Record<string, string>> = {
     pl: 'Wyślij Kod',
     he: 'שלח קוד',
     es: 'Enviar Código',
+  },
+  enterBtn: {
+    el: 'Είσοδος',
+    en: 'Enter',
+    it: 'Entra',
+    de: 'Anmelden',
+    ru: 'Войти',
+    fr: 'Entrer',
+    ro: 'Intră',
+    pl: 'Wejdź',
+    he: 'כניסה',
+    es: 'Entrar',
+  },
+  ymSuite: {
+    el: 'Yacht Management Suite',
+    en: 'Yacht Management Suite',
+    it: 'Yacht Management Suite',
+    de: 'Yacht Management Suite',
+    ru: 'Yacht Management Suite',
+    fr: 'Yacht Management Suite',
+    ro: 'Yacht Management Suite',
+    pl: 'Yacht Management Suite',
+    he: 'Yacht Management Suite',
+    es: 'Yacht Management Suite',
+  },
+  digitalCheckIn: {
+    el: 'Ψηφιακό Σύστημα Check-In',
+    en: 'Digital Check-In System',
+    it: 'Sistema Check-In Digitale',
+    de: 'Digitales Check-In-System',
+    ru: 'Цифровая система регистрации',
+    fr: 'Système de Check-In Numérique',
+    ro: 'Sistem Digital de Check-In',
+    pl: 'Cyfrowy System Check-In',
+    he: 'מערכת צ\'ק-אין דיגיטלית',
+    es: 'Sistema de Check-In Digital',
+  },
+  alreadyHaveAccount: {
+    el: 'Έχεις ήδη λογαριασμό;',
+    en: 'Already have an account?',
+    it: 'Hai già un account?',
+    de: 'Hast du bereits ein Konto?',
+    ru: 'Уже есть аккаунт?',
+    fr: 'Vous avez déjà un compte?',
+    ro: 'Ai deja un cont?',
+    pl: 'Masz już konto?',
+    he: 'כבר יש לך חשבון?',
+    es: '¿Ya tienes una cuenta?',
+  },
+  loginBtn: {
+    el: 'Σύνδεση',
+    en: 'Login',
+    it: 'Accedi',
+    de: 'Anmelden',
+    ru: 'Войти',
+    fr: 'Connexion',
+    ro: 'Autentificare',
+    pl: 'Zaloguj',
+    he: 'התחבר',
+    es: 'Iniciar Sesión',
+  },
+  newToSuite: {
+    el: 'Νέος στο Yacht Management Suite;',
+    en: 'New to Yacht Management Suite?',
+    it: 'Nuovo su Yacht Management Suite?',
+    de: 'Neu bei Yacht Management Suite?',
+    ru: 'Новичок в Yacht Management Suite?',
+    fr: 'Nouveau sur Yacht Management Suite?',
+    ro: 'Nou pe Yacht Management Suite?',
+    pl: 'Nowy w Yacht Management Suite?',
+    he: 'חדש ב-Yacht Management Suite?',
+    es: '¿Nuevo en Yacht Management Suite?',
+  },
+  createAccountBtn: {
+    el: 'Δημιουργία Λογαριασμού',
+    en: 'Create an account',
+    it: 'Crea un account',
+    de: 'Konto erstellen',
+    ru: 'Создать аккаунт',
+    fr: 'Créer un compte',
+    ro: 'Creează un cont',
+    pl: 'Utwórz konto',
+    he: 'צור חשבון',
+    es: 'Crear una cuenta',
   },
   codeLabel: {
     el: 'Εισάγετε τον 6ψήφιο κωδικό',
@@ -437,7 +523,7 @@ const GDPR_SECTION_TITLES: Record<string, { t1: string; t2: string; t3: string }
 const styles: Record<string, React.CSSProperties> = {
   page: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #1e3f62 0%, #2d5a8a 40%, #4da8da 100%)',
+    background: 'linear-gradient(180deg, #6bb6f5 0%, #1e90ff 50%, #87ceeb 100%)',
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     color: '#fff',
     display: 'flex',
@@ -655,6 +741,7 @@ const GatePage: React.FC = () => {
     return 'en';
   });
   const [step, setStep] = useState<Step>('landing');
+  const [isLoginMode, setIsLoginMode] = useState(false); // true = Login flow (Enter btn), false = Create (Send Code btn)
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [fullName, setFullName] = useState('');
@@ -696,8 +783,40 @@ const GatePage: React.FC = () => {
 
   const sendCode = async () => {
     const val = email.trim();
-    if (!val) { setError('Please enter email or charter number'); return; }
-    // Check if booking number (no @)
+    if (!val) { setError(lang === 'el' ? 'Εισάγετε email, booking ή κωδικό staff' : 'Please enter email, booking code, or staff code'); return; }
+
+    // ===================== STAFF CODE DETECTION =====================
+    if (!val.includes('@') && !/^\d+$/.test(val) && !/^CHARTER/i.test(val)) {
+      setLoading(true); setError('');
+      try {
+        const staffResp = await fetch(`${API_BASE}/employees.php`);
+        const staffData = await staffResp.json();
+        const employees = Array.isArray(staffData) ? staffData : (staffData.employees || []);
+        const found = employees.find((e: any) => e.code && e.code.toUpperCase() === val.toUpperCase() && e.enabled);
+        if (found) {
+          if (!isLoginMode) {
+            // Create mode — staff already exists, must use Login
+            setError(lang === 'el' ? 'Staff πρέπει να χρησιμοποιεί Login (έχετε ήδη κωδικό)' : 'Staff should use Login (you already have an account)');
+            setLoading(false);
+            return;
+          }
+          // Login mode — proceed with staff auth
+          const user = { code: found.code, name: found.name, role: found.role, permissions: found.permissions, loginTime: new Date().toISOString() };
+          sessionStorage.setItem('auth_current_user', JSON.stringify(user));
+          localStorage.setItem('employeeCode', found.code);
+          sessionStorage.setItem('yacht_lang', lang);
+          if (found.role === 'OWNER') {
+            window.location.href = '/owner-dashboard';
+          } else {
+            window.location.href = '/home';
+          }
+          return;
+        }
+      } catch (e) { /* fall through to booking logic */ }
+      setLoading(false);
+    }
+
+    // ===================== BOOKING NUMBER PATH (no @) =====================
     if (!val.includes('@')) {
       setLoading(true); setError('');
       try {
@@ -707,19 +826,47 @@ const GatePage: React.FC = () => {
           body: JSON.stringify({action:'check_booking', booking_number: bn})
         });
         const data = await resp.json();
+
+        if (!isLoginMode) {
+          // ===== CREATE MODE =====
+          if (data.success && data.has_gdpr) {
+            setError(lang === 'el' ? 'Αυτό το booking έχει ήδη account. Χρησιμοποιήστε Login' : 'This booking already has an account. Please use Login');
+            setLoading(false);
+            return;
+          }
+          if (data.success) {
+            // Booking exists but no GDPR → allow registration
+            setBookingNumber(bn);
+            setError(lang === 'el' ? 'Εισάγετε email για εγγραφή σε αυτό το booking' : 'Enter your email to register for this booking');
+            setLoading(false);
+            return;
+          }
+          setError(lang === 'el' ? 'Μη έγκυρος αριθμός booking' : 'Invalid booking number');
+          setLoading(false);
+          return;
+        }
+
+        // ===== LOGIN MODE =====
         if (data.success && data.has_gdpr) {
           sessionStorage.setItem('yacht_lang', lang);
           window.location.href = '/home?booking=' + encodeURIComponent(bn);
           return;
-        } else {
-          setBookingNumber(bn);
-          setError(lang === 'el' ? 'Πρώτη φορά; Εισάγετε email για εγγραφή' : 'First time? Enter your email to register');
+        }
+        if (data.success) {
+          // Booking exists but no account yet
+          setError(lang === 'el' ? 'Το booking δεν έχει ακόμα account. Χρησιμοποιήστε Create an account' : 'This booking has no account yet. Please use Create an account');
           setLoading(false);
           return;
         }
+        setError(lang === 'el' ? 'Το booking δεν βρέθηκε' : 'Booking not found');
+        setLoading(false);
+        return;
       } catch(e) { setError('Network error'); setLoading(false); return; }
     }
-    // Check if returning user with GDPR
+
+    // ===================== EMAIL PATH =====================
+    // Check if user exists in gdpr_consents
+    let gdprExists = false;
     try {
         const gdprResp = await fetch(`${API_BASE}/verify-email.php`, {
             method: 'POST',
@@ -727,32 +874,45 @@ const GatePage: React.FC = () => {
             body: JSON.stringify({ action: 'check_gdpr', email: email.toLowerCase().trim() }),
         });
         const gdprData = await gdprResp.json();
-        if (gdprData.success && gdprData.has_gdpr) {
-            setHasGdpr(true);
-            setStep('booking');
-            setLoading(false);
-            return;
-        }
+        gdprExists = gdprData.success && gdprData.has_gdpr;
     } catch (e) { console.error('check_gdpr error', e); }
-    setLoading(true);
-    setError('');
-    try {
-      const resp = await fetch(`${API_BASE}/verify-email.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send_code', email: email.toLowerCase().trim() }),
-      });
-      const data = await resp.json();
-      if (data.success) {
-        setSuccess(t('codeSent'));
-        setStep('verify');
-      } else {
-        setError(data.error || 'Failed to send code');
+
+    if (!isLoginMode) {
+      // ===== CREATE MODE =====
+      if (gdprExists) {
+        setError(lang === 'el' ? 'Αυτό το email είναι ήδη εγγεγραμμένο. Χρησιμοποιήστε Login' : 'You already have an account. Please use Login');
+        return;
       }
-    } catch (e) {
-      setError('Network error');
+      // New user → send verification code
+      setLoading(true); setError('');
+      try {
+        const resp = await fetch(`${API_BASE}/verify-email.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'send_code', email: email.toLowerCase().trim() }),
+        });
+        const data = await resp.json();
+        if (data.success) {
+          setSuccess(t('codeSent'));
+          setStep('verify');
+        } else {
+          setError(data.error || 'Failed to send code');
+        }
+      } catch (e) {
+        setError('Network error');
+      }
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    // ===== LOGIN MODE =====
+    if (gdprExists) {
+      setHasGdpr(true);
+      setStep('booking');
+      return;
+    }
+    // Email doesn't have GDPR → Login cannot proceed
+    setError(lang === 'el' ? 'Το email δεν βρέθηκε. Χρησιμοποιήστε Create an account' : 'Account not found. Please use Create an account');
   };
 
   const verifyCode = async () => {
@@ -1069,49 +1229,119 @@ const GatePage: React.FC = () => {
 
   const isRtl = lang === 'he';
 
+  // 🔥 NEW LANDING DESIGN (Perfect Body style)
+  if (step === 'landing') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(180deg, #6bb6f5 0%, #1e90ff 50%, #87ceeb 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        direction: isRtl ? 'rtl' : 'ltr' as any,
+      }}>
+        {/* Top-right language selector */}
+        <div style={{ padding: '16px 20px', display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={styles.langBar}>
+            {LANGUAGES.map((l) => (
+              <button
+                key={l.code}
+                style={{ ...(lang === l.code ? styles.langBtnActive : styles.langBtn), padding: '6px 8px', display: 'inline-flex', alignItems: 'center' }}
+                onClick={() => setLang(l.code)}
+                title={l.name}
+              >
+                <img src={flagImg(l.country)} alt={l.code} style={{ width: 24, height: 18, borderRadius: 2 }} />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Center hero */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 24px', textAlign: 'center' as const }}>
+          <div style={{ fontSize: '88px', marginBottom: '24px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.2))' }}>⚓</div>
+          <h1 style={{ fontSize: 'clamp(32px, 7vw, 52px)', fontWeight: 'bold', color: '#ffffff', margin: '0 0 16px 0', textShadow: '0 2px 12px rgba(0,0,0,0.25)', letterSpacing: '0.5px', lineHeight: 1.1 }}>
+            {t('ymSuite')}
+          </h1>
+          <p style={{ fontSize: 'clamp(16px, 3.5vw, 22px)', color: '#ffffff', opacity: 0.95, margin: 0, textShadow: '0 1px 6px rgba(0,0,0,0.15)' }}>
+            {t('digitalCheckIn')}
+          </p>
+        </div>
+
+        {/* Bottom 2 buttons */}
+        <div style={{ padding: '0 20px 40px', maxWidth: '520px', width: '100%', alignSelf: 'center', boxSizing: 'border-box' as const }}>
+          {/* WHITE button — Login (existing users) */}
+          <button
+            onClick={() => { setError(''); setSuccess(''); setIsLoginMode(true); setStep('email'); }}
+            style={{
+              width: '100%',
+              padding: '20px',
+              background: '#ffffff',
+              border: 'none',
+              borderRadius: '16px',
+              marginBottom: '14px',
+              cursor: 'pointer',
+              boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.18)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12)'; }}
+          >
+            <div style={{ color: '#1e90ff', fontSize: '14px', marginBottom: '4px' }}>{t('alreadyHaveAccount')}</div>
+            <div style={{ color: '#1e90ff', fontSize: '22px', fontWeight: 'bold' }}>{t('loginBtn')}</div>
+          </button>
+
+          {/* BLUE button — Create account (new users) */}
+          <button
+            onClick={() => { setError(''); setSuccess(''); setIsLoginMode(false); setStep('email'); }}
+            style={{
+              width: '100%',
+              padding: '20px',
+              background: 'linear-gradient(135deg, #1e90ff 0%, #0070d9 100%)',
+              border: 'none',
+              borderRadius: '16px',
+              cursor: 'pointer',
+              boxShadow: '0 6px 20px rgba(30,144,255,0.4)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(30,144,255,0.5)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(30,144,255,0.4)'; }}
+          >
+            <div style={{ color: '#ffffff', fontSize: '14px', marginBottom: '4px', opacity: 0.92 }}>{t('newToSuite')}</div>
+            <div style={{ color: '#ffffff', fontSize: '22px', fontWeight: 'bold' }}>{t('createAccountBtn')}</div>
+          </button>
+
+          {/* User Guide link */}
+          <div style={{ textAlign: 'center', marginTop: '20px' }}>
+            <button
+              onClick={() => window.location.href = `/guide?lang=${lang}`}
+              style={{
+                background: 'rgba(255,255,255,0.18)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: '20px',
+                padding: '8px 20px',
+                color: '#ffffff',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              📖 {t('userGuide')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ ...styles.page, direction: isRtl ? 'rtl' : 'ltr' }}>
-      {/* HEADER */}
-      <div style={styles.header}>
+      {/* Simple top bar for non-landing steps (logo only, no flags) */}
+      <div style={{ width: '100%', padding: '16px 24px', display: 'flex', alignItems: 'center' }}>
         <div style={styles.logo}>
           ⛵ <span>Tailwind Yachting</span>
         </div>
-        <div style={styles.langBar}>
-          {LANGUAGES.map((l) => (
-            <button
-              key={l.code}
-              style={lang === l.code ? styles.langBtnActive : styles.langBtn}
-              onClick={() => setLang(l.code)}
-              title={l.name}
-            >
-              {l.flag}
-            </button>
-          ))}
-        </div>
       </div>
-
-        {/* USER GUIDE BUTTON */}
-        <div style={{ textAlign: 'center', margin: '20px 0' }}>
-          <button
-            style={{
-              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-              border: 'none',
-              borderRadius: '25px',
-              padding: '12px 24px',
-              color: 'white',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
-              transition: 'all 0.3s ease'
-            }}
-            onClick={() => window.location.href = `/guide?lang=${lang}`}
-            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0px)'}
-          >
-            📖 {t('userGuide')}
-          </button>
-        </div>
 
       {/* HERO */}
       <div style={styles.heroSection}>
@@ -1150,21 +1380,31 @@ const GatePage: React.FC = () => {
             </button>
             <div style={styles.cardTitle}>{t('emailLabel')}</div>
             <div style={{ marginBottom: '20px' }} />
-            <input
-              style={styles.input}
-              type="email"
-              placeholder="email@example.com / 1000"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendCode()}
-              autoFocus
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{ ...styles.input, paddingRight: '50px' }}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="email / charter # / staff code"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendCode()}
+                autoFocus
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#666' }}
+              >
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
             <button
               style={{ ...styles.btn, ...(loading ? styles.btnDisabled : {}) }}
               onClick={sendCode}
               disabled={loading}
             >
-              {loading ? t('processing') : t('sendCode')}
+              {loading ? t('processing') : (isLoginMode ? t('enterBtn') : t('sendCode'))}
             </button>
           </>
         )}

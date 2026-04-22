@@ -391,10 +391,10 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
     setDiversImageUploaded(false);
     setDiversReportFile(null);
     if (mode === 'out') {
-      // 🔥 INDEPENDENCE FIX: reset BOTH inOk (check-in carry-over) AND out on switch to check-out
-      setItems(prev => prev.map(it => ({ ...it, inOk: false, out: null })));
-      setHullItems(prev => prev.map(it => ({ ...it, inOk: false, out: null })));
-      setDinghyItems(prev => prev.map(it => ({ ...it, inOk: false, out: null })));
+      // Reset out field on switch to check-out (inOk inherits from check-in for reference column)
+      setItems(prev => prev.map(it => ({ ...it, out: null })));
+      setHullItems(prev => prev.map(it => ({ ...it, out: null })));
+      setDinghyItems(prev => prev.map(it => ({ ...it, out: null })));
     }
   }, [mode]);
 
@@ -438,14 +438,14 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
             // If we have current mode items, merge inOk from check-in
             if (currentItems && checkInItemsData) {
               return currentItems.map(item => {
-                // 🔥 INDEPENDENCE FIX: do NOT inherit inOk from check-in
-                return { ...item, inOk: false };
+                const checkInItem = checkInItemsData.find(ci => ci.key === item.key);
+                return { ...item, inOk: checkInItem?.inOk || item.inOk || false };
               });
             }
 
-            // If only check-in items exist (starting checkout), use them as base — but reset inOk too
+            // If only check-in items exist (starting checkout), use them as base — preserve inOk for reference
             if (checkInItemsData) {
-              return checkInItemsData.map(item => ({ ...item, inOk: false, out: null }));
+              return checkInItemsData.map(item => ({ ...item, out: null }));
             }
 
             return currentItems;
@@ -480,10 +480,10 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
             } else if (mode === 'out' && (checkInItems || checkInHullItems || checkInDinghyItems)) {
               // No check-out data yet, but we have check-in data - use it as starting point
               console.log('🔄 Using check-in data as base for check-out');
-              // 🔥 INDEPENDENCE FIX: reset inOk AND out — check-out starts clean
-              if (checkInItems) setItems(checkInItems.map(item => ({ ...item, inOk: false, out: null })));
-              if (checkInHullItems) setHullItems(checkInHullItems.map(item => ({ ...item, inOk: false, out: null })));
-              if (checkInDinghyItems) setDinghyItems(checkInDinghyItems.map(item => ({ ...item, inOk: false, out: null })));
+              // inOk inherits from check-in (for Check-IN read-only reference column)
+              if (checkInItems) setItems(checkInItems.map(item => ({ ...item, out: null })));
+              if (checkInHullItems) setHullItems(checkInHullItems.map(item => ({ ...item, out: null })));
+              if (checkInDinghyItems) setDinghyItems(checkInDinghyItems.map(item => ({ ...item, out: null })));
             }
           }
         } catch (error) {
