@@ -285,6 +285,52 @@ export default function CharterAgreementPage() {
     loadBookingFromAPI();
   }, [bookingCode]);
 
+  // 🔥 MOBILE COLLAPSIBLE SECTIONS — only on ≤767px
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    if (!mq.matches) return;
+    const cleanup: Array<() => void> = [];
+    const setup = () => {
+      const sections = document.querySelectorAll('.ca-section');
+      sections.forEach((sec: any) => {
+        if (sec.dataset.caInit === '1') return;
+        sec.dataset.caInit = '1';
+        const h2 = sec.querySelector('h2');
+        if (!h2) return;
+        // Style h2 as clickable header
+        h2.style.cursor = 'pointer';
+        h2.style.minHeight = '44px';
+        h2.style.display = 'flex';
+        h2.style.alignItems = 'center';
+        h2.style.justifyContent = 'space-between';
+        h2.style.userSelect = 'none';
+        // Add chevron
+        if (!h2.querySelector('.ca-chevron')) {
+          const chev = document.createElement('span');
+          chev.className = 'ca-chevron';
+          chev.textContent = '▶';
+          chev.style.cssText = 'margin-left:auto;transition:transform 0.3s;font-size:16px;color:#6b7280;flex-shrink:0;';
+          h2.appendChild(chev);
+        }
+        const handler = () => {
+          sec.classList.toggle('ca-open');
+          const chev: any = h2.querySelector('.ca-chevron');
+          if (chev) chev.style.transform = sec.classList.contains('ca-open') ? 'rotate(90deg)' : 'rotate(0deg)';
+        };
+        h2.addEventListener('click', handler);
+        cleanup.push(() => h2.removeEventListener('click', handler));
+      });
+    };
+    // Setup after small delay to let DOM settle
+    const t1 = setTimeout(setup, 100);
+    const t2 = setTimeout(setup, 500);
+    const t3 = setTimeout(setup, 1500);
+    return () => {
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
+      cleanup.forEach(fn => fn());
+    };
+  }, [bookingCode, chartererData, invitations]);
+
   // Phase 6: Crew invitations handlers
   const loadInvitations = async (bkCode: string) => {
     if (!bkCode) return;
@@ -1820,6 +1866,8 @@ if (!skipperLicense) {
   };
 
   return (
+    <>
+      <style>{}</style>
     <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-slate-200 p-6">
       
       <header className="bg-white shadow-md rounded-2xl p-6 mb-6">
@@ -1878,7 +1926,7 @@ if (!skipperLicense) {
       </header>
 
       {!bookingData ? (
-        <div className="bg-white rounded-2xl p-8 shadow-lg text-center">
+        <div className="bg-white rounded-2xl p-8 shadow-lg text-center ca-section">
           <div className="text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
             {t.ca_noBookingFound}
@@ -1896,7 +1944,7 @@ if (!skipperLicense) {
       ) : (
         <div className="max-w-4xl mx-auto space-y-6">
 
-          <div className="bg-white rounded-2xl p-6 shadow-lg">
+          <div className="bg-white rounded-2xl p-6 shadow-lg ca-section">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -1928,7 +1976,7 @@ if (!skipperLicense) {
 
           
           {/* Charter Party & Crew List Downloads */}
-          <div className="bg-white rounded-2xl p-6 shadow-lg">
+          <div className="bg-white rounded-2xl p-6 shadow-lg ca-section">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-2">
               <span className="text-2xl">📋</span>
               {t.ca_documents}
@@ -1956,7 +2004,7 @@ if (!skipperLicense) {
             </p>
           </div>
 
-<div className="bg-white rounded-2xl p-6 shadow-lg">
+<div className="bg-white rounded-2xl p-6 shadow-lg ca-section">
             {/* 🔥 Financial Summary Section */}
             {bookingData.charterAmount && (
               <div className="mt-4 bg-gradient-to-br from-slate-800 to-gray-900 rounded-xl p-6 text-white">
@@ -2019,7 +2067,7 @@ if (!skipperLicense) {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-lg">
+          <div className="bg-white rounded-2xl p-6 shadow-lg ca-section">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
               <span className="text-2xl">👥</span>
   {t.ca_charterParty}
@@ -2175,7 +2223,7 @@ if (!skipperLicense) {
         </div>
 
         {/* Phase 6: Invite Crew/Skipper Section */}
-        <div className='bg-white rounded-2xl p-6 shadow-lg'>
+        <div className='bg-white rounded-2xl p-6 shadow-lg ca-section'>
           <h2 className='text-xl font-bold text-gray-800 flex items-center gap-2 mb-4'>
             <span className='text-2xl'>📧</span>
             {t.ca_inviteTitle}
@@ -2242,7 +2290,7 @@ if (!skipperLicense) {
 
         
 {/* 👥 Crew List section */}
-        <div className="bg-white rounded-2xl p-6 shadow-lg">
+        <div className="bg-white rounded-2xl p-6 shadow-lg ca-section">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
             <span className="text-2xl">👥</span>
             {t.ca_crewList}
@@ -2366,7 +2414,7 @@ if (!skipperLicense) {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 shadow-lg">
+          <div className="bg-white rounded-2xl p-6 shadow-lg ca-section">
             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
               <span className="text-2xl">📸</span>
               {t.ca_skipperLicense}
@@ -2454,7 +2502,7 @@ if (!skipperLicense) {
           </div>
 
           {/* Charter Party Scan Upload */}
-        <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-md p-6 mb-6 ca-section">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
             <span className="text-2xl">📋</span>
             {t.ca_charterPartyScanTitle}
@@ -2500,7 +2548,7 @@ if (!skipperLicense) {
         </div>
 
         {/* Crew List Scan Upload */}
-        <div className="bg-white rounded-2xl shadow-md p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-md p-6 mb-6 ca-section">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-4">
             <span className="text-2xl">👥</span>
             {t.ca_crewListScanTitle}
@@ -2562,5 +2610,6 @@ if (!skipperLicense) {
         </div>
       )}
     </div>
+    </>
   );
 }

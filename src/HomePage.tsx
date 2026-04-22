@@ -1103,7 +1103,7 @@ export default function HomePage() {
 
         {/* Footer */}
         <div style={styles.footer}>
-          © 2026 Yacht Management Suite v5.3<br />
+          © 2026 Yacht Management Suite v5.4<br />
           All rights reserved
         </div>
       </div>

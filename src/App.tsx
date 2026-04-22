@@ -114,7 +114,7 @@ const NavigationWrapper: React.FC<{ pageNum: number; children: React.ReactNode }
   );
 };
 
-const APP_VERSION = '5.3';
+const APP_VERSION = '5.4';
 
 function App() {
 
