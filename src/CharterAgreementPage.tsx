@@ -2545,16 +2545,16 @@ if (!skipperLicense) {
           </div>
         </div>
 
-        <div className="flex gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <button
               onClick={() => navigate('/')}
-              className="flex-1 px-6 py-4 bg-gray-600 text-white rounded-lg font-bold text-lg hover:bg-gray-700 transition-colors"
+              className="px-6 py-4 bg-gray-600 text-white rounded-lg font-bold text-lg hover:bg-gray-700 transition-colors min-h-[48px]"
             >
               ← {t.ca_backToHome}
             </button>
             <button
               onClick={handleSubmit}
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-bold text-lg hover:from-green-700 hover:to-green-800 transition-all shadow-lg"
+              className="px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-bold text-lg hover:from-green-700 hover:to-green-800 transition-all shadow-lg min-h-[48px]"
             >
               ✅ {t.ca_submitAllDocs}
             </button>

@@ -168,12 +168,12 @@ export default function CrewInviteForm() {
             style={{ width: '100%', height: 150, border: '1px solid #e5e7eb', borderRadius: 4, touchAction: 'none', cursor: 'crosshair' }}
             onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
             onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw} />
-          <button type='button' onClick={clearSig} style={{ marginTop: 8, padding: '6px 16px', background: '#e5e7eb', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>Clear Signature</button>
+          <button type='button' onClick={clearSig} style={{ marginTop: 8, padding: '10px 20px', minHeight: 44, background: '#e5e7eb', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}>Clear Signature</button>
           {signatureData && <span style={{ marginLeft: 10, color: '#059669', fontSize: 13 }}>Signed</span>}
         </div>
 
         <button onClick={handleSubmit} disabled={submitting}
-          style={{ width: '100%', marginTop: 24, padding: '14px 20px', background: submitting ? '#9ca3af' : 'linear-gradient(135deg,#059669,#10b981)', color: 'white', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}>
+          style={{ width: '100%', marginTop: 24, padding: '16px 20px', minHeight: 48, background: submitting ? '#9ca3af' : 'linear-gradient(135deg,#059669,#10b981)', color: 'white', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}>
           {submitting ? 'Submitting...' : 'Submit Details'}
         </button>
 

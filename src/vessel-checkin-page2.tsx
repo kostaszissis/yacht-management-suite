@@ -1324,31 +1324,31 @@ export default function Page2({ onNavigate }: { onNavigate?: (direction: 'next' 
           <SignatureBox key={mode + '-' + currentBookingNumber} brand={brand} lang={lang} onSignChange={setSignatureDone} onImageChange={setSignatureImage} initialImage={null} currentBookingNumber={currentBookingNumber} mode={mode} />
         </div>
 
-        <div className="mt-6 flex flex-wrap justify-between gap-3">
+        <div className="mt-6 grid grid-cols-2 md:flex md:flex-wrap md:justify-between gap-2 md:gap-3">
           <button type="button" onClick={handlePrevious}
-            className="px-5 py-2.5 rounded transition-colors font-semibold"
+            className="px-5 py-3 rounded transition-colors font-semibold min-h-[44px] col-span-2 md:col-span-1"
             style={{ background: "#6B7280", color: "#fff" }}>
             ← {t.prev}
           </button>
           
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-3 col-span-2 md:col-span-1">
             <button type="button" onClick={handleSaveDraft}
-              className="px-5 py-2.5 rounded transition-colors font-semibold"
+              className="px-5 py-3 rounded transition-colors font-semibold min-h-[44px]"
               style={{ background: "#4B5563", color: "#fff" }}>
               {t.save}
             </button>
             <button type="button" onClick={handleClearForm}
-              className="px-5 py-2.5 rounded border-2 transition-colors font-semibold bg-white"
+              className="px-5 py-3 rounded border-2 transition-colors font-semibold bg-white min-h-[44px]"
               style={{ borderColor: brand.blue, color: brand.blue }}>
               {t.clear}
             </button>
             <button type="button" onClick={handleGeneratePDF}
-              className="px-5 py-2.5 rounded font-semibold transition-colors shadow-md"
+              className="px-5 py-3 rounded font-semibold transition-colors shadow-md min-h-[44px]"
               style={{ background: "#DC2626", color: "#fff" }}>
               📄 {t.pdf}
             </button>
             <button type="button" onClick={handleNext}
-              className="px-5 py-2.5 rounded font-semibold transition-colors shadow-md"
+              className="px-5 py-3 rounded font-semibold transition-colors shadow-md min-h-[44px]"
               style={{ background: brand.blue, color: "#fff" }}>
               {t.next} →
             </button>
